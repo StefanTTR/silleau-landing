@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SILLEAU — Revenue Optimization Systems</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0c1118;
+      --fg:#e8e6e3;
+      --muted:#9aa4af;
+      --muted2:#7f8a96;
+      --line:#1a1f27;
+      --line2:rgba(232,230,227,.10);
+      --btn:#e8e6e3;
+      --btnText:#0c1118;
+      --serif:'Playfair Display', serif;
+      --sans:'Inter', sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6}
+    .container{width:90%;max-width:1100px;margin:0 auto}
+    header{padding:44px 0;display:flex;justify-content:space-between;align-items:center}
+    .logo{font-family:var(--serif);font-size:22px;letter-spacing:2px}
+    .contact-link{color:var(--muted2);text-decoration:none;font-size:14px;letter-spacing:2px}
+    .contact-link:hover{color:var(--fg)}
+    .section{padding:150px 0}
+    .kicker{
+      letter-spacing:4px;
+      font-size:12px;
+      color:var(--muted2);
+      text-transform:uppercase;
+      display:block;
+      margin-bottom:18px;
+    }
+
+    /* HERO */
+    .hero{padding:170px 0 170px;text-align:center}
+    .hero small{letter-spacing:4px;font-size:12px;color:var(--muted2);text-transform:uppercase}
+    .hero h1{
+      font-family:var(--serif);
+      font-size:56px;
+      font-weight:500;
+      margin:28px 0 18px;
+      line-height:1.08;
+    }
+    .hero h1 .line{display:block}
+    .hero h1 em{font-style:italic;font-weight:500}
+    .divider{width:520px;max-width:80%;height:1px;background:var(--line2);margin:24px auto}
+    .hero p{color:var(--muted);max-width:680px;margin:0 auto 40px;font-size:16px}
+    .btn{
+      display:inline-block;
+      padding:14px 34px;
+      border:1px solid rgba(232,230,227,.35);
+      text-decoration:none;
+      color:var(--fg);
+      letter-spacing:2px;
+      font-size:13px;
+      transition:all .25s ease;
+      text-transform:uppercase;
+    }
+    .btn:hover{background:var(--btn);color:var(--btnText)}
+    .btn:active{transform:translateY(1px)}
+
+    /* FRAMEWORK title block */
+    .title-block{max-width:980px;margin:0 auto}
+    .title-block h2{
+      font-family:var(--serif);
+      font-size:44px;
+      line-height:1.08;
+      font-weight:500;
+      margin-top:10px;
+    }
+    .title-block h2 em{font-style:italic;font-weight:500}
+    .title-block h2 .line{display:block}
+    .title-underline{
+      width:70px;height:1px;background:rgba(232,230,227,.18);
+      margin-top:18px;
+    }
+
+    /* 4 pillars grid with cross axis */
+    .pillars-wrap{margin-top:80px;position:relative}
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:0;
+      position:relative;
+      border-top:1px solid transparent;
+    }
+    /* axis lines */
+    .grid:before{
+      content:"";
+      position:absolute;
+      left:50%;
+      top:0;
+      bottom:0;
+      width:1px;
+      background:rgba(232,230,227,.10);
+      transform:translateX(-.5px);
+    }
+    .grid:after{
+      content:"";
+      position:absolute;
+      top:50%;
+      left:0;
+      right:0;
+      height:1px;
+      background:rgba(232,230,227,.10);
+      transform:translateY(-.5px);
+    }
+
+    .cell{
+      padding:62px 60px;
+      min-height:220px;
+    }
+    .num{
+      font-family:var(--serif);
+      font-size:44px;
+      color:rgba(232,230,227,.14);
+      letter-spacing:1px;
+      margin-bottom:18px;
+    }
+    .cell h3{
+      font-family:var(--serif);
+      font-size:22px;
+      font-weight:500;
+      margin-bottom:12px;
+    }
+    .cell p{color:var(--muted);font-size:14px;max-width:420px}
+
+    /* STORY */
+    .story{padding-top:170px;padding-bottom:170px}
+    .story .story-inner{max-width:860px;margin:0 auto}
+    .story h2{
+      font-family:var(--serif);
+      font-size:44px;
+      font-weight:500;
+      margin-top:10px;
+      margin-bottom:26px;
+    }
+    .story p{
+      color:var(--muted);
+      margin-bottom:18px;
+      font-size:15.5px;
+      line-height:1.75;
+    }
+    .story p strong{color:var(--fg);font-weight:600}
+
+    .metrics{
+      display:flex;
+      justify-content:center;
+      gap:90px;
+      margin-top:70px;
+      padding-top:48px;
+      border-top:1px solid rgba(232,230,227,.10);
+    }
+    .metric{text-align:center;min-width:160px}
+    .metric .icon{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:26px;height:26px;
+      margin-bottom:8px;
+      opacity:.9;
+    }
+      .metric h3{
+        font-family: var(--serif);
+        font-size: 32px;           /* puțin mai mic */
+        font-weight: 500;
+        margin-bottom: 8px;
+        display: inline-flex;      /* inline-flex pentru centrare perfectă */
+        align-items: center;
+        justify-content: center;
+        gap: 8px;                  /* spațiu mai mic între icon și procent */
+      }
+
+      .metric h3 svg{
+        transform: translateY(1px); /* aliniere optică fină */
+        opacity: .85;
+      }
+
+      .metric p{
+        margin: 0;
+        color: rgba(154,164,175,.75); /* mai discret */
+        text-transform: uppercase;
+        letter-spacing: 2.6px;        /* tracking mai “premium” */
+        font-size: 10.5px;
+      }
+    /* CTA */
+    .cta{
+      text-align:center;
+      padding:170px 0 160px;
+      border-top:1px solid var(--line);
+    }
+    .cta small{
+      letter-spacing:4px;
+      font-size:12px;
+      color:var(--muted2);
+      text-transform:uppercase;
+      display:block;
+      margin-bottom:18px;
+    }
+    .cta h2{
+      font-family:var(--serif);
+      font-size:52px;
+      font-weight:500;
+      line-height:1.08;
+      margin-bottom:18px;
+    }
+    .cta h2 .line{display:block}
+    .cta h2 em{font-style:italic;font-weight:500}
+    .cta p{color:var(--muted);margin-bottom:34px}
+
+    footer{
+      padding:44px 0;
+      text-align:center;
+      font-size:13px;
+      color:#666;
+      border-top:1px solid var(--line);
+    }
+
+    /* Responsive */
+    #framework-anchor{
+      position: relative;
+      top: -60px;
+    }
+      
+    @media (max-width: 980px){
+      .hero{padding:140px 0 140px}
+      .hero h1{font-size:46px}
+      .title-block h2{font-size:38px}
+      .story h2{font-size:38px}
+      .cta h2{font-size:44px}
+      .cell{padding:52px 36px}
+      .metrics{gap:50px}
+    }
+    @media (max-width: 740px){
+      .grid{grid-template-columns:1fr}
+      .grid:before,.grid:after{display:none}
+      .cell{padding:34px 10px}
+      .num{font-size:38px}
+      .hero h1{font-size:38px}
+      .title-block h2{font-size:34px}
+      .story h2{font-size:34px}
+      .cta h2{font-size:38px}
+      .metrics{flex-direction:column;gap:34px}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">SILLEAU</div>
+      <a href="#contact" class="contact-link">CONTACT</a>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero" id="top">
+      <small>REVENUE OPTIMIZATION SYSTEMS</small>
+
+      <h1>
+        <span class="line">Transformăm fiecare</span>
+        <span class="line"><em>programare</em> într-o</span>
+        <span class="line">sursă de venit.</span>
+      </h1>
+
+      <div class="divider"></div>
+
+      <p>
+        SILLEAU Framework este un sistem operațional care optimizează fluxurile de
+        venituri ale afacerilor care au la bază programări recurente.
+      </p>
+
+      <a class="btn" href="#framework-anchor">DESCOPERĂ FRAMEWORK-UL</a>
+    </section>
+
+    <!-- FRAMEWORK -->
+    <section class="section">
+      <div id="framework-anchor"></div>
+      <div class="title-block">
+        <span class="kicker">FRAMEWORK</span>
+        <h2>
+          <span class="line">Cei patru piloni ai</span>
+          <span class="line"><em>optimizării veniturilor</em></span>
+        </h2>
+        <div class="title-underline"></div>
+      </div>
+
+      <div class="pillars-wrap">
+        <div class="grid" aria-label="Cei patru piloni">
+          <div class="cell">
+            <div class="num">01</div>
+            <h3>Programări Inteligente</h3>
+            <p>
+              Un sistem care elimină golurile din agendă și maximizează rata de
+              ocupare. Fiecare slot valorifică o oportunitate care contribuie la
+              îmbunătățirea performanței.
+            </p>
+          </div>
+
+          <div class="cell">
+            <div class="num">02</div>
+            <h3>Remindere Automate</h3>
+            <p>
+              Notificări personalizate trimise cu 24 de ore înainte de programare.
+              Prin urmare, neprezentările sunt reduse și programările pasive devin
+              un angajament activ.
+            </p>
+          </div>
+
+          <div class="cell">
+            <div class="num">03</div>
+            <h3>Bază de Date în Timp Real</h3>
+            <p>
+              Actualizare automată, fără intervenția recepției. Datele clienților
+              sunt întotdeauna corecte și accesibile instant.
+            </p>
+          </div>
+
+          <div class="cell">
+            <div class="num">04</div>
+            <h3>Rechemare Automată</h3>
+            <p>
+              Sistem de follow-up la intervale personalizate în funcție de tipul de
+              serviciu. Clienții revin fără efort.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STORY -->
+    <section class="section story" id="poveste">
+      <div class="story-inner">
+        <span class="kicker">POVESTEA</span>
+        <h2>De ce <em>SILLEAU</em></h2>
+
+        <p>
+          Majoritatea clinicilor și afacerilor bazate pe programări pierd venituri nu
+          din lipsă de clienți, ci din cauza unui sistem ineficient. Programări anulate
+          fără preaviz, clienți care nu mai revin, recepții suprasolicitate cu
+          actualizări manuale.
+        </p>
+
+        <p>
+          <strong style="font-weight:600; opacity:0.85;">SILLEAU</strong> s-a născut din convingerea că fiecare programare poate fi
+          transformată într-un eveniment de venit predictibil. În momentul în care este
+          aplicat corect, Framework-ul poate deveni întreaga infrastructură a afacerii tale.
+        </p>
+
+        <p>
+          Rezultatul? Încasări sporite, echipe mai eficiente și clienți care revin cu încredere.
+        </p>
+
+        <div class="metrics">
+
+          <div class="metric">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v12" stroke="rgba(232,230,227,.7)" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M8 14l4 4 4-4" stroke="rgba(232,230,227,.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              40%
+            </h3>
+            <p>NEPREZENTĂRI REDUSE</p>
+          </div>
+
+          <div class="metric">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 19V7" stroke="rgba(232,230,227,.7)" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M8 10l4-4 4 4" stroke="rgba(232,230,227,.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              25%
+            </h3>
+            <p>RATĂ DE REVENIRE</p>
+          </div>
+
+          <div class="metric">
+            <h3>0</h3>
+            <p>INTERVENȚIE MANUALĂ</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+    <!-- CTA -->
+    <section class="cta" id="contact">
+      <small>URMĂTORUL PAS</small>
+      <h2>
+        <span class="line">Hai să vorbim despre</span>
+        <span class="line"><em>afacerea ta</em></span>
+      </h2>
+
+      <p>
+        Fiecare sistem SILLEAU este construit pe măsura nevoilor tale.<br/>
+        Programează o discuție de analiză, fără obligații.
+      </p>
+
+      <!-- schimbă cu Calendly / Typeform dacă vrei -->
+      <a class="btn" href="mailto:contact@silleau.com">PROGRAMEAZĂ O DISCUȚIE</a>
+    </section>
+
+    <footer>
+      © 2026 SILLEAU — Revenue Optimization Systems
+    </footer>
+  </div>
+</body>
+</html>
