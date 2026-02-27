@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SILLEAU | Confirmare programare</title>
+  <meta name="theme-color" content="#0c1118" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root{--bg:#0c1118;--fg:#e8e6e3;--muted:#9aa4af;--line:rgba(232,230,227,.12);--serif:'Playfair Display',serif;--sans:Inter,system-ui}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6}
+    .wrap{max-width:860px;margin:0 auto;padding:42px 18px}
+    .brand{font-family:var(--serif);letter-spacing:2px}
+    .card{margin-top:46px;border:1px solid var(--line);border-radius:18px;padding:28px;background:rgba(255,255,255,.02)}
+    h1{font-family:var(--serif);font-weight:500;font-size:40px;line-height:1.15}
+    p{margin-top:12px;color:var(--muted)}
+    .row{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap}
+    .btn{display:inline-block;padding:13px 18px;border:1px solid rgba(232,230,227,.35);border-radius:14px;text-decoration:none;color:var(--fg);letter-spacing:2px;font-size:12px;text-transform:uppercase;transition:.2s}
+    .btn:hover{background:var(--fg);color:var(--bg)}
+    .status{margin-top:18px;padding:14px 14px;border-radius:14px;border:1px solid var(--line);color:var(--muted);font-size:14px}
+    .ok{border-color:rgba(34,197,94,.35);color:rgba(232,230,227,.9)}
+    .bad{border-color:rgba(239,68,68,.35);color:rgba(232,230,227,.9)}
+    .tiny{margin-top:14px;color:rgba(154,164,175,.75);font-size:12px}
+    code{color:rgba(232,230,227,.85)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">SILLEAU</div>
+
+    <div class="card">
+      <h1>Confirmare programare</h1>
+      <p>Apasă butonul de mai jos pentru a confirma prezența. Confirmarea se înregistrează instant.</p>
+
+      <div class="row">
+        <a class="btn" id="confirmBtn" href="#">Confirmă programarea</a>
+        <a class="btn" href="mailto:contact@silleau.com">Contact</a>
+      </div>
+
+      <div id="status" class="status">Se pregătește confirmarea…</div>
+      <div class="tiny">Dacă ai ajuns aici din email, linkul conține un <code>booking_id</code> unic.</div>
+    </div>
+  </div>
+
+  <script>
+    // 1) Pune webhook-ul tău Zapier aici (catch hook):
+    const ZAPIER_HOOK_URL = "https://hooks.zapier.com/hooks/catch/26378829/ucjp2kz/";
+
+    const statusEl = document.getElementById("status");
+    const btn = document.getElementById("confirmBtn");
+
+    function setStatus(type, msg){
+      statusEl.className = "status" + (type ? " " + type : "");
+      statusEl.textContent = msg;
+    }
+
+    function getBookingId(){
+      const params = new URLSearchParams(window.location.search);
+      return params.get("booking_id") || "";
+    }
+
+    async function confirmBooking(){
+      const bookingId = getBookingId();
+
+      if(!bookingId){
+        setStatus("bad", "Lipsește booking_id în link. Te rugăm să folosești linkul din email.");
+        btn.style.pointerEvents = "none";
+        btn.style.opacity = "0.5";
+        return;
+      }
+
+      // Setăm butonul să păstreze booking_id dacă userul apasă manual
+      btn.href = `?booking_id=${encodeURIComponent(bookingId)}`;
+
+      setStatus("", "Se confirmă…");
+
+      try{
+        // 2) Trimitem booking_id către Zapier (GET cu query param)
+        const url = `${ZAPIER_HOOK_URL}?booking_id=${encodeURIComponent(bookingId)}&source=silleau_confirm`;
+
+        // "no-cors" evită blocajul CORS (nu putem citi răspunsul, dar Zapier primește requestul)
+        await fetch(url, { method: "GET", mode: "no-cors" });
+
+        // 3) UX: success message
+        setStatus("ok", "Confirmare înregistrată. Mulțumim!");
+        // Opțional: redirect către pagină “reusita”
+        // window.location.href = "/confirmare-reusita";
+      }catch(e){
+        setStatus("bad", "A apărut o problemă la confirmare. Te rugăm să încerci din nou sau să ne contactezi.");
+      }
+    }
+
+    // Auto-confirm la încărcarea paginii (cel mai “magic”)
+    confirmBooking();
+
+    // Dacă vrei confirmare doar la click (nu auto), comentează linia de sus și lasă click:
+    btn.addEventListener("click", function(e){
+      e.preventDefault();
+      confirmBooking();
+    });
+  </script>
+</body>
+</html>
