@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confirmare Programare — SILLEAU</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:   #0A0A0A;
+  --bg2:  #111111;
+  --bg3:  #181818;
+  --bd:   #2A2A2A;
+  --bd2:  #333333;
+  --acc:  #E8E4DC;
+  --acc2: #F0EDE8;
+  --txt:  #F0EDE8;
+  --dim:  #888888;
+  --mut:  #555555;
+  --wh:   #FAFAF8;
+  --err:  #C45C5C;
+  --ok:   #6A9E6A;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.wrap{max-width:560px;width:100%;margin:0 auto;padding:64px 24px 96px;}
+
+/* BRAND */
+.brand{display:inline-flex;align-items:center;gap:10px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:26px;}
+.bline{width:32px;height:1px;background:var(--acc);opacity:.4;}
+.hdr{text-align:center;margin-bottom:44px;animation:sIn .5s ease;}
+
+/* CARD */
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:48px;animation:sIn .4s ease .1s both;}
+
+/* STATE */
+.state{display:none;}
+.state.on{display:block;}
+
+/* LOADING */
+#stateLoading{text-align:center;padding:16px 0;}
+.spinner{
+  width:32px;height:32px;
+  border:1px solid var(--bd2);
+  border-top-color:var(--acc);
+  border-radius:50%;
+  margin:0 auto 28px;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-stitle{
+  font-family:'Cormorant Garamond',serif;
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--acc);margin-bottom:20px;padding-bottom:14px;
+  border-bottom:1px solid var(--bd);
+}
+.load-sub{font-size:13px;font-weight:300;color:var(--mut);line-height:1.7;}
+
+/* SUCCESS */
+#stateSuccess{text-align:center;}
+.smark{
+  width:60px;height:60px;
+  border:1px solid var(--acc);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 24px;
+  animation:scaleIn .5s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+.smark svg{width:20px;height:20px;stroke:var(--acc);stroke-width:1.5;fill:none;}
+@keyframes scaleIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+.sh{
+  font-family:'Cormorant Garamond',serif;
+  font-size:clamp(28px,5vw,38px);
+  font-weight:300;line-height:1.1;
+  letter-spacing:-.02em;
+  color:var(--wh);margin-bottom:10px;
+}
+.sh em{font-style:italic;color:var(--acc);}
+.ssub{font-size:13px;font-weight:300;color:var(--mut);line-height:1.7;max-width:380px;margin:0 auto 32px;}
+
+/* SUMMARY BLOCK */
+.sumblock{background:var(--bg3);border:1px solid var(--bd);border-radius:3px;overflow:hidden;margin-bottom:28px;text-align:left;}
+.stitle{
+  font-family:'Cormorant Garamond',serif;
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--acc);padding:14px 20px;
+  border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;gap:12px;
+}
+.stitle::before{
+  content:attr(data-n);
+  font-size:22px;font-style:italic;font-weight:300;
+  color:var(--bd2);letter-spacing:0;line-height:1;
+}
+.sumrow{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:13px 20px;border-bottom:1px solid var(--bd);}
+.sumrow:last-child{border-bottom:none;}
+.sumkey{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);flex-shrink:0;}
+.sumval{font-size:13px;color:var(--wh);text-align:right;font-weight:300;}
+.sumval.shimmer{
+  width:120px;height:12px;
+  background:linear-gradient(90deg,var(--bd) 25%,var(--bd2) 50%,var(--bd) 75%);
+  background-size:200% 100%;
+  border-radius:2px;
+  animation:shimmer 1.4s infinite;
+}
+@keyframes shimmer{to{background-position:-200% 0}}
+
+/* NOTE */
+.note{
+  font-size:11px;font-weight:300;color:var(--mut);
+  line-height:1.7;
+  padding:14px 18px;
+  border:1px solid var(--bd);
+  border-radius:3px;
+  background:rgba(232,228,220,.02);
+}
+
+/* ALREADY CONFIRMED */
+#stateAlready{text-align:center;}
+.amark{
+  width:60px;height:60px;
+  border:1px solid var(--bd2);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 24px;
+}
+.amark svg{width:20px;height:20px;stroke:var(--dim);stroke-width:1.5;fill:none;}
+
+/* ERROR */
+#stateError{text-align:center;}
+.emark{
+  width:60px;height:60px;
+  border:1px solid var(--err);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 24px;
+}
+.emark svg{width:20px;height:20px;stroke:var(--err);stroke-width:1.5;fill:none;}
+.err-code{
+  font-size:11px;color:var(--mut);font-family:monospace;
+  margin-top:16px;padding:10px 16px;
+  background:var(--bg3);border:1px solid var(--bd);
+  border-radius:3px;display:none;text-align:left;
+}
+
+/* FOOTER */
+.footer{
+  text-align:center;margin-top:32px;
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);
+  animation:sIn .6s ease .3s both;
+}
+.footer span{color:var(--bd2);}
+
+/* ANIMATIONS */
+@keyframes sIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* RESPONSIVE */
+@media(max-width:560px){
+  .card{padding:32px 24px;}
+  .wrap{padding:40px 16px 64px;}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="hdr">
+    <div class="brand">
+      <span class="bline"></span>
+      SILLEAU
+      <span class="bline"></span>
+    </div>
+  </div>
+
+  <div class="card">
+
+    <!-- LOADING -->
+    <div id="stateLoading" class="state on">
+      <div class="spinner"></div>
+      <div class="load-stitle" data-n="">Se procesează</div>
+      <div class="load-sub">Confirmarea dumneavoastră este în curs de procesare.<br>Un moment, vă rugăm.</div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div id="stateSuccess" class="state">
+      <div class="smark">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="sh">Programare <em>confirmată</em></div>
+      <div class="ssub">
+        Mulțumim pentru confirmare. Vă așteptăm la consultație.<br>
+        Veți primi un email de reconfirmare în câteva momente.
+      </div>
+
+      <div class="sumblock">
+        <div class="stitle" data-n="✦">Detalii programare</div>
+        <div class="sumrow">
+          <span class="sumkey">Data</span>
+          <span class="sumval" id="detData"><span class="shimmer"></span></span>
+        </div>
+        <div class="sumrow">
+          <span class="sumkey">Ora</span>
+          <span class="sumval" id="detOra"><span class="shimmer"></span></span>
+        </div>
+        <div class="sumrow">
+          <span class="sumkey">Medic</span>
+          <span class="sumval" id="detMedic"><span class="shimmer"></span></span>
+        </div>
+      </div>
+
+      <div class="note">
+        Doriți să adăugați programarea în calendar? Verificați emailul — veți găsi un link de adăugare automată.
+      </div>
+    </div>
+
+    <!-- ALREADY CONFIRMED -->
+    <div id="stateAlready" class="state" style="text-align:center;">
+      <div class="amark">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="sh" style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;color:var(--wh);margin-bottom:10px;">
+        Deja <em style="font-style:italic;color:var(--acc);">confirmată</em>
+      </div>
+      <div class="ssub">
+        Această programare a fost deja confirmată anterior.<br>
+        Ne vedem la consultație.
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    <div id="stateError" class="state">
+      <div class="emark">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+      <div class="sh" style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;color:var(--wh);margin-bottom:10px;">
+        A apărut o <em style="font-style:italic;color:var(--err);">eroare</em>
+      </div>
+      <div class="ssub">
+        Nu am putut procesa confirmarea.<br>
+        Vă rugăm să contactați clinica direct sau să accesați din nou linkul din email.
+      </div>
+      <div class="err-code" id="errCode"></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    Powered by <span>SILLEAU</span> — Revenue Optimisation Systems
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   CONFIGURARE — înlocuiești doar această valoare
+   ============================================================ */
+var ZAPIER_WEBHOOK = 'https://hooks.zapier.com/hooks/catch/26378829/upzhoxf/';
+
+var DEBUG = false;
+
+/* ============================================================
+   LOGICĂ
+   ============================================================ */
+(function(){
+
+  function setState(id){
+    document.querySelectorAll('.state').forEach(function(el){
+      el.classList.remove('on');
+    });
+    var el = document.getElementById(id);
+    if(el) el.classList.add('on');
+  }
+
+  function setVal(id, val){
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.innerHTML = '';
+    el.textContent = val || '—';
+  }
+
+  function showError(msg){
+    setState('stateError');
+    if(DEBUG && msg){
+      var code = document.getElementById('errCode');
+      code.style.display = 'block';
+      code.textContent = msg;
+    }
+  }
+
+  var params  = new URLSearchParams(window.location.search);
+  var id      = params.get('id');
+  var data    = params.get('data');
+  var ora     = params.get('ora');
+  var medic   = params.get('medic');
+  var status  = params.get('status');
+
+  if(!id){
+    showError('Parametrul "id" lipsește din URL.');
+    return;
+  }
+
+  if(status && status.toLowerCase() === 'confirmat'){
+    setState('stateAlready');
+    return;
+  }
+
+  /* Populează detaliile dacă sunt în URL */
+  if(data)  setVal('detData',  decodeURIComponent(data));
+  if(ora)   setVal('detOra',   decodeURIComponent(ora));
+  if(medic) setVal('detMedic', decodeURIComponent(medic));
+
+  /* Trimite webhook către Zapier */
+  fetch(ZAPIER_WEBHOOK, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      id_programare: id,
+      confirmat_la:  new Date().toISOString(),
+      sursa:         'reminder_email'
+    })
+  })
+  .then(function(){
+    setState('stateSuccess');
+    if(!data)  setVal('detData',  'Vezi emailul de confirmare');
+    if(!ora)   setVal('detOra',   '—');
+    if(!medic) setVal('detMedic', 'Vezi emailul de confirmare');
+  })
+  .catch(function(err){
+    showError(err ? err.toString() : 'Eroare necunoscută');
+  });
+})();
+</script>
+</body>
+</html>

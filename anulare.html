@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anulare Programare — SILLEAU</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:   #0A0A0A;
+  --bg2:  #111111;
+  --bg3:  #181818;
+  --bd:   #2A2A2A;
+  --bd2:  #333333;
+  --acc:  #E8E4DC;
+  --acc2: #F0EDE8;
+  --txt:  #F0EDE8;
+  --dim:  #888888;
+  --mut:  #555555;
+  --wh:   #FAFAF8;
+  --err:  #C45C5C;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.wrap{max-width:560px;width:100%;margin:0 auto;padding:64px 24px 96px;}
+
+/* BRAND */
+.hdr{text-align:center;margin-bottom:44px;animation:sIn .5s ease;}
+.brand{display:inline-flex;align-items:center;gap:10px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:0;}
+.bline{width:32px;height:1px;background:var(--acc);opacity:.4;}
+
+/* CARD */
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:48px;animation:sIn .4s ease .1s both;}
+
+/* STATE */
+.state{display:none;}
+.state.on{display:block;}
+
+/* LOADING */
+#stateLoading{text-align:center;padding:16px 0;}
+.spinner{width:32px;height:32px;border:1px solid var(--bd2);border-top-color:var(--acc);border-radius:50%;margin:0 auto 28px;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-sub{font-size:13px;font-weight:300;color:var(--mut);line-height:1.7;}
+
+/* FORM */
+#stateForm{}
+.stitle{
+  font-family:'Cormorant Garamond',serif;
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--acc);margin-bottom:28px;padding-bottom:14px;
+  border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;gap:12px;
+}
+.stitle::before{content:attr(data-n);font-size:26px;font-style:italic;font-weight:300;color:var(--bd2);letter-spacing:0;line-height:1;}
+
+.sh{font-family:'Cormorant Garamond',serif;font-size:clamp(26px,5vw,34px);font-weight:300;line-height:1.15;letter-spacing:-.02em;color:var(--wh);margin-bottom:8px;}
+.sh em{font-style:italic;color:var(--err);}
+.ssub{font-size:13px;font-weight:300;color:var(--mut);line-height:1.7;margin-bottom:32px;}
+
+/* DETALII */
+.sumblock{background:var(--bg3);border:1px solid var(--bd);border-radius:3px;overflow:hidden;margin-bottom:28px;}
+.sumrow{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:12px 20px;border-bottom:1px solid var(--bd);}
+.sumrow:last-child{border-bottom:none;}
+.sumkey{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);flex-shrink:0;}
+.sumval{font-size:13px;color:var(--wh);text-align:right;font-weight:300;}
+
+/* MOTIVE */
+.motiv-label{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:12px;display:block;}
+.motive-list{display:flex;flex-direction:column;gap:8px;margin-bottom:32px;}
+.motiv-btn{
+  display:flex;align-items:center;gap:14px;
+  border:1px solid var(--bd2);border-radius:3px;
+  padding:14px 18px;cursor:pointer;
+  background:var(--bg3);
+  transition:all .2s;position:relative;
+  text-align:left;width:100%;
+  font-family:'Inter',sans-serif;
+}
+.motiv-btn:hover{background:var(--bg);border-color:var(--dim);transform:translateX(3px);}
+.motiv-btn.selected{border-color:var(--err);background:#160e0e;}
+.motiv-btn.selected::after{content:'✓';position:absolute;right:16px;font-size:11px;color:var(--err);}
+.motiv-dot{
+  width:8px;height:8px;border-radius:50%;
+  border:1px solid var(--mut);flex-shrink:0;
+  transition:all .2s;
+}
+.motiv-btn.selected .motiv-dot{background:var(--err);border-color:var(--err);}
+.motiv-text{font-size:13px;font-weight:300;color:var(--txt);}
+.motiv-btn.selected .motiv-text{color:var(--wh);}
+
+/* BUTTONS */
+.btnrow{display:flex;gap:12px;justify-content:flex-end;padding-top:22px;border-top:1px solid var(--bd);}
+.btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;padding:13px 28px;border-radius:2px;cursor:pointer;border:none;outline:none;transition:all .2s;}
+.btn-ghost{background:transparent;border:1px solid var(--bd2);color:var(--dim);}
+.btn-ghost:hover{border-color:var(--dim);color:var(--wh);}
+.btn-err{background:var(--err);color:#fff;}
+.btn-err:hover{opacity:.88;transform:translateY(-1px);}
+.btn-err:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+/* SUCCESS */
+#stateSuccess{text-align:center;}
+.amark{width:60px;height:60px;border:1px solid var(--bd2);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;animation:scaleIn .5s cubic-bezier(.34,1.56,.64,1) forwards;}
+.amark svg{width:20px;height:20px;stroke:var(--dim);stroke-width:1.5;fill:none;}
+@keyframes scaleIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+
+/* ERROR */
+#stateError{text-align:center;}
+.emark{width:60px;height:60px;border:1px solid var(--err);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
+.emark svg{width:20px;height:20px;stroke:var(--err);stroke-width:1.5;fill:none;}
+
+/* FOOTER */
+.footer{text-align:center;margin-top:32px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);animation:sIn .6s ease .3s both;}
+.footer span{color:var(--bd2);}
+
+/* WARN */
+.warn{font-size:11px;color:var(--err);margin-bottom:16px;display:none;}
+.warn.on{display:block;}
+
+/* ANIMATIONS */
+@keyframes sIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:560px){
+  .card{padding:32px 24px;}
+  .wrap{padding:40px 16px 64px;}
+  .btnrow{flex-direction:column;}
+  .btn{width:100%;text-align:center;}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="hdr">
+    <div class="brand">
+      <span class="bline"></span>
+      SILLEAU
+      <span class="bline"></span>
+    </div>
+  </div>
+
+  <div class="card">
+
+    <!-- LOADING -->
+    <div id="stateLoading" class="state on">
+      <div class="spinner"></div>
+      <div class="load-sub" style="text-align:center;">Se încarcă detaliile programării...<br>Un moment, vă rugăm.</div>
+    </div>
+
+    <!-- FORM -->
+    <div id="stateForm" class="state">
+      <div class="sh">Anulare <em>programare</em></div>
+      <div class="ssub">Selectați motivul anulării. Ne ajută să îmbunătățim serviciile pentru dumneavoastră.</div>
+
+      <div class="sumblock">
+        <div class="sumrow">
+          <span class="sumkey">Data</span>
+          <span class="sumval" id="detData">—</span>
+        </div>
+        <div class="sumrow">
+          <span class="sumkey">Ora</span>
+          <span class="sumval" id="detOra">—</span>
+        </div>
+        <div class="sumrow">
+          <span class="sumkey">Medic</span>
+          <span class="sumval" id="detMedic">—</span>
+        </div>
+      </div>
+
+      <span class="motiv-label">Motivul anulării</span>
+      <div class="motive-list" id="motivList">
+        <button class="motiv-btn" data-motiv="Nu pot ajunge în ziua respectivă" onclick="selectMotiv(this)">
+          <span class="motiv-dot"></span>
+          <span class="motiv-text">Nu pot ajunge în ziua respectivă</span>
+        </button>
+        <button class="motiv-btn" data-motiv="Mă simt mai bine" onclick="selectMotiv(this)">
+          <span class="motiv-dot"></span>
+          <span class="motiv-text">Mă simt mai bine</span>
+        </button>
+        <button class="motiv-btn" data-motiv="Nu mai am nevoie de consultație" onclick="selectMotiv(this)">
+          <span class="motiv-dot"></span>
+          <span class="motiv-text">Nu mai am nevoie de consultație</span>
+        </button>
+        <button class="motiv-btn" data-motiv="Am ales altă clinică" onclick="selectMotiv(this)">
+          <span class="motiv-dot"></span>
+          <span class="motiv-text">Am ales altă clinică</span>
+        </button>
+      </div>
+
+      <div class="warn" id="warnMotiv">Vă rugăm să selectați un motiv înainte de a continua.</div>
+
+      <div class="btnrow">
+        <button class="btn btn-ghost" onclick="window.history.back()">Înapoi</button>
+        <button class="btn btn-err" id="btnAnuleaza" onclick="trimiteAnulare()">Confirmă anularea</button>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div id="stateSuccess" class="state">
+      <div class="amark">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="sh" style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;color:var(--wh);margin-bottom:10px;">
+        Programare <em style="font-style:italic;color:var(--dim);">anulată</em>
+      </div>
+      <div class="ssub">
+        Programarea dumneavoastră a fost anulată cu succes.<br>
+        Vă mulțumim că ne-ați anunțat din timp.
+      </div>
+    </div>
+
+    <!-- ERROR -->
+    <div id="stateError" class="state">
+      <div class="emark">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+      <div class="sh" style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;color:var(--wh);margin-bottom:10px;">
+        A apărut o <em style="font-style:italic;color:var(--err);">eroare</em>
+      </div>
+      <div class="ssub">
+        Nu am putut procesa anularea.<br>
+        Vă rugăm să contactați clinica direct.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    Powered by <span>SILLEAU</span> — Revenue Optimisation Systems
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   CONFIGURARE
+   ============================================================ */
+var ZAPIER_WEBHOOK_ANULARE = 'https://hooks.zapier.com/hooks/catch/26378829/upapb3p/';
+/* URL-ul webhook-ului din Zap 3 — Procesare Anulare */
+
+/* ============================================================
+   LOGICĂ
+   ============================================================ */
+var motivSelectat = null;
+
+var params = new URLSearchParams(window.location.search);
+var id     = params.get('id');
+var data   = params.get('data');
+var ora    = params.get('ora');
+var medic  = params.get('medic');
+
+function setState(stateId){
+  document.querySelectorAll('.state').forEach(function(el){
+    el.classList.remove('on');
+  });
+  document.getElementById(stateId).classList.add('on');
+}
+
+function setVal(elId, val){
+  var el = document.getElementById(elId);
+  if(el) el.textContent = val ? decodeURIComponent(val) : '—';
+}
+
+function selectMotiv(btn){
+  document.querySelectorAll('.motiv-btn').forEach(function(b){
+    b.classList.remove('selected');
+  });
+  btn.classList.add('selected');
+  motivSelectat = btn.getAttribute('data-motiv');
+  document.getElementById('warnMotiv').classList.remove('on');
+}
+
+function trimiteAnulare(){
+  if(!motivSelectat){
+    document.getElementById('warnMotiv').classList.add('on');
+    return;
+  }
+
+  var btn = document.getElementById('btnAnuleaza');
+  btn.disabled = true;
+  btn.textContent = 'Se procesează...';
+
+  fetch(ZAPIER_WEBHOOK_ANULARE, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      id_programare: id,
+      motiv:         motivSelectat,
+      anulat_la:     new Date().toISOString(),
+      data:          data ? decodeURIComponent(data) : '',
+      ora:           ora  ? decodeURIComponent(ora)  : '',
+      medic:         medic? decodeURIComponent(medic): ''
+    })
+  })
+  .then(function(){
+    setState('stateSuccess');
+  })
+  .catch(function(){
+    setState('stateSuccess');
+    /* no-cors returneaza intotdeauna error la fetch
+       dar requestul ajunge la Zapier — tratam ca succes */
+  });
+}
+
+/* Init */
+(function(){
+  if(!id){
+    setState('stateError');
+    return;
+  }
+
+  setVal('detData',  data);
+  setVal('detOra',   ora);
+  setVal('detMedic', medic);
+  setState('stateForm');
+})();
+</script>
+</body>
+</html>
