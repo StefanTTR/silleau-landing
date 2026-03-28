@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ro" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Language" content="ro">
+<meta name="language" content="Romanian">
+<meta name="supported-color-schemes" content="light dark">
+<style>
+:root { color-scheme: light dark; }
+body, table, td, p, span, div { margin:0; padding:0; }
+body { font-family:'Helvetica Neue',Arial,sans-serif; -webkit-text-size-adjust:100%; }
+table { border-collapse:collapse; mso-table-lspace:0; mso-table-rspace:0; }
+
+/* ── LIGHT ───────── */
+.bg-outer    { background-color:#ffffff; }
+.bg-card     { background-color:#ffffff; border:1px solid #E8E4DC; }
+.bg-followup { background-color:#F4F2EE; border:1px solid #E8E4DC; }
+.text-tag    { color:#BBBBBB; }
+.text-title  { color:#111111; }
+.text-greet  { color:#111111; }
+.text-name   { color:#111111; }
+.text-body   { color:#888888; }
+.text-label  { color:#BBBBBB; }
+.text-value  { color:#111111; }
+.text-fu-lbl { color:#BBBBBB; }
+.text-fu-val { color:#333333; }
+.text-note   { color:#CCCCCC; }
+.text-note-em{ color:#888888; }
+.text-foot-n { color:#BBBBBB; }
+.text-foot-s { color:#CCCCCC; }
+.text-brand  { color:#DDDDDD; }
+.border-row  { border-top:1px solid #F0EDE8; border-bottom:1px solid #F0EDE8; }
+.sep         { background-color:#F0EDE8; }
+.border-sec  { border-top:1px solid #F0EDE8; }
+.old-val     { color:#CCCCCC; text-decoration:line-through; }
+a.link-email { color:#999999 !important; text-decoration:underline; text-decoration-style:dotted; }
+
+/* ── DARK ────────── */
+@media (prefers-color-scheme: dark) {
+  .bg-outer    { background-color:#0A0A0A !important; }
+  .bg-card     { background-color:#111111 !important; border:1px solid #2A2A2A !important; }
+  .bg-followup { background-color:#181818 !important; border:1px solid #2A2A2A !important; }
+  .text-tag    { color:#444444 !important; }
+  .text-title  { color:#E8E4DC !important; }
+  .text-greet  { color:#C8C4BC !important; }
+  .text-name   { color:#E8E4DC !important; }
+  .text-body   { color:#666666 !important; }
+  .text-label  { color:#444444 !important; }
+  .text-value  { color:#C8C4BC !important; }
+  .text-fu-lbl { color:#444444 !important; }
+  .text-fu-val { color:#C8C4BC !important; }
+  .text-note   { color:#444444 !important; }
+  .text-note-em{ color:#666666 !important; }
+  .text-foot-n { color:#555555 !important; }
+  .text-foot-s { color:#333333 !important; }
+  .text-brand  { color:#2A2A2A !important; }
+  .border-row  { border-top:1px solid #1E1E1E !important; border-bottom:1px solid #1E1E1E !important; }
+  .sep         { background-color:#1E1E1E !important; }
+  .border-sec  { border-top:1px solid #1E1E1E !important; }
+  .old-val     { color:#333333 !important; }
+  a.link-email { color:#555555 !important; }
+}
+
+/* ── Gmail iOS dark ── */
+[data-ogsc] .bg-outer    { background-color:#0A0A0A !important; }
+[data-ogsc] .bg-card     { background-color:#111111 !important; }
+[data-ogsc] .bg-followup { background-color:#181818 !important; }
+[data-ogsc] .text-tag    { color:#444444 !important; }
+[data-ogsc] .text-title  { color:#E8E4DC !important; }
+[data-ogsc] .text-greet  { color:#C8C4BC !important; }
+[data-ogsc] .text-name   { color:#E8E4DC !important; }
+[data-ogsc] .text-body   { color:#666666 !important; }
+[data-ogsc] .text-label  { color:#444444 !important; }
+[data-ogsc] .text-value  { color:#C8C4BC !important; }
+[data-ogsc] .text-fu-lbl { color:#444444 !important; }
+[data-ogsc] .text-fu-val { color:#C8C4BC !important; }
+[data-ogsc] .text-note   { color:#444444 !important; }
+[data-ogsc] .text-note-em{ color:#666666 !important; }
+[data-ogsc] .border-row  { border-top:1px solid #1E1E1E !important; border-bottom:1px solid #1E1E1E !important; }
+[data-ogsc] .sep         { background-color:#1E1E1E !important; }
+[data-ogsc] .old-val     { color:#333333 !important; }
+[data-ogsc] a.link-email { color:#555555 !important; }
+
+@media only screen and (max-width:600px) {
+  .wrapper   { width:100% !important; }
+  .inner     { padding:28px 20px 0 !important; }
+  .footer-td { padding:16px 20px !important; }
+}
+</style>
+</head>
+<body class="bg-outer" style="margin:0;padding:0;background-color:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" class="bg-outer" style="background-color:#ffffff;">
+<tr><td align="center" style="padding:32px 12px;">
+
+<table class="wrapper bg-card" width="560" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:4px;border:1px solid #E8E4DC;">
+
+  <!-- HEADER -->
+  <tr>
+    <td align="center" class="border-sec" style="padding:36px 44px 28px;border-bottom:1px solid #F0EDE8;">
+      <div class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;margin-bottom:14px;">Confirmare reprogramare</div>
+      <div class="text-title" style="font-size:23px;color:#111111;font-weight:300;font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:-0.3px;">Clinica Alfa</div>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td class="inner" style="padding:36px 44px 0;">
+
+      <!-- SALUT -->
+      <p style="font-size:15px;margin:0 0 6px;font-family:'Helvetica Neue',Arial,sans-serif;">
+        <span class="text-greet" style="color:#111111;">Bună </span><strong class="text-name" style="color:#111111;font-weight:600;">{{=gives["355866768"]["nume"]}}</strong><span class="text-greet" style="color:#111111;">,</span>
+      </p>
+      <p class="text-body" style="font-size:13px;color:#888888;line-height:1.8;margin:0 0 28px;font-family:'Helvetica Neue',Arial,sans-serif;">
+        Programarea dumneavoastră a fost reprogramată cu succes la un loc disponibil mai devreme. Mai jos găsiți noile detalii ale consultației.
+      </p>
+
+      <!-- DETALII NOI -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">
+        <tr>
+          <td colspan="2" style="padding:0 0 10px;">
+            <span class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">Noua programare</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;width:42%;font-family:'Helvetica Neue',Arial,sans-serif;">Medic</td>
+          <td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;font-family:'Helvetica Neue',Arial,sans-serif;">{{=gives["355866769"]["COL$E"]}}</td>
+        </tr>
+        <tr>
+          <td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:'Helvetica Neue',Arial,sans-serif;">Specialitate</td>
+          <td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:'Helvetica Neue',Arial,sans-serif;">{{=gives["355866769"]["COL$F"]}}</td>
+        </tr>
+        <tr>
+          <td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:'Helvetica Neue',Arial,sans-serif;">Serviciu</td>
+          <td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:'Helvetica Neue',Arial,sans-serif;">{{=gives["355866769"]["COL$I"]}}</td>
+        </tr>
+        <tr>
+          <td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:'Helvetica Neue',Arial,sans-serif;">Data</td>
+          <td style="padding:12px 0;text-align:right;border-bottom:1px solid #F0EDE8;">
+            <span class="text-value" style="font-size:13px;color:#111111;font-family:'Helvetica Neue',Arial,sans-serif;">{{=gives["355866768"]["slot_data"]}}</span>
+            &nbsp;
+            <span class="old-val" style="font-size:11px;color:#CCCCCC;text-decoration:line-through;font-family:'Helvetica Neue',Arial,sans-serif;">{{=gives["355866768"]["cur_data"]}}</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:'Helvetica Neue',Arial,sans-serif;">Ora</td>
+          <td style="padding:12px 0;text-align:right;border-bottom:1px solid #F0EDE8;">
+            <span class="text-value" style="font-size:13px;color:#111111;font-family:'Helvetica Neue',Arial,sans-serif;">{{=gives["355866768"]["slot_ora"]}}</span>
+            &nbsp;
+            <span class="old-val" style="font-size:11px;color:#CCCCCC;text-decoration:line-through;font-family:'Helvetica Neue',Arial,sans-serif;">{{=gives["355866768"]["cur_ora"]}}</span>
+          </td>
+        </tr>
+      </table>
+
+      <!-- SEPARATOR -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+        <tr><td class="sep" style="height:1px;background-color:#F0EDE8;font-size:0;line-height:0;">&nbsp;</td></tr>
+      </table>
+
+      <!-- NOTA -->
+      <p class="text-note" style="font-size:12px;color:#CCCCCC;line-height:1.9;margin:0 0 32px;font-family:'Helvetica Neue',Arial,sans-serif;">
+        Vă rugăm să ajungeți cu <span class="text-note-em" style="color:#888888;">10 minute înainte</span> de ora programată. Pentru informații suplimentare contactați-ne la
+        <a href="mailto:adresaclinicii@email.com" class="link-email" style="color:#999999;text-decoration:underline;text-decoration-style:dotted;font-family:'Helvetica Neue',Arial,sans-serif;">adresaclinicii@email.com</a>.
+      </p>
+
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td class="footer-td border-sec" style="padding:20px 44px;border-top:1px solid #F0EDE8;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="vertical-align:middle;">
+            <div class="text-foot-n" style="font-size:12px;color:#BBBBBB;margin-bottom:2px;font-family:'Helvetica Neue',Arial,sans-serif;">Clinica Alfa</div>
+            <div class="text-foot-s" style="font-size:11px;color:#CCCCCC;font-family:'Helvetica Neue',Arial,sans-serif;">
+              <a href="mailto:adresaclinicii@email.com" class="link-email" style="color:#CCCCCC;text-decoration:underline;text-decoration-style:dotted;font-family:'Helvetica Neue',Arial,sans-serif;">adresaclinicii@email.com</a>
+              &nbsp;·&nbsp;
+              Telefon Clinica
+            </div>
+          </td>
+          <td style="text-align:right;vertical-align:middle;">
+            <div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:2px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;margin-bottom:2px;">SILLEAU Framework</div>
+            <div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:1px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">Revenue Optimisation Systems</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+
