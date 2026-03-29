@@ -212,6 +212,12 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(232,228,220,.15);border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite;margin-right:8px;vertical-align:middle;}
 @keyframes sp{to{transform:rotate(360deg)}}
 
+/* OPT-IN LOC MAI DEVREME */
+.opt-slot{margin:14px 0 10px;padding:14px 16px;border:1px solid var(--bd2);border-radius:3px;background:var(--bg3);}
+.opt-slot label{display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:12px;color:var(--mut);line-height:1.6;}
+.opt-slot input[type=checkbox]{margin-top:2px;accent-color:var(--acc);flex-shrink:0;width:14px;height:14px;cursor:pointer;}
+.opt-slot strong{color:var(--wh);font-weight:500;}
+
 /* FOOTER */
 .foot{text-align:center;margin-top:28px;font-size:11px;color:var(--mut);letter-spacing:.06em;line-height:1.9;}
 .foot a{color:var(--mut);text-decoration:none;}
@@ -308,6 +314,12 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
     <div class="sec" id="s4">
       <div class="stitle" data-n="04">Confirmați programarea</div>
       <div class="sumblock" id="sumBlock"></div>
+      <div class="opt-slot">
+        <label>
+          <input type="checkbox" id="chkLoc">
+          <span id="chkLocText"></span>
+        </label>
+      </div>
       <p style="font-size:12px;color:var(--mut);line-height:1.8;margin-bottom:6px;">Prin confirmare sunteți de acord cu <a href="#" style="color:var(--acc)">politica de confidențialitate</a>. Veți primi un e-mail de confirmare și un reminder cu 24h înainte.</p>
       <div class="btnrow">
         <button type="button" class="btn btn-ghost" id="b4p">← Înapoi</button>
@@ -1040,6 +1052,13 @@ function buildSum(){
     ['Data',      df],
     ['Ora',       picSlot],
   ],'sumBlock');
+  /* Checkbox opt-in loc mai devreme */
+  var chkTxt = 'Dori\u021bi s\u0103 fi\u021bi anun\u021bat dac\u0103 se elibereaz\u0103 un loc mai devreme la <strong>'
+    + picDoc.name + '</strong> \u2014 ' + picDoc.spec;
+  if(picMotiv && picMotiv.label) chkTxt += ' \u2014 ' + picMotiv.label;
+  chkTxt += '?';
+  document.getElementById('chkLocText').innerHTML = chkTxt;
+  document.getElementById('chkLoc').checked = false;
 }
 
 /* ─── CONFIRM ──────────────────────────────────── */
@@ -1158,10 +1177,11 @@ function doConfirm(){
         data_programare: ds,
         ora_start:       picSlot,
         ora_sfarsit:     ora_sfarsit,
-        status:          'neconfirmat',
-        pret_ron:        picMotiv ? picMotiv.price : null,
-        sursa:           'formular',
-        reminder_trimis: false
+        status:                  'neconfirmat',
+        pret_ron:                picMotiv ? picMotiv.price : null,
+        sursa:                   'formular',
+        reminder_trimis:         false,
+        doreste_loc_mai_devreme: document.getElementById('chkLoc').checked
       })
     });
   })
