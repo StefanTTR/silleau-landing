@@ -3,6 +3,11 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_KEY = Deno.env.get('RESEND_KEY')!
 const FROM_EMAIL = 'contact@silleau.com'
 
+const CORS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const SB_HEADERS = {
   'apikey': SERVICE_ROLE_KEY,
   'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
@@ -15,12 +20,15 @@ async function sbGet(path: string) {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS })
+  }
   try {
     const body = await req.json()
     const { programare_id, cur_data, cur_ora } = body
 
     if (!programare_id) {
-      return new Response(JSON.stringify({ error: 'programare_id lipsa' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'programare_id lipsa' }), { status: 400, headers: CORS })
     }
 
     // Fetch programare (dupa PATCH, contine deja noile data/ora)
@@ -29,21 +37,21 @@ Deno.serve(async (req) => {
       + '&select=data_programare,ora_start,personal_id,serviciu_id,pacient_id'
     )
     if (!Array.isArray(progList) || progList.length === 0) {
-      return new Response(JSON.stringify({ error: 'programare negasita' }), { status: 404 })
+      return new Response(JSON.stringify({ error: 'programare negasita' }), { status: 404, headers: CORS })
     }
     const prog = progList[0]
 
     // Fetch pacient
     const pacList = await sbGet('pacienti?id=eq.' + prog.pacient_id + '&select=email,prenume')
     if (!Array.isArray(pacList) || pacList.length === 0) {
-      return new Response(JSON.stringify({ error: 'pacient negasit' }), { status: 404 })
+      return new Response(JSON.stringify({ error: 'pacient negasit' }), { status: 404, headers: CORS })
     }
     const pacient = pacList[0]
 
     // Fetch medic
     const medList = await sbGet('personal?id=eq.' + prog.personal_id + '&select=prenume,nume,titlu,specialitate')
     if (!Array.isArray(medList) || medList.length === 0) {
-      return new Response(JSON.stringify({ error: 'medic negasit' }), { status: 404 })
+      return new Response(JSON.stringify({ error: 'medic negasit' }), { status: 404, headers: CORS })
     }
     const med = medList[0]
     const medicNume = ((med.titlu ? med.titlu + ' ' : '') + (med.prenume || '') + ' ' + (med.nume || '')).trim()
@@ -80,12 +88,12 @@ Deno.serve(async (req) => {
 
     if (!emailRes.ok) {
       const txt = await emailRes.text()
-      return new Response(JSON.stringify({ error: 'Resend ' + emailRes.status + ': ' + txt }), { status: 500 })
+      return new Response(JSON.stringify({ error: 'Resend ' + emailRes.status + ': ' + txt }), { status: 500, headers: CORS })
     }
 
-    return new Response(JSON.stringify({ sent: true }), { status: 200 })
+    return new Response(JSON.stringify({ sent: true }), { status: 200, headers: CORS })
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500 })
+    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: CORS })
   }
 })
 

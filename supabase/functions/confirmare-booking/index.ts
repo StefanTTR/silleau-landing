@@ -1,7 +1,15 @@
 const RESEND_KEY = Deno.env.get('RESEND_KEY')!
 const FROM_EMAIL = 'contact@silleau.com'
 
+const CORS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS })
+  }
   try {
     const body = await req.json()
     const { email, prenume, medic, specialitate, serviciu, data, ora, rechemare } = body
@@ -23,12 +31,12 @@ Deno.serve(async (req) => {
 
     if (!emailRes.ok) {
       const txt = await emailRes.text()
-      return new Response(JSON.stringify({ error: 'Resend ' + emailRes.status + ': ' + txt }), { status: 500 })
+      return new Response(JSON.stringify({ error: 'Resend ' + emailRes.status + ': ' + txt }), { status: 500, headers: CORS })
     }
 
-    return new Response(JSON.stringify({ sent: true }), { status: 200 })
+    return new Response(JSON.stringify({ sent: true }), { status: 200, headers: CORS })
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500 })
+    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: CORS })
   }
 })
 
