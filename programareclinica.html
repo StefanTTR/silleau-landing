@@ -335,7 +335,6 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
       <div class="motiv-err" id="motivErr">Selectați un motiv pentru a continua.</div>
       <div class="motiv-btnrow">
         <button type="button" class="btn btn-ghost" id="motivBack">← Înapoi</button>
-        <button type="button" class="btn btn-main"  id="motivNext">Continuă →</button>
       </div>
     </div>
   </div>
@@ -735,6 +734,12 @@ function showMotiv(){
         /* re-render slots dacă data e deja selectată */
         var ds=document.getElementById('i-dt').value;
         if(ds) showSlots(ds);
+        /* auto-advance la pasul urmator */
+        setTimeout(function(){
+          pushNav('motiv');
+          hideMotiv();
+          goTo(3);
+        }, 180);
       });
       container.appendChild(el);
     });
@@ -1345,12 +1350,6 @@ function goBack(){
   document.getElementById('motivBack').addEventListener('click',function(){
     hideMotiv();
     /* nu scoatem din stivă — doar închidem overlay-ul, rămânem pe același pas */
-  });
-  document.getElementById('motivNext').addEventListener('click',function(){
-    if(!picMotiv){document.getElementById('motivErr').style.display='block';return;}
-    pushNav('motiv');
-    hideMotiv();
-    goTo(3);
   });
   document.getElementById('b3p').addEventListener('click',function(){ goBack(); });
   document.getElementById('b3n').addEventListener('click',function(){
