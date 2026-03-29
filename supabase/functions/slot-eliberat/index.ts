@@ -27,14 +27,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'date incomplete' }), { status: 400 })
     }
 
-    // Slotul trebuie sa fie cel putin 24h in viitor
     const oraStartStr = (ora_start + '').slice(0, 5)
     const slotDatetime = new Date(data_programare + 'T' + oraStartStr + ':00')
     if (slotDatetime.getTime() - Date.now() < 24 * 60 * 60 * 1000) {
       return new Response(JSON.stringify({ skipped: 'slot sub 24h' }), { status: 200 })
     }
 
-    // Calculeaza limitele saptamanii (Luni-Duminica)
+    // Calculeaza limitele saptamanii
     const d = new Date(data_programare + 'T00:00:00')
     const day = d.getDay()
     const diffMon = day === 0 ? -6 : 1 - day
@@ -65,7 +64,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ eligibili: 0 }), { status: 200 })
     }
 
-    // Calculeaza prioritatea fiecarui pacient (ultimele 6 luni)
+    // Calculeaza prioritatea
     const sixAgo = new Date(); sixAgo.setMonth(sixAgo.getMonth() - 6)
     const sixAgoStr = sixAgo.toISOString().slice(0, 10)
 
@@ -90,9 +89,16 @@ Deno.serve(async (req) => {
     const med       = medicList[0] || {}
     const medicNume = ((med.titlu ? med.titlu + ' ' : '') + (med.prenume || '') + ' ' + (med.nume || '')).trim()
 
+    // Fetch serviciu
+    let serviciuNume = ''
+    if (serviciu_id) {
+      const servList = await sbGet('servicii?id=eq.' + serviciu_id + '&select=nome')
+      serviciuNume = servList[0]?.nome || ''
+    }
+
     // Salveaza coada in slot_oferte
     const oferte = prioritizati.map((c: any, i: number) => ({
-      programare_anulata_id:  programare_id,
+      programare_anulata_id:   programare_id,
       programare_eligibila_id: c.id,
       pacient_id:  c.pacient_id,
       clinic_id,
@@ -110,7 +116,6 @@ Deno.serve(async (req) => {
     })
     const insertate = await insRes.json()
 
-    // Gaseste oferta #1 si trimite emailul
     const oferta1 = Array.isArray(insertate) ? insertate.find((o: any) => o.pozitie === 1) : null
     const pac1    = prioritizati[0]
 
@@ -120,13 +125,13 @@ Deno.serve(async (req) => {
 
       if (pacient) {
         const oraEndStr = (ora_sfarsit + '').slice(0, 5)
-        const acceptUrl = BASE_URL + '/confirmare-loc'
-          + '?id='         + pac1.id
-          + '&sd='         + encodeURIComponent(data_programare)
-          + '&so='         + encodeURIComponent(oraStartStr)
+        const locUrl    = BASE_URL + '/confirmare-loc'
+          + '?id='           + pac1.id
+          + '&sd='           + encodeURIComponent(data_programare)
+          + '&so='           + encodeURIComponent(oraStartStr)
           + '&slot_sfarsit=' + encodeURIComponent(oraEndStr)
-          + '&medic='      + encodeURIComponent(medicNume)
-          + '&oferta_id='  + oferta1.id
+          + '&medic='        + encodeURIComponent(medicNume)
+          + '&oferta_id='    + oferta1.id
 
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
@@ -134,14 +139,17 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             from: FROM_EMAIL,
             to: pacient.email,
-            subject: 'S-a eliberat un slot mai devreme — ' + data_programare,
+            subject: 'S-a eliberat un slot mai devreme \u2014 ' + data_programare,
             html: buildSlotEmail({
               prenume:      pacient.prenume || '',
               medic:        medicNume,
               specialitate: med.specialitate || '',
+              serviciu:     serviciuNume,
               data:         data_programare,
               ora:          oraStartStr,
-              acceptUrl,
+              curData:      (pac1.data_programare || ''),
+              curOra:       (pac1.ora_start || '').slice(0, 5),
+              locUrl,
             }),
           }),
         })
@@ -155,48 +163,131 @@ Deno.serve(async (req) => {
 })
 
 function buildSlotEmail(d: {
-  prenume: string, medic: string, specialitate: string,
-  data: string, ora: string, acceptUrl: string
+  prenume: string, medic: string, specialitate: string, serviciu: string,
+  data: string, ora: string, curData: string, curOra: string, locUrl: string
 }): string {
+  const serviciuRow = d.serviciu
+    ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;width:42%;font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
+      + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.serviciu + '</td></tr>'
+    : ''
+
   return '<!DOCTYPE html>'
-    + '<html lang="ro"><head><meta charset="UTF-8">'
-    + '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
+    + '<html lang="ro" xmlns:v="urn:schemas-microsoft-com:vml">'
+    + '<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">'
+    + '<meta name="color-scheme" content="light dark">'
     + '<style>'
-    + 'body{margin:0;padding:0;background:#F4F2EE;font-family:\'Helvetica Neue\',Arial,sans-serif;}'
-    + '.wrap{max-width:560px;margin:32px auto;background:#fff;border:1px solid #E8E4DC;border-radius:4px;}'
-    + '.hdr{padding:36px 44px 28px;border-bottom:1px solid #F0EDE8;text-align:center;}'
-    + '.tag{font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px;}'
-    + '.clinic{font-size:23px;color:#111;font-weight:300;letter-spacing:-0.3px;}'
-    + '.body{padding:36px 44px 0;}'
-    + '.greet{font-size:15px;color:#111;margin:0 0 6px;}'
-    + '.sub{font-size:13px;color:#888;line-height:1.8;margin:0 0 28px;}'
-    + '.highlight{background:#FAFAF8;border:1px solid #E8E4DC;border-radius:3px;padding:20px 24px;margin-bottom:28px;}'
-    + '.hl-label{font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;}'
-    + 'table.det{width:100%;border-collapse:collapse;}'
-    + '.det td{padding:10px 0;font-size:13px;border-top:1px solid #F0EDE8;}'
-    + '.det .k{color:#BBBBBB;font-size:10px;text-transform:uppercase;letter-spacing:1px;width:42%;}'
-    + '.det .v{color:#111;text-align:right;}'
-    + '.btn-accept{display:block;background:#111;color:#fff;text-decoration:none;text-align:center;padding:16px;border-radius:3px;font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;}'
-    + '.note{font-size:11px;color:#CCC;line-height:1.9;margin-bottom:32px;}'
-    + '.ftr{padding:20px 44px;border-top:1px solid #F0EDE8;font-size:11px;color:#CCC;}'
-    + '</style></head><body>'
-    + '<div class="wrap">'
-    + '<div class="hdr"><div class="tag">Slot disponibil</div><div class="clinic">Clinica Alfa</div></div>'
-    + '<div class="body">'
-    + '<p class="greet">Bun\u0103 <strong>' + d.prenume + '</strong>,</p>'
-    + '<p class="sub">S-a eliberat un slot mai devreme dec\u00e2t programarea dumneavoastr\u0103 actual\u0103, la acela\u015fi medic \u015fi serviciu. Dori\u021bi s\u0103 \u00eel prelua\u021bi?</p>'
-    + '<div class="highlight">'
-    + '<div class="hl-label">Slot disponibil</div>'
-    + '<table class="det">'
-    + '<tr><td class="k">Medic</td><td class="v">' + d.medic + '</td></tr>'
-    + '<tr><td class="k">Specialitate</td><td class="v">' + d.specialitate + '</td></tr>'
-    + '<tr><td class="k">Data</td><td class="v">' + d.data + '</td></tr>'
-    + '<tr><td class="k">Ora</td><td class="v">' + d.ora + '</td></tr>'
+    + ':root{color-scheme:light dark;}'
+    + 'body,table,td,p,span,div{margin:0;padding:0;}'
+    + 'body{font-family:\'Helvetica Neue\',Arial,sans-serif;-webkit-text-size-adjust:100%;}'
+    + 'table{border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;}'
+    + '.bg-outer{background-color:#ffffff;}'
+    + '.bg-card{background-color:#ffffff;border:1px solid #E8E4DC;}'
+    + '.text-tag{color:#BBBBBB;}.text-title{color:#111111;}.text-greet{color:#111111;}'
+    + '.text-name{color:#111111;}.text-body{color:#888888;}.text-label{color:#BBBBBB;}'
+    + '.text-value{color:#111111;}.text-cur{color:#CCCCCC;}.text-note{color:#CCCCCC;}'
+    + '.text-note-em{color:#888888;}.text-foot-n{color:#BBBBBB;}.text-foot-s{color:#CCCCCC;}'
+    + '.text-brand{color:#DDDDDD;}'
+    + '.border-row{border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;}'
+    + '.sep{background-color:#F0EDE8;}.border-section{border-top:1px solid #F0EDE8;}'
+    + '.btn-accept{background-color:#111111!important;}.btn-accept-txt{color:#ffffff!important;}'
+    + '.btn-decline{background-color:#ffffff!important;border:1px solid #E8E4DC!important;}'
+    + '.btn-decline-txt{color:#888888!important;}'
+    + 'a.link-email{color:#999999!important;text-decoration:underline;text-decoration-style:dotted;}'
+    + '@media(prefers-color-scheme:dark){'
+    + '.bg-outer{background-color:#111111!important;}'
+    + '.bg-card{background-color:#111111!important;border:1px solid #1E1E1E!important;}'
+    + '.text-tag{color:#444444!important;}.text-title{color:#E8E4DC!important;}'
+    + '.text-greet{color:#C8C4BC!important;}.text-name{color:#E8E4DC!important;}'
+    + '.text-body{color:#666666!important;}.text-label{color:#444444!important;}'
+    + '.text-value{color:#C8C4BC!important;}.text-cur{color:#333333!important;}'
+    + '.text-note{color:#444444!important;}.text-note-em{color:#666666!important;}'
+    + '.text-foot-n{color:#555555!important;}.text-foot-s{color:#333333!important;}'
+    + '.text-brand{color:#2A2A2A!important;}'
+    + '.border-row{border-top:1px solid #1E1E1E!important;border-bottom:1px solid #1E1E1E!important;}'
+    + '.sep{background-color:#1E1E1E!important;}'
+    + '.btn-accept{background-color:#E8E4DC!important;}.btn-accept-txt{color:#111111!important;}'
+    + '.btn-decline{background-color:transparent!important;border:1px solid #2A2A2A!important;}'
+    + '.btn-decline-txt{color:#555555!important;}'
+    + '}'
+    + '@media only screen and (max-width:600px){'
+    + '.wrapper{width:100%!important;}.inner{padding:28px 20px 0!important;}'
+    + '.footer-td{padding:16px 20px!important;}'
+    + '.btn-td{display:block!important;width:100%!important;padding:0 0 8px 0!important;}'
+    + '}'
+    + '</style></head>'
+    + '<body class="bg-outer" style="margin:0;padding:0;background-color:#ffffff;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" class="bg-outer" style="background-color:#ffffff;">'
+    + '<tr><td align="center" style="padding:32px 12px;">'
+    + '<table class="wrapper bg-card" width="560" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:4px;border:1px solid #E8E4DC;">'
+    + '<tr><td align="center" class="border-section" style="padding:36px 44px 28px;border-top:none;border-bottom:1px solid #F0EDE8;">'
+    + '<div class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:14px;">Loc disponibil</div>'
+    + '<div class="text-title" style="font-size:23px;color:#111111;font-weight:300;font-family:\'Helvetica Neue\',Arial,sans-serif;letter-spacing:-0.3px;">Clinica Alfa</div>'
+    + '</td></tr>'
+    + '<tr><td class="inner" style="padding:36px 44px 0;">'
+    + '<p style="font-size:15px;margin:0 0 6px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
+    + '<span class="text-greet" style="color:#111111;">Bun\u0103 </span>'
+    + '<strong class="text-name" style="color:#111111;font-weight:600;">' + d.prenume + '</strong>'
+    + '<span class="text-greet" style="color:#111111;">,</span></p>'
+    + '<p class="text-body" style="font-size:13px;color:#888888;line-height:1.8;margin:0 0 28px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
+    + 'A ap\u0103rut un loc disponibil mai devreme la <strong style="color:#666666;font-weight:500;">' + d.medic + '</strong>. Dori\u021bi s\u0103 v\u0103 reprograma\u021bi mai devreme \u00een aceast\u0103 s\u0103pt\u0103m\u00e2n\u0103?'
+    + '</p>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">'
+    + '<tr><td colspan="2" style="padding:0 0 10px;">'
+    + '<span class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;">Loc disponibil</span>'
+    + '</td></tr>'
+    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;width:42%;font-family:\'Helvetica Neue\',Arial,sans-serif;">Medic</td>'
+    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.medic + '</td></tr>'
+    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Specialitate</td>'
+    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.specialitate + '</td></tr>'
+    + serviciuRow
+    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Data</td>'
+    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.data + '</td></tr>'
+    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Ora</td>'
+    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.ora + '</td></tr>'
     + '</table>'
-    + '</div>'
-    + '<a href="' + d.acceptUrl + '" class="btn-accept">\u2192 &nbsp;Preia slotul mai devreme</a>'
-    + '<p class="note">Oferta este valabil\u0103 p\u00e2n\u0103 la ocuparea slotului. Primul care confirm\u0103 prime\u015fte locul. Programarea dumneavoastr\u0103 actual\u0103 va fi \u00eenlocuit\u0103 automat.</p>'
-    + '</div>'
-    + '<div class="ftr">Clinica Alfa &nbsp;\u00b7&nbsp; contact@silleau.com</div>'
-    + '</div></body></html>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">'
+    + '<tr><td colspan="2" style="padding:10px 0 10px;">'
+    + '<span class="text-tag" style="font-size:9px;color:#CCCCCC;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;">Programarea dumneavoastr\u0103 actual\u0103</span>'
+    + '</td></tr>'
+    + '<tr><td class="text-label border-row" style="padding:10px 0;font-size:10px;color:#CCCCCC;text-transform:uppercase;letter-spacing:1px;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;width:42%;font-family:\'Helvetica Neue\',Arial,sans-serif;">Data</td>'
+    + '<td class="text-cur border-row" style="padding:10px 0;font-size:13px;color:#CCCCCC;text-align:right;text-decoration:line-through;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.curData + '</td></tr>'
+    + '<tr><td class="text-label border-row" style="padding:10px 0;font-size:10px;color:#CCCCCC;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Ora</td>'
+    + '<td class="text-cur border-row" style="padding:10px 0;font-size:13px;color:#CCCCCC;text-align:right;text-decoration:line-through;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.curOra + '</td></tr>'
+    + '</table>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">'
+    + '<tr>'
+    + '<td class="btn-td" style="width:50%;padding-right:6px;vertical-align:top;">'
+    + '<a href="' + d.locUrl + '" style="display:block;text-decoration:none;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+    + '<td class="btn-accept" align="center" style="background-color:#111111;border-radius:3px;padding:14px 12px;">'
+    + '<span class="btn-accept-txt" style="font-size:10px;color:#ffffff;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;">\u2713 &nbsp;Da, vreau acest loc</span>'
+    + '</td></tr></table></a></td>'
+    + '<td class="btn-td" style="width:50%;padding-left:6px;vertical-align:top;">'
+    + '<a href="' + d.locUrl + '" style="display:block;text-decoration:none;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+    + '<td class="btn-decline" align="center" style="background-color:#ffffff;border:1px solid #E8E4DC;border-radius:3px;padding:14px 12px;">'
+    + '<span class="btn-decline-txt" style="font-size:10px;color:#888888;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;">\u2715 &nbsp;Nu, p\u0103strez</span>'
+    + '</td></tr></table></a></td>'
+    + '</tr></table>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">'
+    + '<tr><td class="sep" style="height:1px;background-color:#F0EDE8;font-size:0;line-height:0;">&nbsp;</td></tr>'
+    + '</table>'
+    + '<p class="text-note" style="font-size:12px;color:#CCCCCC;line-height:1.9;margin:0 0 32px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
+    + 'Oferta este valabil\u0103 pentru o perioad\u0103 limitat\u0103. Primul care confirm\u0103 prime\u015fte locul.'
+    + '</p>'
+    + '</td></tr>'
+    + '<tr><td class="footer-td border-section" style="padding:20px 44px;border-top:1px solid #F0EDE8;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+    + '<td style="vertical-align:middle;">'
+    + '<div class="text-foot-n" style="font-size:12px;color:#BBBBBB;margin-bottom:2px;font-family:\'Helvetica Neue\',Arial,sans-serif;">Clinica Alfa</div>'
+    + '<div class="text-foot-s" style="font-size:11px;color:#CCCCCC;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
+    + '<a href="mailto:contact@silleau.com" class="link-email" style="color:#CCCCCC;text-decoration:underline;text-decoration-style:dotted;font-family:\'Helvetica Neue\',Arial,sans-serif;">contact@silleau.com</a>'
+    + '</div></td>'
+    + '<td style="text-align:right;vertical-align:middle;">'
+    + '<div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:2px;">SILLEAU Framework</div>'
+    + '<div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:1px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;">Revenue Optimisation Systems</div>'
+    + '</td></tr></table>'
+    + '</td></tr>'
+    + '</table></td></tr></table>'
+    + '</body></html>'
 }
