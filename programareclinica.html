@@ -1117,7 +1117,7 @@ function doConfirm(){
      Registru global — unic per email.
      Dacă pacientul există: actualizează prenume/nume/telefon.
      Necesită UNIQUE constraint pe coloana `email` în Supabase.       */
-  fetch(SUPABASE_URL + '/rest/v1/pacienti?on_conflict=email', {
+  fetch(SUPABASE_URL + '/rest/v1/pacienti?on_conflict=telefon', {
     method:  'POST',
     headers: {
       'apikey':        SUPABASE_KEY,
