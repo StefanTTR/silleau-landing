@@ -375,11 +375,8 @@ var DEFAULT_SCH = {
 var SUPABASE_URL = 'https://wpxflbwohowigaulhxhk.supabase.co'; /* ← înlocuiește */
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweGZsYndvaG93aWdhdWxoeGhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MjExNTQsImV4cCI6MjA5MDA5NzE1NH0.hWpLo3bwaRVZDwxNoU0JG774OXKOY40rkkGNVWGqi7Y';                    /* ← anon/public key din Settings → API */
 
-/* ─── ZAPIER — doar email automation ───────────────────────────
-   Zap-ul primește programarea și trimite emailul de confirmare + setează reminder.
-   NU mai salvează în bază de date — Supabase se ocupă de asta.
-──────────────────────────────────────────────────────────────*/
-var ZAPIER_EMAIL_WH = 'https://hooks.zapier.com/hooks/catch/26378829/uxamya2/';
+/* ─── EDGE FUNCTION URL ─────────────────────────────────────── */
+var CONFIRMARE_BOOKING_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/confirmare-booking';
 
 /* ─── CLINIC ID ────────────────────────────────────────────────
    Citit automat din URL: ?clinic=clinic_abc
@@ -1163,7 +1160,7 @@ function doConfirm(){
         ora_sfarsit:     ora_sfarsit,
         status:          'neconfirmat',
         pret_ron:        picMotiv ? picMotiv.price : null,
-        sursa:           'web',
+        sursa:           'formular',
         reminder_trimis: false
       })
     });
@@ -1180,12 +1177,20 @@ function doConfirm(){
     if(!BOOKED[picDoc.id][ds])    BOOKED[picDoc.id][ds] = [];
     BOOKED[picDoc.id][ds].push({start: picSlot, total: total});
 
-    /* ── 4. Zapier — email automation (confirmare + setare reminder) */
-    fetch(ZAPIER_EMAIL_WH, {
+    /* ── 4. Edge Function — email confirmare booking */
+    fetch(CONFIRMARE_BOOKING_FN, {
       method:  'POST',
-      mode:    'no-cors',
-      headers: {'Content-Type': 'text/plain'},
-      body:    JSON.stringify(payload)
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({
+        email:        payload.email,
+        prenume:      payload.prenume,
+        medic:        payload.medic,
+        specialitate: payload.specialitate,
+        serviciu:     payload.serviciu,
+        data:         payload.data,
+        ora:          payload.ora,
+        rechemare:    payload.rechemare
+      })
     }).catch(function(){});
 
     btn.disabled = false;

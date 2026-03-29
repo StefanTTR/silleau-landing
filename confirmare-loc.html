@@ -233,6 +233,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
    ============================================================ */
 var SUPABASE_URL = 'https://wpxflbwohowigaulhxhk.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweGZsYndvaG93aWdhdWxoeGhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MjExNTQsImV4cCI6MjA5MDA5NzE1NH0.hWpLo3bwaRVZDwxNoU0JG774OXKOY40rkkGNVWGqi7Y';
+var ACCEPTARE_LOC_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/acceptare-loc-nou';
 
 /* ============================================================
    PARAMETRI DIN URL
@@ -251,6 +252,8 @@ var SB_HEADERS = {
 };
 
 var programare_anulata_id = null;
+var curDataGlobal = '';
+var curOraGlobal  = '';
 
 /* ============================================================
    FUNCȚII
@@ -324,7 +327,19 @@ function acceptSlot(){
           body: JSON.stringify({ status: 'acceptat' }) }
       );
     })
-    .then(function(){ setState('stateSuccess'); })
+    .then(function(){
+      setState('stateSuccess');
+      /* Email confirmare reprogramare — fire and forget */
+      fetch(ACCEPTARE_LOC_FN, {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          programare_id: id,
+          cur_data:      curDataGlobal,
+          cur_ora:       curOraGlobal
+        })
+      }).catch(function(){});
+    })
     .catch(function(){ setState('stateError'); });
   })
   .catch(function(){ setState('stateError'); });
@@ -372,8 +387,10 @@ function declineSlot(){
     .then(function(rows){
       var prog = Array.isArray(rows) ? rows[0] : null;
       if(prog){
-        setVal('detCurData', prog.data_programare || '—');
-        setVal('detCurOra',  (prog.ora_start || '').slice(0, 5) || '—');
+        curDataGlobal = prog.data_programare || '';
+        curOraGlobal  = (prog.ora_start || '').slice(0, 5);
+        setVal('detCurData', curDataGlobal || '—');
+        setVal('detCurOra',  curOraGlobal  || '—');
       }
       setVal('detSlotData', decodeURIComponent(sd || '') || '—');
       setVal('detSlotOra',  decodeURIComponent(so || '') || '—');
