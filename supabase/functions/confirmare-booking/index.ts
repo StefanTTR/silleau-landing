@@ -1,5 +1,7 @@
-const RESEND_KEY = Deno.env.get('RESEND_KEY')!
-const FROM_EMAIL = 'contact@silleau.com'
+const RESEND_KEY      = Deno.env.get('RESEND_KEY')!
+const FROM_EMAIL      = 'Clinica Alfa <contact@silleau.com>'
+const META_WA_TOKEN   = Deno.env.get('META_WA_TOKEN')!
+const META_WA_PHONE_ID = Deno.env.get('META_WA_PHONE_ID')!
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -12,26 +14,35 @@ Deno.serve(async (req) => {
   }
   try {
     const body = await req.json()
-    const { email, prenume, medic, specialitate, serviciu, data, ora, rechemare } = body
+    const { canal, email, telefon, prenume, medic, specialitate, serviciu, data, ora, rechemare } = body
 
-    if (!email || !prenume || !medic || !data || !ora) {
-      return new Response(JSON.stringify({ error: 'date incomplete' }), { status: 400 })
+    if (!prenume || !medic || !data || !ora) {
+      return new Response(JSON.stringify({ error: 'date incomplete' }), { status: 400, headers: CORS })
     }
 
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: email,
-        subject: 'Confirmare programare \u2014 ' + data,
-        html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data, ora, rechemare: rechemare || '' }),
-      }),
-    })
-
-    if (!emailRes.ok) {
-      const txt = await emailRes.text()
-      return new Response(JSON.stringify({ error: 'Resend ' + emailRes.status + ': ' + txt }), { status: 500, headers: CORS })
+    if (canal === 'whatsapp') {
+      if (!telefon) {
+        return new Response(JSON.stringify({ error: 'telefon lipsa pentru whatsapp' }), { status: 400, headers: CORS })
+      }
+      await sendWhatsApp(telefon, { prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data, ora, rechemare: rechemare || '' })
+    } else {
+      if (!email) {
+        return new Response(JSON.stringify({ error: 'email lipsa' }), { status: 400, headers: CORS })
+      }
+      const emailRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: FROM_EMAIL,
+          to: email,
+          subject: 'Confirmare programare \u2014 ' + data,
+          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data, ora, rechemare: rechemare || '' }),
+        }),
+      })
+      if (!emailRes.ok) {
+        const txt = await emailRes.text()
+        return new Response(JSON.stringify({ error: 'Resend ' + emailRes.status + ': ' + txt }), { status: 500, headers: CORS })
+      }
     }
 
     return new Response(JSON.stringify({ sent: true }), { status: 200, headers: CORS })
@@ -39,6 +50,70 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: CORS })
   }
 })
+
+async function sendWhatsApp(telefon: string, d: {
+  prenume: string, medic: string, specialitate: string,
+  serviciu: string, data: string, ora: string, rechemare: string
+}) {
+  // Normalizare: 07XXXXXXXX → 407XXXXXXXX (fără +)
+  const normalized = telefon.replace(/[\s\-().+]/g, '')
+  const to = normalized.startsWith('40') ? normalized : '4' + normalized.replace(/^0/, '')
+
+  const res = await fetch(`https://graph.facebook.com/v18.0/${META_WA_PHONE_ID}/messages`, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + META_WA_TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: {
+        name: 'confrimare_programare',
+        language: { code: 'ro' },
+        components: [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: d.prenume },
+            { type: 'text', text: d.medic },
+            { type: 'text', text: d.specialitate },
+            { type: 'text', text: d.serviciu || '\u2014' },
+            { type: 'text', text: d.data },
+            { type: 'text', text: d.ora },
+            { type: 'text', text: d.rechemare || '\u2014' },
+          ]
+        }]
+      }
+    })
+  })
+
+  if (!res.ok) {
+    const txt = await res.text()
+    throw new Error('Meta WA ' + res.status + ': ' + txt)
+  }
+}
+
+function buildWhatsApp(d: {
+  prenume: string, medic: string, specialitate: string,
+  serviciu: string, data: string, ora: string, rechemare: string
+}): string {
+  const lines = [
+    `Bun\u0103 ${d.prenume},`,
+    '',
+    'Programarea dumneavoastr\u0103 a fost confirmat\u0103 \u2714',
+    '',
+    '\ud83d\udccb Detalii consulta\u021bie:',
+    `\u2022 Medic: ${d.medic}${d.specialitate ? ' \u2014 ' + d.specialitate : ''}`,
+  ]
+  if (d.serviciu) lines.push(`\u2022 Serviciu: ${d.serviciu}`)
+  lines.push(`\u2022 Data: ${d.data}`)
+  lines.push(`\u2022 Ora: ${d.ora}`)
+  if (d.rechemare) lines.push(`\u2022 Urm\u0103toarea consulta\u021bie: ${d.rechemare}`)
+  lines.push('')
+  lines.push('V\u0103 rug\u0103m s\u0103 ajunge\u021bi cu 10 minute \u00eenainte.')
+  lines.push('Reprogramare: contact@silleau.com')
+  lines.push('')
+  lines.push('\u2014 Clinica Alfa')
+  return lines.join('\n')
+}
 
 function buildEmail(d: {
   prenume: string, medic: string, specialitate: string,

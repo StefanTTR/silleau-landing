@@ -1,7 +1,9 @@
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const RESEND_KEY = Deno.env.get('RESEND_KEY')!
-const FROM_EMAIL = 'contact@silleau.com'
+const RESEND_KEY       = Deno.env.get('RESEND_KEY')!
+const META_WA_TOKEN    = Deno.env.get('META_WA_TOKEN')!
+const META_WA_PHONE_ID = Deno.env.get('META_WA_PHONE_ID')!
+const FROM_EMAIL       = 'Clinica Alfa <contact@silleau.com>'
 
 Deno.serve(async (_req) => {
   try {
@@ -41,51 +43,70 @@ Deno.serve(async (_req) => {
       return new Response(JSON.stringify({ sent: 0, window: ds + ' ' + hourStart + '-' + hourEnd }), { status: 200 })
     }
 
+    const SB = {
+      'apikey': SERVICE_ROLE_KEY,
+      'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
+    }
+
     let sent = 0
     for (const row of rows) {
-      const dataEncoded  = encodeURIComponent(row.data_programare)
-      const oraEncoded   = encodeURIComponent((row.ora_start || '').slice(0, 5))
-      const medicEncoded = encodeURIComponent(row.medic || '')
-      const baseUrl      = 'https://www.silleau.com'
+      // Fetch canal preferat direct din programari (v_reminder poate să nu aibă coloana)
+      const canalRes  = await fetch(
+        SUPABASE_URL + '/rest/v1/programari?id=eq.' + row.id + '&select=canal_comunicare',
+        { headers: SB }
+      )
+      const canalRows = await canalRes.json()
+      const canal     = canalRows?.[0]?.canal_comunicare || 'email'
 
-      const confirmUrl = baseUrl + '/confirmare?id=' + row.id + '&data=' + dataEncoded + '&ora=' + oraEncoded + '&medic=' + medicEncoded
-      const anulareUrl = baseUrl + '/anulare?id='    + row.id + '&data=' + dataEncoded + '&ora=' + oraEncoded + '&medic=' + medicEncoded
+      let ok = false
 
-      const emailRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + RESEND_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: FROM_EMAIL,
-          to: row.email,
-          subject: 'Reminder programare — ' + row.data_programare,
-          html: buildEmail({
-            prenume:      row.prenume      || '',
-            medic:        row.medic        || '',
-            specialitate: row.specialitate || '',
-            serviciu:     row.serviciu     || '',
-            data:         row.data_programare || '',
-            ora:          (row.ora_start   || '').slice(0, 5),
-            confirmUrl,
-            anulareUrl,
+      if (canal === 'whatsapp') {
+        ok = await sendWhatsAppReminder(row)
+      } else {
+        const dataEncoded         = encodeURIComponent(row.data_programare)
+        const oraEncoded          = encodeURIComponent((row.ora_start || '').slice(0, 5))
+        const medicEncoded        = encodeURIComponent(row.medic || '')
+        const specialitateEncoded = encodeURIComponent(row.specialitate || '')
+        const serviciuEncoded     = encodeURIComponent(row.serviciu || '')
+        const baseUrl             = 'https://www.silleau.com'
+        const confirmUrl          = SUPABASE_URL + '/functions/v1/confirmare-reminder?id=' + row.id
+        const reprogramareUrl     = baseUrl + '/anulare?id=' + row.id
+          + '&action=reprogrameaza&medic=' + medicEncoded
+          + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
+        const anulareUrl          = baseUrl + '/anulare?id=' + row.id
+          + '&data=' + dataEncoded + '&ora=' + oraEncoded + '&medic=' + medicEncoded
+          + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
+
+        const emailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from: FROM_EMAIL,
+            to: row.email,
+            subject: 'Reminder programare — ' + row.data_programare,
+            html: buildEmail({
+              prenume:         row.prenume      || '',
+              medic:           row.medic        || '',
+              specialitate:    row.specialitate || '',
+              serviciu:        row.serviciu     || '',
+              data:            row.data_programare || '',
+              ora:             (row.ora_start   || '').slice(0, 5),
+              confirmUrl,
+              reprogramareUrl,
+              anulareUrl,
+            }),
           }),
-        }),
-      })
+        })
+        ok = emailRes.ok
+      }
 
-      if (emailRes.ok) {
+      if (ok) {
         await fetch(
           SUPABASE_URL + '/rest/v1/programari?id=eq.' + row.id,
           {
-            method: 'PATCH',
-            headers: {
-              'apikey': SERVICE_ROLE_KEY,
-              'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
-              'Content-Type': 'application/json',
-              'Prefer': 'return=minimal',
-            },
-            body: JSON.stringify({ reminder_trimis: true, reminder_trimis_la: new Date().toISOString() }),
+            method:  'PATCH',
+            headers: { ...SB, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+            body:    JSON.stringify({ reminder_trimis: true, reminder_trimis_la: new Date().toISOString() }),
           }
         )
         sent++
@@ -98,10 +119,46 @@ Deno.serve(async (_req) => {
   }
 })
 
+async function sendWhatsAppReminder(row: Record<string, unknown>): Promise<boolean> {
+  const tel        = (row.telefon as string || '').replace(/[\s\-().+]/g, '')
+  const to         = tel.startsWith('40') ? tel : '4' + tel.replace(/^0/, '')
+  const ora        = ((row.ora_start as string) || '').slice(0, 5)
+
+  const res = await fetch(`https://graph.facebook.com/v18.0/${META_WA_PHONE_ID}/messages`, {
+    method:  'POST',
+    headers: { 'Authorization': 'Bearer ' + META_WA_TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: {
+        name: 'reminder_programare',
+        language: { code: 'ro' },
+        components: [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: row.prenume      || '' },
+            { type: 'text', text: row.medic        || '' },
+            { type: 'text', text: row.specialitate || '' },
+            { type: 'text', text: row.data_programare || '' },
+            { type: 'text', text: ora },
+          ]
+        }]
+      }
+    })
+  })
+
+  if (!res.ok) {
+    const txt = await res.text()
+    console.error('[send-reminders] Meta WA error:', res.status, txt)
+  }
+  return res.ok
+}
+
 function buildEmail(d: {
   prenume: string, medic: string, specialitate: string,
   serviciu: string, data: string, ora: string,
-  confirmUrl: string, anulareUrl: string
+  confirmUrl: string, reprogramareUrl: string, anulareUrl: string
 }): string {
   const serviciuRow = d.serviciu
     ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
@@ -125,8 +182,9 @@ function buildEmail(d: {
     + '.text-foot-n{color:#BBBBBB;}.text-foot-s{color:#CCCCCC;}.text-brand{color:#DDDDDD;}'
     + '.border-row{border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;}'
     + '.btn-confirm{background-color:#111111!important;}.btn-confirm-txt{color:#ffffff!important;}'
+    + '.btn-reprogram{background-color:#ffffff!important;border:1px solid #C8C4BC!important;}.btn-reprogram-txt{color:#555555!important;}'
     + '.btn-cancel{background-color:#ffffff!important;border:1px solid #E8E4DC!important;}'
-    + '.btn-cancel-txt{color:#888888!important;}'
+    + '.btn-cancel-txt{color:#BBBBBB!important;}'
     + 'a.link-email{color:#999999!important;text-decoration:underline;text-decoration-style:dotted;}'
     + '@media(prefers-color-scheme:dark){'
     + '.bg-outer{background-color:#111111!important;}'
@@ -139,8 +197,9 @@ function buildEmail(d: {
     + '.text-foot-s{color:#333333!important;}.text-brand{color:#2A2A2A!important;}'
     + '.border-row{border-top:1px solid #1E1E1E!important;border-bottom:1px solid #1E1E1E!important;}'
     + '.btn-confirm{background-color:#E8E4DC!important;}.btn-confirm-txt{color:#111111!important;}'
-    + '.btn-cancel{background-color:transparent!important;border:1px solid #2A2A2A!important;}'
-    + '.btn-cancel-txt{color:#555555!important;}'
+    + '.btn-reprogram{background-color:transparent!important;border:1px solid #3A3A3A!important;}.btn-reprogram-txt{color:#888888!important;}'
+    + '.btn-cancel{background-color:transparent!important;border:1px solid #222222!important;}'
+    + '.btn-cancel-txt{color:#444444!important;}'
     + 'a.link-email{color:#555555!important;}'
     + '}'
     + '[data-ogsc] .bg-outer{background-color:#111111!important;}'
@@ -187,19 +246,29 @@ function buildEmail(d: {
     + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Ora</td>'
     + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.ora + '</td></tr>'
     + '</table>'
-    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">'
-    + '<tr>'
-    + '<td class="btn-td" style="width:50%;padding-right:6px;vertical-align:top;">'
+    /* ── Buton 1: Confirma (full-width, primar) ── */
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">'
+    + '<tr><td>'
     + '<a href="' + d.confirmUrl + '" style="display:block;text-decoration:none;">'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
-    + '<td class="btn-confirm" align="center" style="background-color:#111111;border-radius:3px;padding:14px 12px;">'
+    + '<td class="btn-confirm" align="center" style="background-color:#111111;border-radius:3px;padding:15px 12px;">'
     + '<span class="btn-confirm-txt" style="font-size:10px;color:#ffffff;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;">\u2713 &nbsp;Confirm\u0103 programarea</span>'
+    + '</td></tr></table></a>'
+    + '</td></tr></table>'
+    /* ── Butoane 2+3: Reprogrameaza + Anuleaza (50/50, se stivuiesc pe mobil) ── */
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">'
+    + '<tr>'
+    + '<td class="btn-td" style="width:50%;padding-right:5px;vertical-align:top;">'
+    + '<a href="' + d.reprogramareUrl + '" style="display:block;text-decoration:none;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+    + '<td class="btn-reprogram" align="center" style="background-color:#ffffff;border:1px solid #C8C4BC;border-radius:3px;padding:13px 10px;">'
+    + '<span class="btn-reprogram-txt" style="font-size:10px;color:#555555;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;">\u21ba &nbsp;Reprogrameaz\u0103</span>'
     + '</td></tr></table></a></td>'
-    + '<td class="btn-td" style="width:50%;padding-left:6px;vertical-align:top;">'
+    + '<td class="btn-td" style="width:50%;padding-left:5px;vertical-align:top;">'
     + '<a href="' + d.anulareUrl + '" style="display:block;text-decoration:none;">'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
-    + '<td class="btn-cancel" align="center" style="background-color:#ffffff;border:1px solid #E8E4DC;border-radius:3px;padding:14px 12px;">'
-    + '<span class="btn-cancel-txt" style="font-size:10px;color:#888888;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;">\u2715 &nbsp;Anuleaz\u0103</span>'
+    + '<td class="btn-cancel" align="center" style="background-color:#ffffff;border:1px solid #E8E4DC;border-radius:3px;padding:13px 10px;">'
+    + '<span class="btn-cancel-txt" style="font-size:10px;color:#BBBBBB;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;">\u2715 &nbsp;Anuleaz\u0103</span>'
     + '</td></tr></table></a></td>'
     + '</tr></table>'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">'
