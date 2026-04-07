@@ -1,50 +1,73 @@
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-const SB_HEADERS = {
+const SB_GET = {
   'apikey':        SERVICE_ROLE_KEY,
   'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
-  'Content-Type':  'application/json',
-  'Prefer':        'return=minimal',
+}
+const SB_PATCH = {
+  ...SB_GET,
+  'Content-Type': 'application/json',
+  'Prefer':       'return=minimal',
 }
 
-Deno.serve(async (req) => {
-  const url  = new URL(req.url)
-  const id   = url.searchParams.get('id')
+const CSS = 'body{margin:0;font-family:"Helvetica Neue",Arial,sans-serif;background:#0A0A0A;color:#E8E4DC;'
+  + 'display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px;}'
+  + '.box{max-width:420px;}'
+  + '.mark{font-size:36px;margin-bottom:20px;}'
+  + 'h1{font-size:22px;font-weight:300;letter-spacing:-.3px;margin:0 0 10px;color:#E8E4DC;}'
+  + 'p{font-size:13px;color:#888;line-height:1.8;margin:0;}'
 
-  if (!id) {
-    return new Response('ID lipsă', { status: 400 })
-  }
-
-  // Marchează reminder ca confirmat
-  await fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + id, {
-    method:  'PATCH',
-    headers: SB_HEADERS,
-    body:    JSON.stringify({ confirmat_reminder: true }),
-  })
-
-  // Returnează pagina HTML de confirmare
+function page(mark: string, title: string, body: string): Response {
   return new Response(
     '<!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    + '<title>Programare confirmată</title>'
-    + '<style>'
-    + 'body{margin:0;font-family:"Helvetica Neue",Arial,sans-serif;background:#0A0A0A;color:#E8E4DC;'
-    + 'display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px;}'
-    + '.box{max-width:420px;}'
-    + '.mark{font-size:40px;margin-bottom:16px;color:#C8B89A;}'
-    + 'h1{font-size:22px;font-weight:300;letter-spacing:-.3px;margin:0 0 10px;}'
-    + 'p{font-size:13px;color:#888;line-height:1.8;margin:0;}'
-    + '</style></head>'
+    + '<title>' + title + '</title>'
+    + '<style>' + CSS + '</style></head>'
     + '<body><div class="box">'
-    + '<div class="mark">✓</div>'
-    + '<h1>Programare confirmată</h1>'
-    + '<p>Vă mulțumim! Programarea dumneavoastră a fost confirmată.<br>'
-    + 'Ne vedem la consultație.</p>'
+    + '<div class="mark">' + mark + '</div>'
+    + '<h1>' + title + '</h1>'
+    + '<p>' + body + '</p>'
     + '</div></body></html>',
-    {
-      status:  200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    }
+    { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
   )
+}
+
+Deno.serve(async (req) => {
+  const url = new URL(req.url)
+  const id  = url.searchParams.get('id')
+
+  if (!id) return page('✕', 'Link invalid', 'ID-ul programării lipsește.')
+
+  /* ── 1. Verifică statusul curent ── */
+  const res  = await fetch(
+    SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&select=status,confirmat_reminder,motiv_anulare',
+    { headers: SB_GET }
+  )
+  const rows = await res.json()
+  const row  = Array.isArray(rows) ? rows[0] : null
+
+  if (!row) return page('✕', 'Programare negăsită', 'Link-ul nu mai este valid.')
+
+  /* Deja anulată sau reprogramată */
+  if (row.status === 'anulat') {
+    if (row.motiv_anulare === 'reprogramare_solicitata') {
+      return page('↺', 'Deja reprogramată', 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru confirmarea noii programări.')
+    }
+    return page('✕', 'Programare anulată', 'Această programare a fost deja anulată.<br>Contactați clinica dacă doriți o nouă programare.')
+  }
+
+  /* Deja confirmată */
+  if (row.confirmat_reminder) {
+    return page('✓', 'Deja confirmată', 'Ați confirmat deja această programare.<br>Ne vedem la consultație!')
+  }
+
+  /* ── 2. Confirmă ── */
+  await fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + id, {
+    method:  'PATCH',
+    headers: SB_PATCH,
+    body:    JSON.stringify({ confirmat_reminder: true }),
+  })
+
+  return page('✓', 'Programare confirmată', 'Vă mulțumim! Programarea dumneavoastră a fost confirmată.<br>Ne vedem la consultație.')
 })
