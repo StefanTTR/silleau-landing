@@ -300,7 +300,25 @@ function buildApproxSlotIso(dataProgramare: unknown, oraStart: unknown): string 
   const data = String(dataProgramare || '').slice(0, 10)
   const ora  = String(oraStart || '').slice(0, 5)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(ora)) return null
-  return data + 'T' + ora + ':00.000Z'
+
+  // Conversia din ora locală România (Europe/Bucharest) în UTC.
+  // Folosim noon UTC al zilei respective ca referință pentru a afla offset-ul DST.
+  const [year, month, day] = data.split('-').map(Number)
+  const [hours, minutes]   = ora.split(':').map(Number)
+
+  const noonUtc = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+  const noonRoStr = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Bucharest',
+    hour:   '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(noonUtc)
+
+  const [noonRoHour, noonRoMin] = noonRoStr.split(':').map(Number)
+  const offsetMs = (noonRoHour * 60 + noonRoMin - 12 * 60) * 60_000
+
+  const localMs = Date.UTC(year, month - 1, day, hours, minutes)
+  return new Date(localMs - offsetMs).toISOString()
 }
 
 function normalizePhoneRO(telefon: string): string {
