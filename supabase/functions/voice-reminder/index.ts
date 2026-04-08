@@ -47,7 +47,7 @@ Deno.serve(async (_req) => {
       if (tel.startsWith('0') && !tel.startsWith('+')) tel = '+4' + tel
 
       // TwiML cu speech recognition în română
-      const webhookAction = WEBHOOK_URL + '?id=' + row.id
+      const webhookAction = WEBHOOK_URL + '?id=' + row.id + '&clinic_id=' + encodeURIComponent(row.clinic_id || '')
       const twiml = '<?xml version="1.0" encoding="UTF-8"?>'
         + '<Response>'
         + '<Gather input="speech" language="ro-RO" speechTimeout="auto" speechModel="phone_call" action="' + webhookAction + '" method="POST">'

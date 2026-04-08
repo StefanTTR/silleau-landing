@@ -36,12 +36,13 @@ function page(mark: string, title: string, body: string): Response {
 Deno.serve(async (req) => {
   const url = new URL(req.url)
   const id  = url.searchParams.get('id')
+  const clinicId = url.searchParams.get('clinic_id')
 
-  if (!id) return page('✕', 'Link invalid', 'ID-ul programării lipsește.')
+  if (!id || !clinicId) return page('✕', 'Link invalid', 'ID-ul programării sau clinicii lipsește.')
 
   /* ── 1. Verifică statusul curent ── */
   const res  = await fetch(
-    SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&select=status,confirmat_reminder,motiv_anulare',
+    SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&clinic_id=eq.' + clinicId + '&select=status,confirmat_reminder,motiv_anulare',
     { headers: SB_GET }
   )
   const rows = await res.json()
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
   }
 
   /* ── 2. Confirmă ── */
-  await fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + id, {
+  await fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&clinic_id=eq.' + clinicId, {
     method:  'PATCH',
     headers: SB_PATCH,
     body:    JSON.stringify({ confirmat_reminder: true }),

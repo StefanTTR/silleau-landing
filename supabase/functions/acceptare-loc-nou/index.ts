@@ -1,7 +1,7 @@
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_KEY = Deno.env.get('RESEND_KEY')!
-const FROM_EMAIL = 'contact@silleau.com'
+const FROM_EMAIL = 'Clinica Alfa <contact@silleau.com>'
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -25,43 +25,36 @@ Deno.serve(async (req) => {
   }
   try {
     const body = await req.json()
-    const { programare_id, cur_data, cur_ora } = body
+    const { programare_id, clinic_id, cur_data, cur_ora } = body
 
-    if (!programare_id) {
-      return new Response(JSON.stringify({ error: 'programare_id lipsa' }), { status: 400, headers: CORS })
+    if (!programare_id || !clinic_id) {
+      return new Response(JSON.stringify({ error: 'programare_id sau clinic_id lipsa' }), { status: 400, headers: CORS })
     }
 
-    // Fetch programare (dupa PATCH, contine deja noile data/ora)
     const progList = await sbGet(
       'programari?id=eq.' + programare_id
-      + '&select=data_programare,ora_start,personal_id,serviciu_id,pacient_id'
+      + '&clinic_id=eq.' + clinic_id
+      + '&select=data_programare,ora_start,clinic_id,'
+      + 'pacient:pacienti!programari_pacient_id_fkey(email,prenume),'
+      + 'medic:personal!programari_personal_id_fkey(prenume,nume,titlu,specialitate),'
+      + 'serviciu:servicii!programari_serviciu_id_fkey(nome)'
     )
     if (!Array.isArray(progList) || progList.length === 0) {
       return new Response(JSON.stringify({ error: 'programare negasita' }), { status: 404, headers: CORS })
     }
     const prog = progList[0]
+    const pacient = prog.pacient
+    const med = prog.medic
 
-    // Fetch pacient
-    const pacList = await sbGet('pacienti?id=eq.' + prog.pacient_id + '&select=email,prenume')
-    if (!Array.isArray(pacList) || pacList.length === 0) {
+    if (!pacient?.email) {
       return new Response(JSON.stringify({ error: 'pacient negasit' }), { status: 404, headers: CORS })
     }
-    const pacient = pacList[0]
-
-    // Fetch medic
-    const medList = await sbGet('personal?id=eq.' + prog.personal_id + '&select=prenume,nume,titlu,specialitate')
-    if (!Array.isArray(medList) || medList.length === 0) {
+    if (!med) {
       return new Response(JSON.stringify({ error: 'medic negasit' }), { status: 404, headers: CORS })
     }
-    const med = medList[0]
-    const medicNume = ((med.titlu ? med.titlu + ' ' : '') + (med.prenume || '') + ' ' + (med.nume || '')).trim()
 
-    // Fetch serviciu
-    let serviciuNume = ''
-    if (prog.serviciu_id) {
-      const servList = await sbGet('servicii?id=eq.' + prog.serviciu_id + '&select=nome')
-      serviciuNume = servList[0]?.nome || ''
-    }
+    const medicNume = ((med.titlu ? med.titlu + ' ' : '') + (med.prenume || '') + ' ' + (med.nume || '')).trim()
+    const serviciuNume = prog.serviciu?.nome || ''
 
     const slotData = (prog.data_programare || '').slice(0, 10)
     const slotOra  = (prog.ora_start || '').slice(0, 5)

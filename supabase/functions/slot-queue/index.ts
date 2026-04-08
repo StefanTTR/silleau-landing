@@ -1,7 +1,7 @@
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_KEY = Deno.env.get('RESEND_KEY')!
-const FROM_EMAIL = 'contact@silleau.com'
+const FROM_EMAIL = 'Clinica Alfa <contact@silleau.com>'
 const BASE_URL   = 'https://www.silleau.com'
 
 const SB_HEADERS = {
@@ -12,156 +12,234 @@ const SB_HEADERS = {
 
 async function sbGet(path: string) {
   const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, { headers: SB_HEADERS })
+  if (!r.ok) throw new Error('Supabase GET ' + r.status + ': ' + await r.text())
   return r.json()
 }
 
-async function sbPatch(path: string, body: object) {
-  return fetch(SUPABASE_URL + '/rest/v1/' + path, {
+async function sbPatch(path: string, body: object, representation = false) {
+  const r = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
     method: 'PATCH',
-    headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+    headers: {
+      ...SB_HEADERS,
+      'Prefer': representation ? 'return=representation' : 'return=minimal',
+    },
     body: JSON.stringify(body),
   })
+  if (!r.ok) throw new Error('Supabase PATCH ' + r.status + ': ' + await r.text())
+  return representation ? r.json() : null
 }
+
+type Grup = { programare_anulata_id: string, clinic_id: string }
+type Oferta = { id: string, programare_eligibila_id: string, pacient_id: string, clinic_id: string }
 
 Deno.serve(async (_req) => {
   try {
-    // Gaseste grupuri cu oferte pending si slot neocupat
     const grupuri = await sbGet(
-      'slot_oferte?slot_ocupat=eq.false&status=eq.pending&select=programare_anulata_id'
+      'slot_oferte?slot_ocupat=eq.false&status=eq.pending&select=programare_anulata_id,clinic_id'
     )
 
     if (!Array.isArray(grupuri) || grupuri.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), { status: 200 })
     }
 
-    const ids = [...new Set(grupuri.map((g: any) => g.programare_anulata_id))]
-    let sent = 0
-
-    for (const anulataId of ids) {
-      // Verifica daca slotul a fost deja ocupat
-      const ocupat = await sbGet(
-        'slot_oferte?programare_anulata_id=eq.' + anulataId
-        + '&slot_ocupat=eq.true&select=id&limit=1'
-      )
-      if (Array.isArray(ocupat) && ocupat.length > 0) continue
-
-      // Verifica daca ultimul email trimis a fost acum cel putin 1h
-      // Include si status 'expirat' (pacient refuzat) — tot conteaza ca email trimis
-      const ultimTrimis = await sbGet(
-        'slot_oferte?programare_anulata_id=eq.' + anulataId
-        + '&email_trimis_la=not.is.null'
-        + '&order=email_trimis_la.desc'
-        + '&limit=1'
-        + '&select=email_trimis_la'
-      )
-
-      if (!Array.isArray(ultimTrimis) || ultimTrimis.length === 0) continue
-
-      const ultimaOra = new Date(ultimTrimis[0].email_trimis_la)
-      if (Date.now() - ultimaOra.getTime() < 60 * 60 * 1000) continue
-
-      // Gaseste urmatoarea oferta pending
-      const urmatoarele = await sbGet(
-        'slot_oferte?programare_anulata_id=eq.' + anulataId
-        + '&status=eq.pending'
-        + '&order=pozitie.asc'
-        + '&limit=1'
-        + '&select=id,programare_eligibila_id,pacient_id'
-      )
-
-      if (!Array.isArray(urmatoarele) || urmatoarele.length === 0) continue
-      const oferta = urmatoarele[0]
-
-      // Fetch detalii programare anulata
-      const progAnulata = await sbGet(
-        'programari?id=eq.' + anulataId
-        + '&select=data_programare,ora_start,ora_sfarsit,personal_id,clinic_id,serviciu_id'
-      )
-      if (!Array.isArray(progAnulata) || progAnulata.length === 0) continue
-      const pa = progAnulata[0]
-
-      // Verifica ca slotul e inca cu cel putin 24h in viitor
-      const oraStartStr = (pa.ora_start + '').slice(0, 5)
-      const slotDt = new Date(pa.data_programare + 'T' + oraStartStr + ':00')
-      if (slotDt.getTime() - Date.now() < 24 * 60 * 60 * 1000) {
-        await sbPatch(
-          'slot_oferte?programare_anulata_id=eq.' + anulataId + '&status=eq.pending',
-          { status: 'expirat' }
-        )
-        continue
-      }
-
-      // Fetch pacient
-      const pacList = await sbGet('pacienti?id=eq.' + oferta.pacient_id + '&select=email,prenume')
-      if (!Array.isArray(pacList) || pacList.length === 0) continue
-      const pacient = pacList[0]
-
-      // Fetch medic
-      const medList = await sbGet('personal?id=eq.' + pa.personal_id + '&select=prenume,nume,titlu,specialitate')
-      if (!Array.isArray(medList) || medList.length === 0) continue
-      const med = medList[0]
-      const medicNume = ((med.titlu ? med.titlu + ' ' : '') + (med.prenume || '') + ' ' + (med.nume || '')).trim()
-
-      // Fetch serviciu
-      let serviciuNume = ''
-      if (pa.serviciu_id) {
-        const servList = await sbGet('servicii?id=eq.' + pa.serviciu_id + '&select=nome')
-        serviciuNume = servList[0]?.nome || ''
-      }
-
-      // Fetch programarea eligibila (pentru curData/curOra)
-      const progElig = await sbGet(
-        'programari?id=eq.' + oferta.programare_eligibila_id
-        + '&select=data_programare,ora_start'
-      )
-      const pe = Array.isArray(progElig) && progElig.length > 0 ? progElig[0] : null
-
-      // Construieste link acceptare
-      const oraEndStr = (pa.ora_sfarsit + '').slice(0, 5)
-      const locUrl = BASE_URL + '/confirmare-loc'
-        + '?id='           + oferta.programare_eligibila_id
-        + '&sd='           + encodeURIComponent(pa.data_programare)
-        + '&so='           + encodeURIComponent(oraStartStr)
-        + '&slot_sfarsit=' + encodeURIComponent(oraEndStr)
-        + '&medic='        + encodeURIComponent(medicNume)
-        + '&oferta_id='    + oferta.id
-
-      const emailRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: FROM_EMAIL,
-          to: pacient.email,
-          subject: 'S-a eliberat un slot mai devreme \u2014 ' + pa.data_programare,
-          html: buildSlotEmail({
-            prenume:      pacient.prenume || '',
-            medic:        medicNume,
-            specialitate: med.specialitate || '',
-            serviciu:     serviciuNume,
-            data:         pa.data_programare,
-            ora:          oraStartStr,
-            curData:      pe ? (pe.data_programare || '') : '',
-            curOra:       pe ? (pe.ora_start + '').slice(0, 5) : '',
-            locUrl,
-          }),
-        }),
+    const groupsMap = new Map<string, Grup>()
+    for (const g of grupuri) {
+      if (!g?.programare_anulata_id || !g?.clinic_id) continue
+      groupsMap.set(String(g.clinic_id) + ':' + String(g.programare_anulata_id), {
+        programare_anulata_id: String(g.programare_anulata_id),
+        clinic_id: String(g.clinic_id),
       })
+    }
 
-      if (emailRes.ok) {
-        await sbPatch('slot_oferte?id=eq.' + oferta.id, {
-          status: 'trimis',
-          email_trimis_la: new Date().toISOString(),
-        })
-        sent++
+    let sent = 0
+    let failed = 0
+
+    for (const batch of chunk([...groupsMap.values()], 10)) {
+      const results = await Promise.allSettled(batch.map(processQueueGroup))
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value === true) sent++
+        else if (result.status === 'rejected') {
+          failed++
+          console.error('[slot-queue] group error:', String(result.reason))
+        }
       }
     }
 
-    return new Response(JSON.stringify({ sent }), { status: 200 })
+    return new Response(JSON.stringify({ sent, failed }), { status: 200 })
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 })
   }
 })
 
+async function processQueueGroup(group: Grup): Promise<boolean> {
+  const { programare_anulata_id: anulataId, clinic_id: clinicId } = group
+
+  const ocupat = await sbGet(
+    'slot_oferte?programare_anulata_id=eq.' + anulataId
+    + '&clinic_id=eq.' + clinicId
+    + '&slot_ocupat=eq.true&select=id&limit=1'
+  )
+  if (Array.isArray(ocupat) && ocupat.length > 0) return false
+
+  const ultimTrimis = await sbGet(
+    'slot_oferte?programare_anulata_id=eq.' + anulataId
+    + '&clinic_id=eq.' + clinicId
+    + '&email_trimis_la=not.is.null'
+    + '&order=email_trimis_la.desc'
+    + '&limit=1'
+    + '&select=email_trimis_la'
+  )
+
+  if (!Array.isArray(ultimTrimis) || ultimTrimis.length === 0) return false
+
+  const ultimaOra = new Date(ultimTrimis[0].email_trimis_la)
+  if (Date.now() - ultimaOra.getTime() < 60 * 60 * 1000) return false
+
+  const urmatoarele = await sbGet(
+    'slot_oferte?programare_anulata_id=eq.' + anulataId
+    + '&clinic_id=eq.' + clinicId
+    + '&status=eq.pending'
+    + '&order=pozitie.asc'
+    + '&limit=1'
+    + '&select=id,programare_eligibila_id,pacient_id,clinic_id'
+  )
+
+  if (!Array.isArray(urmatoarele) || urmatoarele.length === 0) return false
+
+  const oferta = await claimOferta(urmatoarele[0])
+  if (!oferta) return false
+
+  try {
+    const progAnulata = await sbGet(
+      'programari?id=eq.' + anulataId
+      + '&clinic_id=eq.' + clinicId
+      + '&select=data_programare,ora_start,ora_sfarsit,personal_id,clinic_id,serviciu_id'
+    )
+    if (!Array.isArray(progAnulata) || progAnulata.length === 0) {
+      await releaseOferta(oferta.id, clinicId)
+      return false
+    }
+    const pa = progAnulata[0]
+
+    const oraStartStr = (pa.ora_start + '').slice(0, 5)
+    const slotDt = new Date(pa.data_programare + 'T' + oraStartStr + ':00')
+    if (slotDt.getTime() - Date.now() < 24 * 60 * 60 * 1000) {
+      await sbPatch(
+        'slot_oferte?programare_anulata_id=eq.' + anulataId
+        + '&clinic_id=eq.' + clinicId
+        + '&slot_ocupat=eq.false'
+        + '&status=in.(pending,processing)',
+        { status: 'expirat' }
+      )
+      return false
+    }
+
+    const pacList = await sbGet('pacienti?id=eq.' + oferta.pacient_id + '&select=email,prenume')
+    if (!Array.isArray(pacList) || pacList.length === 0) {
+      await releaseOferta(oferta.id, clinicId)
+      return false
+    }
+    const pacient = pacList[0]
+
+    const medList = await sbGet('personal?id=eq.' + pa.personal_id + '&select=prenume,nume,titlu,specialitate')
+    if (!Array.isArray(medList) || medList.length === 0) {
+      await releaseOferta(oferta.id, clinicId)
+      return false
+    }
+    const med = medList[0]
+    const medicNume = ((med.titlu ? med.titlu + ' ' : '') + (med.prenume || '') + ' ' + (med.nume || '')).trim()
+
+    let serviciuNume = ''
+    if (pa.serviciu_id) {
+      const servList = await sbGet('servicii?id=eq.' + pa.serviciu_id + '&select=nome')
+      serviciuNume = servList[0]?.nome || ''
+    }
+
+    const progElig = await sbGet(
+      'programari?id=eq.' + oferta.programare_eligibila_id
+      + '&clinic_id=eq.' + clinicId
+      + '&select=data_programare,ora_start'
+    )
+    const pe = Array.isArray(progElig) && progElig.length > 0 ? progElig[0] : null
+
+    const oraEndStr = (pa.ora_sfarsit + '').slice(0, 5)
+    const locUrl = BASE_URL + '/confirmare-loc'
+      + '?id='           + oferta.programare_eligibila_id
+      + '&clinic_id='    + encodeURIComponent(clinicId)
+      + '&sd='           + encodeURIComponent(pa.data_programare)
+      + '&so='           + encodeURIComponent(oraStartStr)
+      + '&slot_sfarsit=' + encodeURIComponent(oraEndStr)
+      + '&medic='        + encodeURIComponent(medicNume)
+      + '&oferta_id='    + oferta.id
+
+    const emailRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: pacient.email,
+        subject: 'S-a eliberat un slot mai devreme — ' + pa.data_programare,
+        html: buildSlotEmail({
+          prenume:      pacient.prenume || '',
+          medic:        medicNume,
+          specialitate: med.specialitate || '',
+          serviciu:     serviciuNume,
+          data:         pa.data_programare,
+          ora:          oraStartStr,
+          curData:      pe ? (pe.data_programare || '') : '',
+          curOra:       pe ? (pe.ora_start + '').slice(0, 5) : '',
+          locUrl,
+        }),
+      }),
+    })
+
+    if (!emailRes.ok) {
+      const txt = await emailRes.text()
+      console.error('[slot-queue] Resend error:', emailRes.status, txt)
+      await releaseOferta(oferta.id, clinicId)
+      return false
+    }
+
+    await sbPatch(
+      'slot_oferte?id=eq.' + oferta.id + '&clinic_id=eq.' + clinicId + '&status=eq.processing',
+      {
+        status: 'trimis',
+        email_trimis_la: new Date().toISOString(),
+      }
+    )
+    return true
+  } catch (e) {
+    await releaseOferta(oferta.id, clinicId)
+    throw e
+  }
+}
+
+async function claimOferta(oferta: Oferta): Promise<Oferta | null> {
+  const rows = await sbPatch(
+    'slot_oferte?id=eq.' + oferta.id
+    + '&clinic_id=eq.' + oferta.clinic_id
+    + '&status=eq.pending'
+    + '&slot_ocupat=eq.false',
+    { status: 'processing' },
+    true
+  )
+
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  return rows[0] as Oferta
+}
+
+async function releaseOferta(ofertaId: string, clinicId: string) {
+  await sbPatch(
+    'slot_oferte?id=eq.' + ofertaId + '&clinic_id=eq.' + clinicId + '&status=eq.processing&slot_ocupat=eq.false',
+    { status: 'pending' }
+  )
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
 function buildSlotEmail(d: {
   prenume: string, medic: string, specialitate: string, serviciu: string,
   data: string, ora: string, curData: string, curOra: string, locUrl: string

@@ -14,20 +14,57 @@ Deno.serve(async (req) => {
   }
   try {
     const body = await req.json()
-    const { canal, email, telefon, prenume, medic, specialitate, serviciu, data, ora, rechemare } = body
+    const {
+      canal,
+      email,
+      telefon,
+      prenume,
+      medic,
+      specialitate,
+      serviciu,
+      data,
+      ora,
+      rechemare,
+      programare_id,
+      clinic_id,
+    } = body
 
-    if (!prenume || !medic || !data || !ora) {
-      return new Response(JSON.stringify({ error: 'date incomplete' }), { status: 400, headers: CORS })
+    if (!isNonEmptyString(prenume) || !isNonEmptyString(medic) || !isValidDate(data) || !isValidTime(ora)) {
+      return new Response(JSON.stringify({ error: 'date incomplete sau invalide' }), { status: 400, headers: CORS })
     }
 
-    if (canal === 'whatsapp') {
-      if (!telefon) {
+    const canalFinal = canal === 'whatsapp' ? 'whatsapp' : canal === 'email' || canal == null ? 'email' : ''
+    if (!canalFinal) {
+      return new Response(JSON.stringify({ error: 'canal invalid' }), { status: 400, headers: CORS })
+    }
+
+    if (canalFinal === 'whatsapp') {
+      if (!isNonEmptyString(telefon)) {
         return new Response(JSON.stringify({ error: 'telefon lipsa pentru whatsapp' }), { status: 400, headers: CORS })
       }
-      await sendWhatsApp(telefon, { prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data, ora, rechemare: rechemare || '' })
+      if (!isNonEmptyString(programare_id) || !isNonEmptyString(clinic_id)) {
+        return new Response(JSON.stringify({ error: 'programare_id si clinic_id sunt obligatorii pentru whatsapp' }), { status: 400, headers: CORS })
+      }
+
+      const to = normalizePhone(telefon)
+      if (!to) {
+        return new Response(JSON.stringify({ error: 'telefon invalid' }), { status: 400, headers: CORS })
+      }
+
+      await sendWhatsApp(to, {
+        prenume,
+        medic,
+        specialitate: specialitate || '',
+        serviciu: serviciu || '',
+        data,
+        ora,
+        rechemare: rechemare || '',
+        programareId: programare_id,
+        clinicId: clinic_id,
+      })
     } else {
-      if (!email) {
-        return new Response(JSON.stringify({ error: 'email lipsa' }), { status: 400, headers: CORS })
+      if (!isValidEmail(email)) {
+        return new Response(JSON.stringify({ error: 'email lipsa sau invalid' }), { status: 400, headers: CORS })
       }
       const emailRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -35,7 +72,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: FROM_EMAIL,
           to: email,
-          subject: 'Confirmare programare \u2014 ' + data,
+          subject: 'Confirmare programare — ' + data,
           html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data, ora, rechemare: rechemare || '' }),
         }),
       })
@@ -51,14 +88,48 @@ Deno.serve(async (req) => {
   }
 })
 
-async function sendWhatsApp(telefon: string, d: {
-  prenume: string, medic: string, specialitate: string,
-  serviciu: string, data: string, ora: string, rechemare: string
-}) {
-  // Normalizare: 07XXXXXXXX → 407XXXXXXXX (fără +)
-  const normalized = telefon.replace(/[\s\-().+]/g, '')
-  const to = normalized.startsWith('40') ? normalized : '4' + normalized.replace(/^0/, '')
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.trim().length > 0
+}
 
+function isValidEmail(v: unknown): v is string {
+  return typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+}
+
+function isValidDate(v: unknown): v is string {
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
+}
+
+function isValidTime(v: unknown): v is string {
+  return typeof v === 'string' && /^\d{2}:\d{2}$/.test(v)
+}
+
+function normalizePhone(telefon: string): string {
+  const normalized = telefon.replace(/[^\d+]/g, '')
+  if (!normalized) return ''
+  if (normalized.startsWith('+')) {
+    const digits = normalized.slice(1)
+    return /^\d{8,15}$/.test(digits) ? digits : ''
+  }
+  if (normalized.startsWith('00')) {
+    const digits = normalized.slice(2)
+    return /^\d{8,15}$/.test(digits) ? digits : ''
+  }
+  if (normalized.startsWith('40')) {
+    return /^40\d{8,10}$/.test(normalized) ? normalized : ''
+  }
+  if (normalized.startsWith('0')) {
+    const ro = '4' + normalized.replace(/^0/, '')
+    return /^40\d{8,10}$/.test(ro) ? ro : ''
+  }
+  return /^\d{8,15}$/.test(normalized) ? normalized : ''
+}
+
+async function sendWhatsApp(to: string, d: {
+  prenume: string, medic: string, specialitate: string,
+  serviciu: string, data: string, ora: string, rechemare: string,
+  programareId: string, clinicId: string,
+}) {
   const res = await fetch(`https://graph.facebook.com/v18.0/${META_WA_PHONE_ID}/messages`, {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + META_WA_TOKEN, 'Content-Type': 'application/json' },
@@ -75,10 +146,10 @@ async function sendWhatsApp(telefon: string, d: {
             { type: 'text', text: d.prenume },
             { type: 'text', text: d.medic },
             { type: 'text', text: d.specialitate },
-            { type: 'text', text: d.serviciu || '\u2014' },
+            { type: 'text', text: d.serviciu || '—' },
             { type: 'text', text: d.data },
             { type: 'text', text: d.ora },
-            { type: 'text', text: d.rechemare || '\u2014' },
+            { type: 'text', text: d.rechemare || '—' },
           ]
         }]
       }
@@ -88,6 +159,31 @@ async function sendWhatsApp(telefon: string, d: {
   if (!res.ok) {
     const txt = await res.text()
     throw new Error('Meta WA ' + res.status + ': ' + txt)
+  }
+
+  const contextMessage = [
+    'Pentru confirmări și feedback, păstrați acest mesaj ca referință.',
+    'programare_id=' + d.programareId,
+    'clinic_id=' + d.clinicId,
+  ].join('\n')
+
+  const contextRes = await fetch(`https://graph.facebook.com/v18.0/${META_WA_PHONE_ID}/messages`, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + META_WA_TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'text',
+      text: {
+        preview_url: false,
+        body: contextMessage,
+      },
+    })
+  })
+
+  if (!contextRes.ok) {
+    const txt = await contextRes.text()
+    throw new Error('Meta WA context ' + contextRes.status + ': ' + txt)
   }
 }
 

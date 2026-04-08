@@ -5,127 +5,249 @@ const META_WA_TOKEN    = Deno.env.get('META_WA_TOKEN')!
 const META_WA_PHONE_ID = Deno.env.get('META_WA_PHONE_ID')!
 const FROM_EMAIL       = 'Clinica Alfa <contact@silleau.com>'
 
+const SB_HEADERS = {
+  'apikey': SERVICE_ROLE_KEY,
+  'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
+}
+
+const SB_PATCH_HEADERS = {
+  ...SB_HEADERS,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=minimal',
+}
+
+type ReminderRow = Record<string, any>
+type ProgramareMeta = { id: string, clinic_id: string, canal_comunicare: string }
+
 Deno.serve(async (_req) => {
   try {
     const now = new Date()
+    const windowStart = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    const windowEnd   = new Date(now.getTime() + 25 * 60 * 60 * 1000)
+    const windowStartIso = windowStart.toISOString()
+    const windowEndIso   = windowEnd.toISOString()
 
-    // Fereastra: 24h-25h de acum (1 oră, cron rulează orar)
-    const target    = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    const targetEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000)
-
-    // Data și ora în timezone România (gestionează automat ora de vară)
-    const ds        = target.toLocaleDateString('en-CA', { timeZone: 'Europe/Bucharest' })
-    const hourStart = target.toLocaleTimeString('en-GB', { timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit' })
-    const hourEnd   = targetEnd.toLocaleTimeString('en-GB', { timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit' })
-
-    const url = SUPABASE_URL + '/rest/v1/v_reminder'
-      + '?data_programare=eq.' + ds
-      + '&ora_start=gte.' + hourStart
-      + '&ora_start=lt.'  + hourEnd
-      + '&reminder_trimis=eq.false'
-      + '&status=in.(neconfirmat,confirmat)'
-
-    const res = await fetch(url, {
-      headers: {
-        'apikey': SERVICE_ROLE_KEY,
-        'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
-      },
-    })
-
-    if (!res.ok) {
-      const txt = await res.text()
-      throw new Error('Supabase fetch error ' + res.status + ': ' + txt)
-    }
-
-    const rows = await res.json()
+    const rows = await fetchReminderRows(windowStartIso, windowEndIso)
 
     if (!Array.isArray(rows) || rows.length === 0) {
-      return new Response(JSON.stringify({ sent: 0, window: ds + ' ' + hourStart + '-' + hourEnd }), { status: 200 })
+      return new Response(JSON.stringify({
+        sent: 0,
+        total: 0,
+        window_start: windowStartIso,
+        window_end: windowEndIso,
+      }), { status: 200 })
     }
 
-    const SB = {
-      'apikey': SERVICE_ROLE_KEY,
-      'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
-    }
+    const metaMap = await fetchProgramariMeta(rows.map((row) => String(row.id || '')))
 
     let sent = 0
-    for (const row of rows) {
-      // Fetch canal preferat direct din programari (v_reminder poate să nu aibă coloana)
-      const canalRes  = await fetch(
-        SUPABASE_URL + '/rest/v1/programari?id=eq.' + row.id + '&select=canal_comunicare',
-        { headers: SB }
+    let failed = 0
+
+    for (const batch of chunk(rows, 10)) {
+      const results = await Promise.allSettled(
+        batch.map((row) => processReminder(row, metaMap[String(row.id || '')] || null))
       )
-      const canalRows = await canalRes.json()
-      const canal     = canalRows?.[0]?.canal_comunicare || 'email'
 
-      let ok = false
-
-      if (canal === 'whatsapp') {
-        ok = await sendWhatsAppReminder(row)
-      } else {
-        const dataEncoded         = encodeURIComponent(row.data_programare)
-        const oraEncoded          = encodeURIComponent((row.ora_start || '').slice(0, 5))
-        const medicEncoded        = encodeURIComponent(row.medic || '')
-        const specialitateEncoded = encodeURIComponent(row.specialitate || '')
-        const serviciuEncoded     = encodeURIComponent(row.serviciu || '')
-        const baseUrl             = 'https://www.silleau.com'
-        const confirmUrl          = SUPABASE_URL + '/functions/v1/confirmare-reminder?id=' + row.id
-        const reprogramareUrl     = baseUrl + '/anulare?id=' + row.id
-          + '&action=reprogrameaza&medic=' + medicEncoded
-          + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
-        const anulareUrl          = baseUrl + '/anulare?id=' + row.id
-          + '&data=' + dataEncoded + '&ora=' + oraEncoded + '&medic=' + medicEncoded
-          + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
-
-        const emailRes = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: FROM_EMAIL,
-            to: row.email,
-            subject: 'Reminder programare — ' + row.data_programare,
-            html: buildEmail({
-              prenume:         row.prenume      || '',
-              medic:           row.medic        || '',
-              specialitate:    row.specialitate || '',
-              serviciu:        row.serviciu     || '',
-              data:            row.data_programare || '',
-              ora:             (row.ora_start   || '').slice(0, 5),
-              confirmUrl,
-              reprogramareUrl,
-              anulareUrl,
-            }),
-          }),
-        })
-        ok = emailRes.ok
-      }
-
-      if (ok) {
-        await fetch(
-          SUPABASE_URL + '/rest/v1/programari?id=eq.' + row.id,
-          {
-            method:  'PATCH',
-            headers: { ...SB, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-            body:    JSON.stringify({ reminder_trimis: true, reminder_trimis_la: new Date().toISOString() }),
-          }
-        )
-        sent++
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value === true) sent++
+        else failed++
       }
     }
 
-    return new Response(JSON.stringify({ sent, total: rows.length, window: ds + ' ' + hourStart + '-' + hourEnd }), { status: 200 })
+    return new Response(JSON.stringify({
+      sent,
+      failed,
+      total: rows.length,
+      window_start: windowStartIso,
+      window_end: windowEndIso,
+    }), { status: 200 })
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 })
   }
 })
 
-async function sendWhatsAppReminder(row: Record<string, unknown>): Promise<boolean> {
-  const tel        = (row.telefon as string || '').replace(/[\s\-().+]/g, '')
-  const to         = tel.startsWith('40') ? tel : '4' + tel.replace(/^0/, '')
-  const ora        = ((row.ora_start as string) || '').slice(0, 5)
+async function fetchReminderRows(windowStartIso: string, windowEndIso: string): Promise<ReminderRow[]> {
+  const baseSelect = [
+    'id',
+    'prenume',
+    'email',
+    'telefon',
+    'medic',
+    'specialitate',
+    'serviciu',
+    'data_programare',
+    'ora_start',
+    'status',
+    'reminder_trimis',
+  ].join(',')
+
+  const timestampColumns = ['programare_ts', 'programare_at', 'slot_start', 'appointment_at', 'start_at']
+
+  for (const column of timestampColumns) {
+    const url = SUPABASE_URL + '/rest/v1/v_reminder'
+      + '?select=' + encodeURIComponent(baseSelect + ',' + column)
+      + '&' + column + '=gte.' + encodeURIComponent(windowStartIso)
+      + '&' + column + '=lt.' + encodeURIComponent(windowEndIso)
+      + '&reminder_trimis=eq.false'
+      + '&status=in.(neconfirmat,confirmat)'
+
+    const res = await fetch(url, { headers: SB_HEADERS })
+    if (!res.ok) {
+      const txt = await res.text()
+      console.warn('[send-reminders] timestamp column', column, 'not available:', res.status, txt)
+      continue
+    }
+
+    const rows = await res.json()
+    if (Array.isArray(rows)) return rows
+  }
+
+  const fallbackDate = windowStartIso.slice(0, 10)
+  const fallbackUrl = SUPABASE_URL + '/rest/v1/v_reminder'
+    + '?select=' + encodeURIComponent(baseSelect)
+    + '&data_programare=eq.' + fallbackDate
+    + '&reminder_trimis=eq.false'
+    + '&status=in.(neconfirmat,confirmat)'
+
+  const fallbackRes = await fetch(fallbackUrl, { headers: SB_HEADERS })
+  if (!fallbackRes.ok) {
+    const txt = await fallbackRes.text()
+    throw new Error('Supabase fetch error ' + fallbackRes.status + ': ' + txt)
+  }
+
+  const fallbackRows = await fallbackRes.json()
+  if (!Array.isArray(fallbackRows)) return []
+
+  return fallbackRows.filter((row) => {
+    const slotIso = buildApproxSlotIso(row.data_programare, row.ora_start)
+    if (!slotIso) return false
+    return slotIso >= windowStartIso && slotIso < windowEndIso
+  })
+}
+
+async function fetchProgramariMeta(ids: string[]): Promise<Record<string, ProgramareMeta>> {
+  const cleanIds = ids.filter(Boolean)
+  const map: Record<string, ProgramareMeta> = {}
+
+  for (const batch of chunk(cleanIds, 100)) {
+    const url = SUPABASE_URL + '/rest/v1/programari'
+      + '?id=in.(' + batch.join(',') + ')'
+      + '&select=id,clinic_id,canal_comunicare'
+
+    const res = await fetch(url, { headers: SB_HEADERS })
+    if (!res.ok) {
+      const txt = await res.text()
+      throw new Error('Supabase meta fetch error ' + res.status + ': ' + txt)
+    }
+
+    const rows = await res.json()
+    if (!Array.isArray(rows)) continue
+
+    for (const row of rows) {
+      if (!row?.id || !row?.clinic_id) continue
+      map[String(row.id)] = {
+        id: String(row.id),
+        clinic_id: String(row.clinic_id),
+        canal_comunicare: String(row.canal_comunicare || 'email'),
+      }
+    }
+  }
+
+  return map
+}
+
+async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): Promise<boolean> {
+  if (!row?.id || !meta?.clinic_id) {
+    console.warn('[send-reminders] lipseste contextul clinic/programare pentru row:', row?.id)
+    return false
+  }
+
+  let ok = false
+
+  if (meta.canal_comunicare === 'whatsapp') {
+    ok = await sendWhatsAppReminder(row, meta)
+  } else {
+    const dataEncoded         = encodeURIComponent(row.data_programare || '')
+    const oraEncoded          = encodeURIComponent(String(row.ora_start || '').slice(0, 5))
+    const medicEncoded        = encodeURIComponent(row.medic || '')
+    const specialitateEncoded = encodeURIComponent(row.specialitate || '')
+    const serviciuEncoded     = encodeURIComponent(row.serviciu || '')
+    const baseUrl             = 'https://www.silleau.com'
+    const confirmUrl          = SUPABASE_URL + '/functions/v1/confirmare-reminder?id=' + row.id + '&clinic_id=' + meta.clinic_id
+    const reprogramareUrl     = baseUrl + '/anulare?id=' + row.id
+      + '&clinic_id=' + encodeURIComponent(meta.clinic_id)
+      + '&action=reprogrameaza&medic=' + medicEncoded
+      + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
+    const anulareUrl          = baseUrl + '/anulare?id=' + row.id
+      + '&clinic_id=' + encodeURIComponent(meta.clinic_id)
+      + '&data=' + dataEncoded + '&ora=' + oraEncoded + '&medic=' + medicEncoded
+      + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
+
+    const emailRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: row.email,
+        subject: 'Reminder programare — ' + row.data_programare,
+        html: buildEmail({
+          prenume:         row.prenume         || '',
+          medic:           row.medic           || '',
+          specialitate:    row.specialitate    || '',
+          serviciu:        row.serviciu        || '',
+          data:            row.data_programare || '',
+          ora:             String(row.ora_start || '').slice(0, 5),
+          confirmUrl,
+          reprogramareUrl,
+          anulareUrl,
+        }),
+      }),
+    })
+
+    if (!emailRes.ok) {
+      const txt = await emailRes.text()
+      console.error('[send-reminders] Resend error:', emailRes.status, txt)
+    }
+
+    ok = emailRes.ok
+  }
+
+  if (!ok) return false
+
+  const patchRes = await fetch(
+    SUPABASE_URL + '/rest/v1/programari?id=eq.' + row.id + '&clinic_id=eq.' + meta.clinic_id,
+    {
+      method: 'PATCH',
+      headers: SB_PATCH_HEADERS,
+      body: JSON.stringify({
+        reminder_trimis: true,
+        reminder_trimis_la: new Date().toISOString(),
+      }),
+    }
+  )
+
+  if (!patchRes.ok) {
+    const txt = await patchRes.text()
+    console.error('[send-reminders] PATCH error:', patchRes.status, txt)
+    return false
+  }
+
+  return true
+}
+
+async function sendWhatsAppReminder(row: ReminderRow, meta: ProgramareMeta): Promise<boolean> {
+  const to  = normalizePhoneRO(String(row.telefon || ''))
+  const ora = String(row.ora_start || '').slice(0, 5)
+
+  if (!to) {
+    console.warn('[send-reminders] telefon invalid pentru programare', row.id)
+    return false
+  }
+
+  const payload = 'CONFIRM|' + meta.clinic_id + '|' + row.id
 
   const res = await fetch(`https://graph.facebook.com/v18.0/${META_WA_PHONE_ID}/messages`, {
-    method:  'POST',
+    method: 'POST',
     headers: { 'Authorization': 'Bearer ' + META_WA_TOKEN, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messaging_product: 'whatsapp',
@@ -134,18 +256,26 @@ async function sendWhatsAppReminder(row: Record<string, unknown>): Promise<boole
       template: {
         name: 'reminder_programare',
         language: { code: 'ro' },
-        components: [{
-          type: 'body',
-          parameters: [
-            { type: 'text', text: row.prenume      || '' },
-            { type: 'text', text: row.medic        || '' },
-            { type: 'text', text: row.specialitate || '' },
-            { type: 'text', text: row.data_programare || '' },
-            { type: 'text', text: ora },
-          ]
-        }]
-      }
-    })
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: row.prenume || '' },
+              { type: 'text', text: row.medic || '' },
+              { type: 'text', text: row.specialitate || '' },
+              { type: 'text', text: row.data_programare || '' },
+              { type: 'text', text: ora },
+            ],
+          },
+          {
+            type: 'button',
+            sub_type: 'quick_reply',
+            index: '0',
+            parameters: [{ type: 'payload', payload }],
+          },
+        ],
+      },
+    }),
   })
 
   if (!res.ok) {
@@ -153,6 +283,40 @@ async function sendWhatsAppReminder(row: Record<string, unknown>): Promise<boole
     console.error('[send-reminders] Meta WA error:', res.status, txt)
   }
   return res.ok
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const batches: T[][] = []
+  for (let i = 0; i < items.length; i += size) batches.push(items.slice(i, i + size))
+  return batches
+}
+
+function buildApproxSlotIso(dataProgramare: unknown, oraStart: unknown): string | null {
+  const data = String(dataProgramare || '').slice(0, 10)
+  const ora  = String(oraStart || '').slice(0, 5)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(ora)) return null
+  return data + 'T' + ora + ':00.000Z'
+}
+
+function normalizePhoneRO(telefon: string): string {
+  const normalized = telefon.replace(/[^\d+]/g, '')
+  if (!normalized) return ''
+  if (normalized.startsWith('+')) {
+    const digits = normalized.slice(1)
+    return /^\d{8,15}$/.test(digits) ? digits : ''
+  }
+  if (normalized.startsWith('00')) {
+    const digits = normalized.slice(2)
+    return /^\d{8,15}$/.test(digits) ? digits : ''
+  }
+  if (normalized.startsWith('40')) {
+    return /^40\d{8,10}$/.test(normalized) ? normalized : ''
+  }
+  if (normalized.startsWith('0')) {
+    const digits = '4' + normalized.replace(/^0/, '')
+    return /^40\d{8,10}$/.test(digits) ? digits : ''
+  }
+  return /^\d{8,15}$/.test(normalized) ? normalized : ''
 }
 
 function buildEmail(d: {
@@ -226,15 +390,15 @@ function buildEmail(d: {
     + '</td></tr>'
     + '<tr><td class="inner" style="padding:36px 44px 0;">'
     + '<p style="font-size:18px;margin:0 0 6px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
-    + '<span class="text-greet" style="color:#111111;">Bun\u0103 </span>'
+    + '<span class="text-greet" style="color:#111111;">Bună </span>'
     + '<strong class="text-name" style="color:#111111;font-weight:700;font-size:20px;">' + d.prenume + '</strong>'
     + '<span class="text-greet" style="color:#111111;">,</span></p>'
     + '<p class="text-body" style="font-size:13px;color:#888888;line-height:1.8;margin:0 0 28px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
-    + 'V\u0103 reamintim c\u0103 ave\u021bi o programare <strong style="color:#666666;font-weight:500;">m\u00e2ine</strong>. Sunte\u021bi ruga\u021bi s\u0103 confirma\u021bi prezen\u021ba sau s\u0103 anula\u021bi din timp dac\u0103 nu mai pute\u021bi ajunge.'
+    + 'Vă reamintim că aveți o programare <strong style="color:#666666;font-weight:500;">mâine</strong>. Sunteți rugați să confirmați prezența sau să anulați din timp dacă nu mai puteți ajunge.'
     + '</p>'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">'
     + '<tr><td colspan="2" style="padding:0 0 10px;">'
-    + '<span class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;">Detalii consulta\u021bie</span>'
+    + '<span class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;">Detalii consultație</span>'
     + '</td></tr>'
     + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;width:42%;font-family:\'Helvetica Neue\',Arial,sans-serif;">Medic</td>'
     + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.medic + '</td></tr>'
@@ -246,34 +410,32 @@ function buildEmail(d: {
     + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Ora</td>'
     + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.ora + '</td></tr>'
     + '</table>'
-    /* ── Buton 1: Confirma (full-width, primar) — text in <a> pentru Gmail dark mode ── */
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">'
     + '<tr><td class="btn-confirm" bgcolor="#111111" style="background-color:#111111;border-radius:3px;">'
     + '<a href="' + d.confirmUrl + '" style="display:block;padding:16px 12px;font-size:11px;color:#ffffff;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:600;text-decoration:none;text-align:center;">'
-    + '\u2713 &nbsp;Confirm\u0103 programarea'
+    + '✓ &nbsp;Confirmă programarea'
     + '</a>'
     + '</td></tr></table>'
-    /* ── Butoane 2+3: Reprogrameaza + Anuleaza (50/50, se stivuiesc pe mobil) ── */
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">'
     + '<tr>'
     + '<td class="btn-td" style="width:50%;padding-right:5px;vertical-align:top;">'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
     + '<td class="btn-reprogram" style="background-color:#ffffff;border:1px solid #C8C4BC;border-radius:3px;">'
     + '<a href="' + d.reprogramareUrl + '" style="display:block;padding:13px 10px;font-size:10px;color:#555555;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;text-decoration:none;text-align:center;">'
-    + '\u21ba &nbsp;Reprogrameaz\u0103'
+    + '↺ &nbsp;Reprogramează'
     + '</a></td></tr></table></td>'
     + '<td class="btn-td" style="width:50%;padding-left:5px;vertical-align:top;">'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
     + '<td class="btn-cancel" style="background-color:#ffffff;border:1px solid #E8E4DC;border-radius:3px;">'
     + '<a href="' + d.anulareUrl + '" style="display:block;padding:13px 10px;font-size:10px;color:#BBBBBB;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;text-decoration:none;text-align:center;">'
-    + '\u2715 &nbsp;Anuleaz\u0103'
+    + '✕ &nbsp;Anulează'
     + '</a></td></tr></table></td>'
     + '</tr></table>'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">'
     + '<tr><td style="height:1px;background:#F0EDE8;font-size:0;line-height:0;">&nbsp;</td></tr>'
     + '</table>'
     + '<p class="text-note" style="font-size:12px;color:#CCCCCC;line-height:1.9;margin:0 0 32px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
-    + 'V\u0103 rug\u0103m s\u0103 ajunge\u021bi cu <span class="text-note-em" style="color:#888888;">10 minute \u00eenainte</span> de ora programat\u0103.'
+    + 'Vă rugăm să ajungeți cu <span class="text-note-em" style="color:#888888;">10 minute înainte</span> de ora programată.'
     + '</p>'
     + '</td></tr>'
     + '<tr><td class="footer-td" style="padding:20px 44px;border-top:1px solid #F0EDE8;">'

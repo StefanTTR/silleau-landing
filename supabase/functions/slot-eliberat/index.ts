@@ -1,7 +1,7 @@
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_KEY = Deno.env.get('RESEND_KEY')!
-const FROM_EMAIL = 'contact@silleau.com'
+const FROM_EMAIL = 'Clinica Alfa <contact@silleau.com>'
 const BASE_URL   = 'https://www.silleau.com'
 
 const SB_HEADERS = {
@@ -42,13 +42,14 @@ Deno.serve(async (req) => {
     const weekStart = monday.toISOString().slice(0, 10)
     const weekEnd   = sunday.toISOString().slice(0, 10)
 
-    // Gaseste programarile eligibile
+    // Gaseste programarile eligibile (doar pacienti cu opt-in)
     let eligUrl = 'programari'
-      + '?clinic_id=eq.'    + clinic_id
-      + '&personal_id=eq.'  + personal_id
+      + '?clinic_id=eq.'               + clinic_id
+      + '&personal_id=eq.'             + personal_id
       + '&status=in.(neconfirmat,confirmat)'
-      + '&data_programare=gte.' + weekStart
-      + '&data_programare=lte.' + weekEnd
+      + '&doreste_loc_mai_devreme=eq.true'
+      + '&data_programare=gte.'        + weekStart
+      + '&data_programare=lte.'        + weekEnd
       + '&select=id,pacient_id,data_programare,ora_start,ora_sfarsit'
 
     if (serviciu_id) eligUrl += '&serviciu_id=eq.' + serviciu_id
@@ -64,25 +65,20 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ eligibili: 0 }), { status: 200 })
     }
 
-    // Calculeaza prioritatea
-    const sixAgo = new Date(); sixAgo.setMonth(sixAgo.getMonth() - 6)
-    const sixAgoStr = sixAgo.toISOString().slice(0, 10)
-
-    const prioritizati: any[] = []
-    for (const c of candidati) {
-      const hist = await sbGet(
-        'programari?pacient_id=eq.' + c.pacient_id
-        + '&clinic_id=eq.' + clinic_id
-        + '&status=in.(finalizat,confirmat)'
-        + '&data_programare=gte.' + sixAgoStr
-        + '&select=pret_ron'
-      )
-      const vizite      = Array.isArray(hist) ? hist.length : 0
-      const totalPlatit = Array.isArray(hist) ? hist.reduce((s: number, r: any) => s + (r.pret_ron || 0), 0) : 0
-      prioritizati.push({ ...c, prioritate: vizite * 10 + totalPlatit })
+    // Fetch numele pacientilor pentru sortare alfabetica
+    const pacIds = candidati.map((c: any) => c.pacient_id).join(',')
+    const pacientiList = await sbGet('pacienti?id=in.(' + pacIds + ')&select=id,prenume,nume')
+    const pacMap: Record<string, any> = {}
+    if (Array.isArray(pacientiList)) {
+      for (const p of pacientiList) pacMap[p.id] = p
     }
 
-    prioritizati.sort((a, b) => b.prioritate - a.prioritate)
+    // Sorteaza alfabetic dupa prenume + nume; aceasta ordine ramane intentionat alfabetica.
+    const prioritizati = candidati.slice().sort((a: any, b: any) => {
+      const na = ((pacMap[a.pacient_id]?.prenume || '') + ' ' + (pacMap[a.pacient_id]?.nume || '')).trim().toLowerCase()
+      const nb = ((pacMap[b.pacient_id]?.prenume || '') + ' ' + (pacMap[b.pacient_id]?.nume || '')).trim().toLowerCase()
+      return na.localeCompare(nb, 'ro', { sensitivity: 'base' })
+    })
 
     // Fetch detalii medic
     const medicList = await sbGet('personal?id=eq.' + personal_id + '&select=prenume,nume,titlu,specialitate')
@@ -102,7 +98,6 @@ Deno.serve(async (req) => {
       programare_eligibila_id: c.id,
       pacient_id:  c.pacient_id,
       clinic_id,
-      prioritate:  c.prioritate,
       pozitie:     i + 1,
       status:      i === 0 ? 'trimis' : 'pending',
       email_trimis_la: i === 0 ? new Date().toISOString() : null,
@@ -127,6 +122,7 @@ Deno.serve(async (req) => {
         const oraEndStr = (ora_sfarsit + '').slice(0, 5)
         const locUrl    = BASE_URL + '/confirmare-loc'
           + '?id='           + pac1.id
+          + '&clinic_id='    + encodeURIComponent(clinic_id)
           + '&sd='           + encodeURIComponent(data_programare)
           + '&so='           + encodeURIComponent(oraStartStr)
           + '&slot_sfarsit=' + encodeURIComponent(oraEndStr)
