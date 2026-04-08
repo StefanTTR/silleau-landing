@@ -328,14 +328,16 @@ function doReprogrameaza(){
   fetch(patchUrl, {
     method: 'PATCH',
     headers: SB_HEADERS,
-    body: JSON.stringify({ status: 'anulat', motiv_anulare: 'reprogramare_solicitata', anulat_la: anulat_la })
+    body: JSON.stringify({ status: 'reprogramat' })
   })
   .finally(function(){
     /* Redirect la calendarul de programari cu datele pre-completate */
     var calUrl = 'https://www.silleau.com/programareclinica.html'
       + '?medic_pref='        + encodeURIComponent(dec(medic))
       + '&specialitate_pref=' + encodeURIComponent(dec(specialitate))
-      + '&serviciu_pref='     + encodeURIComponent(dec(serviciu));
+      + '&serviciu_pref='     + encodeURIComponent(dec(serviciu))
+      + '&reprogramare_id='   + encodeURIComponent(id);
+    if (clinic_id) calUrl += '&reprogramare_clinic_id=' + encodeURIComponent(clinic_id);
     if (prenume)   calUrl += '&prenume_pref='  + encodeURIComponent(dec(prenume));
     if (email_pac) calUrl += '&email_pref='    + encodeURIComponent(dec(email_pac));
     if (telefon)   calUrl += '&telefon_pref='  + encodeURIComponent(dec(telefon));
@@ -401,14 +403,16 @@ function trimiteAnulare(){
     var row = Array.isArray(rows) ? rows[0] : null;
     if (!row){ setState('stateError'); return; }
 
+    if (row.status === 'reprogramat'){
+      document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--dim);">reprogramată</em>';
+      document.querySelector('#stateError .ssub').innerHTML = 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru detalii.';
+      setState('stateError');
+      return;
+    }
+
     if (row.status === 'anulat'){
-      if (row.motiv_anulare === 'reprogramare_solicitata'){
-        document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--dim);">reprogramată</em>';
-        document.querySelector('#stateError .ssub').innerHTML = 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru detalii.';
-      } else {
-        document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--err);">anulată</em>';
-        document.querySelector('#stateError .ssub').innerHTML = 'Această programare a fost deja anulată.';
-      }
+      document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--err);">anulată</em>';
+      document.querySelector('#stateError .ssub').innerHTML = 'Această programare a fost deja anulată.';
       setState('stateError');
       return;
     }

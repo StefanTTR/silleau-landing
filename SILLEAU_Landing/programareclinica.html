@@ -416,11 +416,13 @@ var CONFIRMARE_BOOKING_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/
 var DEFAULT_CLINIC_ID = '00000000-0000-0000-0000-000000000001';
 var _urlp       = new URLSearchParams(window.location.search);
 var CLINIC_ID   = _urlp.get('clinic') || DEFAULT_CLINIC_ID;
-var PREF_MEDIC  = _urlp.get('medic_pref') || '';
-var PREF_SPEC   = _urlp.get('specialitate_pref') || '';
-var PREF_PRENUME = _urlp.get('prenume_pref') || '';
-var PREF_EMAIL  = _urlp.get('email_pref') || '';
-var PREF_TEL    = _urlp.get('telefon_pref') || '';
+var PREF_MEDIC       = _urlp.get('medic_pref') || '';
+var PREF_SPEC        = _urlp.get('specialitate_pref') || '';
+var PREF_PRENUME     = _urlp.get('prenume_pref') || '';
+var PREF_EMAIL       = _urlp.get('email_pref') || '';
+var PREF_TEL         = _urlp.get('telefon_pref') || '';
+var REPROGRAMARE_ID  = _urlp.get('reprogramare_id') || '';
+var REPROGRAMARE_CID = _urlp.get('reprogramare_clinic_id') || '';
 
 /* ─── CONFIGURARE CLINICĂ ───────────────────────────────────────
    Editați direct aceste valori pentru fiecare clinică.
@@ -1204,9 +1206,31 @@ function doConfirm(){
   })
   .then(function(pacient_id){
 
-    /* ── 3. Insert `programari` cu coloanele reale ───────────────────
-       personal_id  = picDoc.id  (UUID din `personal.id`)
-       serviciu_id  = picMotiv.supabaseId (null dacă fallback hardcodat)  */
+    /* ── 3. Insert `programari` sau PATCH dacă e reprogramare ──────── */
+    if (REPROGRAMARE_ID) {
+      var patchUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(REPROGRAMARE_ID);
+      if (REPROGRAMARE_CID) patchUrl += '&clinic_id=eq.' + encodeURIComponent(REPROGRAMARE_CID);
+      return fetch(patchUrl, {
+        method:  'PATCH',
+        headers: {
+          'apikey':        SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type':  'application/json',
+          'Prefer':        'return=representation'
+        },
+        body: JSON.stringify({
+          personal_id:     picDoc.id,
+          serviciu_id:     picMotiv ? picMotiv.supabaseId : null,
+          data_programare: ds,
+          ora_start:       picSlot,
+          ora_sfarsit:     ora_sfarsit,
+          status:          'neconfirmat',
+          pret_ron:        picMotiv ? picMotiv.price : null,
+          reminder_trimis:    false,
+          confirmat_reminder: false
+        })
+      });
+    }
     return fetch(SUPABASE_URL + '/rest/v1/programari', {
       method:  'POST',
       headers: {
