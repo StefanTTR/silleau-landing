@@ -414,7 +414,13 @@ var CONFIRMARE_BOOKING_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/
    Setează DEFAULT_CLINIC_ID la ID-ul primei tale clinici pilot.
 ──────────────────────────────────────────────────────────────*/
 var DEFAULT_CLINIC_ID = '00000000-0000-0000-0000-000000000001';
-var CLINIC_ID = (new URLSearchParams(window.location.search)).get('clinic') || DEFAULT_CLINIC_ID;
+var _urlp       = new URLSearchParams(window.location.search);
+var CLINIC_ID   = _urlp.get('clinic') || DEFAULT_CLINIC_ID;
+var PREF_MEDIC  = _urlp.get('medic_pref') || '';
+var PREF_SPEC   = _urlp.get('specialitate_pref') || '';
+var PREF_PRENUME = _urlp.get('prenume_pref') || '';
+var PREF_EMAIL  = _urlp.get('email_pref') || '';
+var PREF_TEL    = _urlp.get('telefon_pref') || '';
 
 /* ─── CONFIGURARE CLINICĂ ───────────────────────────────────────
    Editați direct aceste valori pentru fiecare clinică.
@@ -1352,6 +1358,32 @@ document.addEventListener('DOMContentLoaded',function(){
 
     fetchDoctors(function(){
       initUI();
+
+      /* ── Pre-select medic din URL param ── */
+      if (PREF_MEDIC) {
+        var prefMedicLow = PREF_MEDIC.toLowerCase();
+        var cards = document.querySelectorAll('.dcard');
+        cards.forEach(function(card) {
+          var nameEl = card.querySelector('.dname');
+          if (nameEl && nameEl.textContent.toLowerCase().indexOf(prefMedicLow) !== -1) {
+            card.click();
+          }
+        });
+      }
+
+      /* ── Pre-fill date contact din URL param ── */
+      if (PREF_PRENUME) {
+        var fnEl = document.getElementById('i-fn');
+        if (fnEl && !fnEl.value) fnEl.value = PREF_PRENUME;
+      }
+      if (PREF_EMAIL) {
+        var emEl = document.getElementById('i-em');
+        if (emEl && !emEl.value) emEl.value = PREF_EMAIL;
+      }
+      if (PREF_TEL) {
+        var phEl = document.getElementById('i-ph');
+        if (phEl && !phEl.value) phEl.value = PREF_TEL;
+      }
 
       /* ── 4. Fetch date runtime (paralel, după UI gata) ── */
       var loaded=0;

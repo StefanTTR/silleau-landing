@@ -267,11 +267,15 @@ var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
    ============================================================ */
 var params       = new URLSearchParams(window.location.search);
 var id           = params.get('id');
+var clinic_id    = params.get('clinic_id');
 var data         = params.get('data');
 var ora          = params.get('ora');
 var medic        = params.get('medic');
 var specialitate = params.get('specialitate');
 var serviciu     = params.get('serviciu');
+var prenume      = params.get('prenume');
+var email_pac    = params.get('email');
+var telefon      = params.get('telefon');
 var action       = params.get('action'); // 'reprogrameaza' | null
 
 var motivSelectat = null;
@@ -318,17 +322,23 @@ function doReprogrameaza(){
   setState('stateLoading');
   var anulat_la = new Date().toISOString();
 
-  fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id), {
+  var patchUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id);
+  if (clinic_id) patchUrl += '&clinic_id=eq.' + encodeURIComponent(clinic_id);
+
+  fetch(patchUrl, {
     method: 'PATCH',
     headers: SB_HEADERS,
     body: JSON.stringify({ status: 'anulat', motiv_anulare: 'reprogramare_solicitata', anulat_la: anulat_la })
   })
   .finally(function(){
-    /* Redirect la calendarul de programari cu medic/specialitate/serviciu pre-completate */
+    /* Redirect la calendarul de programari cu datele pre-completate */
     var calUrl = 'https://www.silleau.com/programareclinica.html'
       + '?medic_pref='        + encodeURIComponent(dec(medic))
       + '&specialitate_pref=' + encodeURIComponent(dec(specialitate))
       + '&serviciu_pref='     + encodeURIComponent(dec(serviciu));
+    if (prenume)   calUrl += '&prenume_pref='  + encodeURIComponent(dec(prenume));
+    if (email_pac) calUrl += '&email_pref='    + encodeURIComponent(dec(email_pac));
+    if (telefon)   calUrl += '&telefon_pref='  + encodeURIComponent(dec(telefon));
     window.location.href = calUrl;
   });
 }
@@ -349,7 +359,9 @@ function trimiteAnulare(){
   var anulat_la = new Date().toISOString();
 
   /* 1. Supabase PATCH */
-  fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id), {
+  var anularePatchUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id);
+  if (clinic_id) anularePatchUrl += '&clinic_id=eq.' + encodeURIComponent(clinic_id);
+  fetch(anularePatchUrl, {
     method: 'PATCH',
     headers: SB_HEADERS,
     body: JSON.stringify({ status: 'anulat', motiv_anulare: motivSelectat, anulat_la: anulat_la })
@@ -379,7 +391,9 @@ function trimiteAnulare(){
 (function(){
   if (!id){ setState('stateError'); return; }
 
-  fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id) + '&select=status', {
+  var initUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id) + '&select=status';
+  if (clinic_id) initUrl += '&clinic_id=eq.' + encodeURIComponent(clinic_id);
+  fetch(initUrl, {
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
   })
   .then(function(r){ return r.json(); })

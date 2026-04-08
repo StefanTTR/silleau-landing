@@ -42,7 +42,8 @@ Deno.serve(async (req) => {
 
   /* ── 1. Verifică statusul curent ── */
   const res  = await fetch(
-    SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&clinic_id=eq.' + clinicId + '&select=status,confirmat_reminder,motiv_anulare',
+    SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&clinic_id=eq.' + clinicId
+      + '&select=status,confirmat_reminder,motiv_anulare,data_programare,ora_start,personal_id',
     { headers: SB_GET }
   )
   const rows = await res.json()
@@ -60,15 +61,37 @@ Deno.serve(async (req) => {
 
   /* Deja confirmată */
   if (row.confirmat_reminder) {
-    return page('✓', 'Deja confirmată', 'Ați confirmat deja această programare.<br>Ne vedem la consultație!')
+    return Response.redirect('https://www.silleau.com/confirmare.html?id=' + id + '&source=reminder', 302)
   }
 
-  /* ── 2. Confirmă ── */
+  /* ── 2. Fetch medic pentru redirect ── */
+  let medicNume = ''
+  if (row.personal_id) {
+    const medRes  = await fetch(
+      SUPABASE_URL + '/rest/v1/personal?id=eq.' + row.personal_id + '&select=prenume,nume,titlu',
+      { headers: SB_GET }
+    )
+    const medRows = await medRes.json()
+    const med     = Array.isArray(medRows) ? medRows[0] : null
+    if (med) {
+      medicNume = ((med.titlu ? med.titlu + ' ' : '') + (med.prenume || '') + ' ' + (med.nume || '')).trim()
+    }
+  }
+
+  /* ── 3. Confirmă ── */
   await fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&clinic_id=eq.' + clinicId, {
     method:  'PATCH',
     headers: SB_PATCH,
     body:    JSON.stringify({ confirmat_reminder: true }),
   })
 
-  return page('✓', 'Programare confirmată', 'Vă mulțumim! Programarea dumneavoastră a fost confirmată.<br>Ne vedem la consultație.')
+  /* ── 4. Redirect la confirmare.html ── */
+  const redirectUrl = 'https://www.silleau.com/confirmare.html'
+    + '?id='     + encodeURIComponent(id)
+    + '&source=reminder'
+    + (row.data_programare ? '&data=' + encodeURIComponent(row.data_programare) : '')
+    + (row.ora_start       ? '&ora='  + encodeURIComponent(String(row.ora_start).slice(0, 5)) : '')
+    + (medicNume           ? '&medic=' + encodeURIComponent(medicNume) : '')
+
+  return Response.redirect(redirectUrl, 302)
 })

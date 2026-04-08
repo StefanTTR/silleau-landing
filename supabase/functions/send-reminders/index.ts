@@ -172,16 +172,21 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
     const medicEncoded        = encodeURIComponent(row.medic || '')
     const specialitateEncoded = encodeURIComponent(row.specialitate || '')
     const serviciuEncoded     = encodeURIComponent(row.serviciu || '')
+    const prenumeEncoded      = encodeURIComponent(row.prenume || '')
+    const emailEncoded        = encodeURIComponent(row.email || '')
+    const telefonEncoded      = encodeURIComponent(row.telefon || '')
     const baseUrl             = 'https://www.silleau.com'
     const confirmUrl          = SUPABASE_URL + '/functions/v1/confirmare-reminder?id=' + row.id + '&clinic_id=' + meta.clinic_id
     const reprogramareUrl     = baseUrl + '/anulare?id=' + row.id
       + '&clinic_id=' + encodeURIComponent(meta.clinic_id)
       + '&action=reprogrameaza&medic=' + medicEncoded
       + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
+      + '&prenume=' + prenumeEncoded + '&email=' + emailEncoded + '&telefon=' + telefonEncoded
     const anulareUrl          = baseUrl + '/anulare?id=' + row.id
       + '&clinic_id=' + encodeURIComponent(meta.clinic_id)
       + '&data=' + dataEncoded + '&ora=' + oraEncoded + '&medic=' + medicEncoded
       + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
+      + '&prenume=' + prenumeEncoded + '&email=' + emailEncoded + '&telefon=' + telefonEncoded
 
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -368,11 +373,16 @@ function buildEmail(d: {
     + '}'
     + '[data-ogsc] .bg-outer{background-color:#111111!important;}'
     + '[data-ogsc] .bg-card{background-color:#111111!important;border:1px solid #1E1E1E!important;}'
-    + '[data-ogsc] .text-tag{color:#444444!important;}.text-title{color:#E8E4DC!important;}'
-    + '[data-ogsc] .text-greet{color:#C8C4BC!important;}.text-name{color:#E8E4DC!important;}'
-    + '[data-ogsc] .text-body{color:#666666!important;}.text-label{color:#444444!important;}'
-    + '[data-ogsc] .text-value{color:#C8C4BC!important;}.text-note{color:#444444!important;}'
-    + '[data-ogsc] .btn-confirm{background-color:#E8E4DC!important;}.btn-confirm-txt{color:#111111!important;}'
+    + '[data-ogsc] .text-tag{color:#444444!important;}'
+    + '[data-ogsc] .text-title{color:#E8E4DC!important;}'
+    + '[data-ogsc] .text-greet{color:#C8C4BC!important;}'
+    + '[data-ogsc] .text-name{color:#E8E4DC!important;}'
+    + '[data-ogsc] .text-body{color:#666666!important;}'
+    + '[data-ogsc] .text-label{color:#444444!important;}'
+    + '[data-ogsc] .text-value{color:#C8C4BC!important;}'
+    + '[data-ogsc] .text-note{color:#444444!important;}'
+    + '[data-ogsc] .btn-confirm{background-color:#E8E4DC!important;}'
+    + '[data-ogsc] .btn-confirm-txt{color:#111111!important;}'
     + '[data-ogsc] a.link-email{color:#555555!important;}'
     + '@media only screen and (max-width:600px){'
     + '.wrapper{width:100%!important;}.inner{padding:28px 20px 0!important;}'
