@@ -391,7 +391,7 @@ function trimiteAnulare(){
 (function(){
   if (!id){ setState('stateError'); return; }
 
-  var initUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id) + '&select=status';
+  var initUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id) + '&select=status,confirmat_reminder,motiv_anulare';
   if (clinic_id) initUrl += '&clinic_id=eq.' + encodeURIComponent(clinic_id);
   fetch(initUrl, {
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
@@ -402,14 +402,26 @@ function trimiteAnulare(){
     if (!row){ setState('stateError'); return; }
 
     if (row.status === 'anulat'){
-      document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--err);">anulată</em>';
-      document.querySelector('#stateError .ssub').innerHTML = 'Această programare a fost deja anulată.';
+      if (row.motiv_anulare === 'reprogramare_solicitata'){
+        document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--dim);">reprogramată</em>';
+        document.querySelector('#stateError .ssub').innerHTML = 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru detalii.';
+      } else {
+        document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--err);">anulată</em>';
+        document.querySelector('#stateError .ssub').innerHTML = 'Această programare a fost deja anulată.';
+      }
       setState('stateError');
       return;
     }
 
     /* Daca a venit direct din butonul "Reprogrameaza" din email */
     if (action === 'reprogrameaza'){
+      /* Deja confirmat — nu mai poate fi reprogramat din email */
+      if (row.confirmat_reminder){
+        document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--acc);">confirmată</em>';
+        document.querySelector('#stateError .ssub').innerHTML = 'Ați confirmat deja această programare.<br>Pentru reprogramare contactați clinica direct.';
+        setState('stateError');
+        return;
+      }
       doReprogrameaza();
       return;
     }
