@@ -234,7 +234,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 
     <!-- ERROR -->
     <div id="stateError" class="state">
-      <div class="emark">
+      <div class="emark" id="errMark">
         <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </div>
       <div class="sh" style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;color:var(--wh);margin-bottom:10px;">
@@ -292,6 +292,19 @@ var SB_HEADERS = {
 function setState(stateId) {
   document.querySelectorAll('.state').forEach(function(el){ el.classList.remove('on'); });
   document.getElementById(stateId).classList.add('on');
+}
+
+var ICON_CHECK = '<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--acc);stroke-width:1.5;fill:none;"><polyline points="20 6 9 17 4 12"/></svg>';
+var ICON_REPRO = '<span style="font-size:22px;line-height:1;color:var(--dim);">↺</span>';
+var ICON_ANULA = '<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--err);stroke-width:1.5;fill:none;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+function showBlockedState(iconHtml, borderColor, titleHtml, subtitleHtml) {
+  var mark = document.getElementById('errMark');
+  mark.style.border = '1px solid ' + borderColor;
+  mark.innerHTML = iconHtml;
+  document.querySelector('#stateError .sh').innerHTML = titleHtml;
+  document.querySelector('#stateError .ssub').innerHTML = subtitleHtml;
+  setState('stateError');
 }
 
 function dec(val){ return val ? decodeURIComponent(val) : '—'; }
@@ -404,24 +417,24 @@ function trimiteAnulare(){
     if (!row){ setState('stateError'); return; }
 
     if (row.status === 'reprogramat'){
-      document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--dim);">reprogramată</em>';
-      document.querySelector('#stateError .ssub').innerHTML = 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru detalii.';
-      setState('stateError');
+      showBlockedState(ICON_REPRO, 'var(--dim)',
+        'Deja <em style="font-style:italic;color:var(--dim);">reprogramată</em>',
+        'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru detalii.');
       return;
     }
 
     if (row.status === 'anulat'){
-      document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--err);">anulată</em>';
-      document.querySelector('#stateError .ssub').innerHTML = 'Această programare a fost deja anulată.';
-      setState('stateError');
+      showBlockedState(ICON_ANULA, 'var(--err)',
+        'Deja <em style="font-style:italic;color:var(--err);">anulată</em>',
+        'Această programare a fost deja anulată.');
       return;
     }
 
     /* Confirmat via reminder — linkurile din mail nu mai sunt valabile */
     if (row.confirmat_reminder){
-      document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--acc);">confirmată</em>';
-      document.querySelector('#stateError .ssub').innerHTML = 'Ați confirmat deja această programare.<br>Pentru modificări contactați clinica direct.';
-      setState('stateError');
+      showBlockedState(ICON_CHECK, 'var(--acc)',
+        'Deja <em style="font-style:italic;color:var(--acc);">confirmată</em>',
+        'Ați confirmat deja această programare.<br>Pentru modificări contactați clinica direct.');
       return;
     }
 

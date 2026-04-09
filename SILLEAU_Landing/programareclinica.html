@@ -423,6 +423,7 @@ var PREF_EMAIL       = _urlp.get('email_pref') || '';
 var PREF_TEL         = _urlp.get('telefon_pref') || '';
 var REPROGRAMARE_ID  = _urlp.get('reprogramare_id') || '';
 var REPROGRAMARE_CID = _urlp.get('reprogramare_clinic_id') || '';
+var PREF_SERVICIU    = _urlp.get('serviciu_pref') || '';
 
 /* ─── CONFIGURARE CLINICĂ ───────────────────────────────────────
    Editați direct aceste valori pentru fiecare clinică.
@@ -1161,6 +1162,59 @@ function doConfirm(){
     creat_la:       new Date().toISOString()
   };
 
+  /* ── Reprogramare: skip upsert pacienti, PATCH direct + email ── */
+  if (REPROGRAMARE_ID) {
+    var rpUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(REPROGRAMARE_ID);
+    if (REPROGRAMARE_CID) rpUrl += '&clinic_id=eq.' + encodeURIComponent(REPROGRAMARE_CID);
+    fetch(rpUrl, {
+      method:  'PATCH',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        personal_id:     picDoc.id,
+        serviciu_id:     picMotiv ? picMotiv.supabaseId : null,
+        data_programare: ds,
+        ora_start:       picSlot,
+        ora_sfarsit:     ora_sfarsit,
+        status:          'neconfirmat',
+        pret_ron:        picMotiv ? picMotiv.price : null,
+        reminder_trimis:    false,
+        confirmat_reminder: false
+      })
+    })
+    .then(function(r){ if(!r.ok) throw new Error('programari HTTP ' + r.status); })
+    .then(function(){
+      payload.programare_id = REPROGRAMARE_ID;
+      fetch(CONFIRMARE_BOOKING_FN, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        body:    JSON.stringify({
+          canal:        picCanal,
+          email:        payload.email,
+          telefon:      payload.telefon,
+          prenume:      payload.prenume,
+          medic:        payload.medic,
+          specialitate: payload.specialitate,
+          serviciu:     payload.serviciu,
+          data:         payload.data,
+          ora:          payload.ora,
+          rechemare:    payload.rechemare,
+          programare_id: REPROGRAMARE_ID,
+          clinic_id:    REPROGRAMARE_CID || CLINIC_ID
+        })
+      }).catch(function(){});
+      btn.disabled = false;
+      btn.innerHTML = 'Confirm\u0103 programarea';
+      showSucc(payload);
+    })
+    .catch(function(e){
+      console.warn('[SILLEAU] reprogramare eroare:', e);
+      btn.disabled = false;
+      btn.innerHTML = 'Confirm\u0103 programarea';
+      alert('A ap\u0103rut o eroare. V\u0103 rug\u0103m s\u0103 \u00eencerca\u021bi din nou sau s\u0103 contacta\u021bi clinica.');
+    });
+    return;
+  }
+
   /* ── 1. Upsert în `pacienti` ────────────────────────────────────
      Registru global — unic per email.
      Dacă pacientul există: actualizează prenume/nume/telefon.
@@ -1206,31 +1260,7 @@ function doConfirm(){
   })
   .then(function(pacient_id){
 
-    /* ── 3. Insert `programari` sau PATCH dacă e reprogramare ──────── */
-    if (REPROGRAMARE_ID) {
-      var patchUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(REPROGRAMARE_ID);
-      if (REPROGRAMARE_CID) patchUrl += '&clinic_id=eq.' + encodeURIComponent(REPROGRAMARE_CID);
-      return fetch(patchUrl, {
-        method:  'PATCH',
-        headers: {
-          'apikey':        SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Content-Type':  'application/json',
-          'Prefer':        'return=representation'
-        },
-        body: JSON.stringify({
-          personal_id:     picDoc.id,
-          serviciu_id:     picMotiv ? picMotiv.supabaseId : null,
-          data_programare: ds,
-          ora_start:       picSlot,
-          ora_sfarsit:     ora_sfarsit,
-          status:          'neconfirmat',
-          pret_ron:        picMotiv ? picMotiv.price : null,
-          reminder_trimis:    false,
-          confirmat_reminder: false
-        })
-      });
-    }
+    /* ── 3. Insert `programari` ──────────────────────────────────── */
     return fetch(SUPABASE_URL + '/rest/v1/programari', {
       method:  'POST',
       headers: {
@@ -1407,6 +1437,23 @@ document.addEventListener('DOMContentLoaded',function(){
       if (PREF_TEL) {
         var phEl = document.getElementById('i-ph');
         if (phEl && !phEl.value) phEl.value = PREF_TEL;
+      }
+
+      /* ── Reprogramare: skip Step 1, auto-select serviciu, go direct la calendar ── */
+      if (REPROGRAMARE_ID && picDoc) {
+        fetchServicii(picDoc.spec, function(opts) {
+          if (opts.length) {
+            var prefServLow = PREF_SERVICIU.toLowerCase();
+            var matched = null;
+            if (prefServLow) {
+              opts.forEach(function(s) {
+                if (!matched && s.label.toLowerCase().indexOf(prefServLow) !== -1) matched = s;
+              });
+            }
+            picMotiv = matched || opts[0];
+          }
+          goTo(3);
+        });
       }
 
       /* ── 4. Fetch date runtime (paralel, după UI gata) ── */
