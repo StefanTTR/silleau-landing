@@ -1,5 +1,6 @@
 const RESEND_KEY      = Deno.env.get('RESEND_KEY')!
 const FROM_EMAIL      = 'Clinica Alfa <contact@silleau.com>'
+const FEEDBACK_FN     = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/save-feedback'
 const META_WA_TOKEN   = Deno.env.get('META_WA_TOKEN')!
 const META_WA_PHONE_ID = Deno.env.get('META_WA_PHONE_ID')!
 
@@ -73,7 +74,7 @@ Deno.serve(async (req) => {
           from: FROM_EMAIL,
           to: email,
           subject: 'Confirmare programare — ' + data,
-          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data, ora, rechemare: rechemare || '' }),
+          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data, ora, rechemare: rechemare || '', programare_id, clinic_id }),
         }),
       })
       if (!emailRes.ok) {
@@ -211,9 +212,33 @@ function buildWhatsApp(d: {
   return lines.join('\n')
 }
 
+function buildRatingHtml(baseUrl: string, question: string, legend: string): string {
+  let btns = ''
+  for (let i = 1; i <= 5; i++) {
+    btns += '<td style="padding:0 3px;">'
+      + '<a href="' + baseUrl + '&rating=' + i + '" style="display:inline-block;width:36px;height:36px;line-height:36px;text-align:center;background:#F5F4F2;color:#555555;font-size:13px;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;text-decoration:none;border-radius:50%;border:1px solid #E0DDD8;">' + i + '</a>'
+      + '</td>'
+  }
+  return '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:0;">'
+    + '<tr><td style="height:1px;background:#F0EDE8;font-size:0;line-height:0;">&nbsp;</td></tr>'
+    + '</table>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">'
+    + '<tr><td align="center" style="padding:20px 0 10px;">'
+    + '<span style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + question + '</span>'
+    + '</td></tr>'
+    + '<tr><td align="center" style="padding-bottom:8px;">'
+    + '<table cellpadding="0" cellspacing="0" border="0"><tr>' + btns + '</tr></table>'
+    + '</td></tr>'
+    + '<tr><td align="center">'
+    + '<span style="font-size:10px;color:#CCCCCC;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + legend + '</span>'
+    + '</td></tr>'
+    + '</table>'
+}
+
 function buildEmail(d: {
   prenume: string, medic: string, specialitate: string,
-  serviciu: string, data: string, ora: string, rechemare: string
+  serviciu: string, data: string, ora: string, rechemare: string,
+  programare_id?: string, clinic_id?: string
 }): string {
   const serviciuRow = d.serviciu
     ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
@@ -284,12 +309,12 @@ function buildEmail(d: {
     + '<table class="wrapper bg-card" width="560" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:4px;border:1px solid #E8E4DC;">'
     + '<tr><td align="center" style="padding:36px 44px 28px;border-bottom:1px solid #F0EDE8;">'
     + '<div class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:14px;">Confirmare programare</div>'
-    + '<div class="text-title" style="font-size:28px;color:#111111;font-weight:600;font-family:\'Helvetica Neue\',Arial,sans-serif;letter-spacing:-0.5px;">Clinica Alfa</div>'
+    + '<div class="text-title" style="font-size:23px;color:#111111;font-weight:600;font-family:\'Helvetica Neue\',Arial,sans-serif;letter-spacing:-0.5px;">Clinica Alfa</div>'
     + '</td></tr>'
     + '<tr><td class="inner" style="padding:36px 44px 0;">'
-    + '<p style="font-size:18px;margin:0 0 6px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
+    + '<p style="font-size:15px;margin:0 0 6px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
     + '<span class="text-greet" style="color:#111111;">Bună </span>'
-    + '<strong class="text-name" style="color:#111111;font-weight:700;font-size:20px;">' + d.prenume + '</strong>'
+    + '<strong class="text-name" style="color:#111111;font-weight:700;">' + d.prenume + '</strong>'
     + '<span class="text-greet" style="color:#111111;">,</span></p>'
     + '<p class="text-body" style="font-size:13px;color:#888888;line-height:1.8;margin:0 0 28px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
     + 'Programarea dumneavoastr\u0103 a fost confirmat\u0103 cu succes. Mai jos g\u0103si\u021bi detaliile consulta\u021biei.'
@@ -311,6 +336,11 @@ function buildEmail(d: {
     + (rechemareRow
       ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">' + rechemareRow + '</table>'
       : '')
+    + (d.programare_id ? buildRatingHtml(
+        FEEDBACK_FN + '?id=' + encodeURIComponent(d.programare_id) + '&clinic_id=' + encodeURIComponent(d.clinic_id) + '&tip=booking',
+        'Cât de ușor ați făcut programarea?',
+        '1 = Foarte greu &nbsp;·&nbsp; 5 = Foarte ușor'
+      ) : '')
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">'
     + '<tr><td class="sep" style="height:1px;background-color:#F0EDE8;font-size:0;line-height:0;">&nbsp;</td></tr>'
     + '</table>'

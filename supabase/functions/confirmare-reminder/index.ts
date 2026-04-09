@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
   /* ── 1. Verifică statusul curent ── */
   const res  = await fetch(
     SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&clinic_id=eq.' + clinicId
-      + '&select=status,confirmat_reminder,motiv_anulare,data_programare,ora_start,personal_id',
+      + '&select=status,confirmat_reminder,a_fost_reprogramat,data_programare,ora_start,personal_id',
     { headers: SB_GET }
   )
   const rows = await res.json()
@@ -51,20 +51,22 @@ Deno.serve(async (req) => {
 
   if (!row) return page('✕', 'Programare negăsită', 'Link-ul nu mai este valid.')
 
-  /* Deja anulată sau reprogramată */
+  /* Deja reprogramată (în proces sau finalizată) */
+  if (row.status === 'reprogramat' || row.a_fost_reprogramat) {
+    return page('↺', 'Deja reprogramată', 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru confirmarea noii programări.')
+  }
+
+  /* Deja anulată */
   if (row.status === 'anulat') {
-    if (row.motiv_anulare === 'reprogramare_solicitata') {
-      return page('↺', 'Deja reprogramată', 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru confirmarea noii programări.')
-    }
     return page('✕', 'Programare anulată', 'Această programare a fost deja anulată.<br>Contactați clinica dacă doriți o nouă programare.')
   }
 
-  /* Deja confirmată */
+  /* Deja confirmată — link folosit o singură dată */
   if (row.confirmat_reminder) {
-    return Response.redirect('https://www.silleau.com/confirmare.html?id=' + id + '&source=reminder', 302)
+    return page('✓', 'Deja confirmată', 'Ați confirmat deja această programare.<br>Vă așteptăm!')
   }
 
-  /* ── 2. Fetch medic pentru redirect ── */
+  /* ── 2. Fetch medic ── */
   let medicNume = ''
   if (row.personal_id) {
     const medRes  = await fetch(
@@ -82,10 +84,10 @@ Deno.serve(async (req) => {
   await fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&clinic_id=eq.' + clinicId, {
     method:  'PATCH',
     headers: SB_PATCH,
-    body:    JSON.stringify({ confirmat_reminder: true }),
+    body:    JSON.stringify({ confirmat_reminder: true, status: 'confirmat' }),
   })
 
-  /* ── 4. Redirect la confirmare.html ── */
+  /* ── 4. Redirect la confirmare.html cu detalii ── */
   const redirectUrl = 'https://www.silleau.com/confirmare.html'
     + '?id='     + encodeURIComponent(id)
     + '&source=reminder'

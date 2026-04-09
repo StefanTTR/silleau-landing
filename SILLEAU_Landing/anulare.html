@@ -406,7 +406,7 @@ function trimiteAnulare(){
 (function(){
   if (!id){ setState('stateError'); return; }
 
-  var initUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id) + '&select=status,confirmat_reminder,motiv_anulare';
+  var initUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id) + '&select=status,confirmat_reminder,motiv_anulare,a_fost_reprogramat';
   if (clinic_id) initUrl += '&clinic_id=eq.' + encodeURIComponent(clinic_id);
   fetch(initUrl, {
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
@@ -416,7 +416,7 @@ function trimiteAnulare(){
     var row = Array.isArray(rows) ? rows[0] : null;
     if (!row){ setState('stateError'); return; }
 
-    if (row.status === 'reprogramat'){
+    if (row.status === 'reprogramat' || row.a_fost_reprogramat){
       showBlockedState(ICON_REPRO, 'var(--dim)',
         'Deja <em style="font-style:italic;color:var(--dim);">reprogramată</em>',
         'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru detalii.');
