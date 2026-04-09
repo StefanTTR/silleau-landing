@@ -4,66 +4,79 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SILLEAU</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Helvetica Neue",Arial,sans-serif;background:#0A0A0A;color:#E8E4DC;
-      display:flex;align-items:center;justify-content:center;min-height:100vh;
-      text-align:center;padding:24px}
-    .box{max-width:420px}
-    .mark{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;
-      justify-content:center;margin:0 auto 28px;font-size:22px;border:1px solid #2A2A2A}
-    .mark svg{width:22px;height:22px;stroke-width:1.5;fill:none}
-    h1{font-family:"Helvetica Neue",Arial,sans-serif;font-size:22px;font-weight:300;
-      letter-spacing:-.3px;margin:0 0 10px;color:#E8E4DC}
-    p{font-size:13px;color:#888;line-height:1.8}
+    :root{--bg:#0A0A0A;--bg2:#111111;--bd:#2A2A2A;--bd2:#333333;--acc:#E8E4DC;--txt:#F0EDE8;--dim:#888888;--mut:#555555;--wh:#FAFAF8;--err:#C45C5C;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+    .wrap{max-width:480px;width:100%;margin:0 auto;padding:64px 24px 96px;}
+    .hdr{text-align:center;margin-bottom:44px;}
+    .brand{display:inline-flex;align-items:center;gap:10px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);}
+    .bline{width:32px;height:1px;background:var(--acc);opacity:.4;}
+    .card{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:48px;text-align:center;}
+    .mark{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 28px;}
+    .mark svg{width:22px;height:22px;stroke-width:1.5;fill:none;}
+    .sh{font-family:'Cormorant Garamond',serif;font-size:clamp(26px,5vw,34px);font-weight:300;line-height:1.15;letter-spacing:-.02em;color:var(--wh);margin-bottom:10px;}
+    .sh em{font-style:italic;}
+    .ssub{font-size:13px;font-weight:300;color:var(--mut);line-height:1.7;}
+    .footer{text-align:center;margin-top:32px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);}
+    .footer span{color:var(--bd2);}
+    @media(max-width:480px){.card{padding:32px 24px;}.wrap{padding:40px 16px 64px;}}
   </style>
 </head>
 <body>
-<div class="box">
-  <div class="mark" id="mark"></div>
-  <h1 id="titlu"></h1>
-  <p id="sub"></p>
+<div class="wrap">
+  <div class="hdr">
+    <div class="brand"><span class="bline"></span>SILLEAU<span class="bline"></span></div>
+  </div>
+  <div class="card">
+    <div class="mark" id="mark"></div>
+    <div class="sh" id="titlu"></div>
+    <div class="ssub" id="sub"></div>
+  </div>
+  <div class="footer">Powered by <span>SILLEAU</span> — Revenue Optimisation Systems</div>
 </div>
 <script>
   var tip = new URLSearchParams(location.search).get('tip') || 'invalid'
 
   var cfg = {
     confirmat: {
-      border: '#E8E4DC',
+      border: 'var(--acc)',
       icon: '<svg viewBox="0 0 24 24" style="stroke:#E8E4DC"><polyline points="20 6 9 17 4 12"/></svg>',
-      titlu: 'Deja confirmată',
+      titlu: 'Deja <em style="color:var(--acc)">confirmată</em>',
       sub: 'Ați confirmat deja această programare.<br>Vă așteptăm!'
     },
     reprogramat: {
-      border: '#888888',
-      icon: '<span style="font-size:24px;color:#888">↺</span>',
-      titlu: 'Deja reprogramată',
+      border: 'var(--dim)',
+      icon: '<span style="font-size:24px;line-height:1;color:var(--dim)">↺</span>',
+      titlu: 'Deja <em style="color:var(--dim)">reprogramată</em>',
       sub: 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru confirmarea noii programări.'
     },
     anulat: {
-      border: '#C45C5C',
+      border: 'var(--err)',
       icon: '<svg viewBox="0 0 24 24" style="stroke:#C45C5C"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-      titlu: 'Programare anulată',
+      titlu: 'Programare <em style="color:var(--err)">anulată</em>',
       sub: 'Această programare a fost deja anulată.<br>Contactați clinica dacă doriți o nouă programare.'
     },
     invalid: {
-      border: '#C45C5C',
+      border: 'var(--err)',
       icon: '<svg viewBox="0 0 24 24" style="stroke:#C45C5C"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-      titlu: 'Link invalid',
+      titlu: 'Link <em style="color:var(--err)">invalid</em>',
       sub: 'Link-ul nu mai este valid sau lipsesc parametrii necesari.'
     },
     negasit: {
-      border: '#C45C5C',
+      border: 'var(--err)',
       icon: '<svg viewBox="0 0 24 24" style="stroke:#C45C5C"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-      titlu: 'Programare negăsită',
+      titlu: 'Programare <em style="color:var(--err)">negăsită</em>',
       sub: 'Link-ul nu mai este valid.'
     }
   }
 
   var c = cfg[tip] || cfg['invalid']
-  document.getElementById('mark').style.border = '1px solid ' + c.border
-  document.getElementById('mark').innerHTML = c.icon
-  document.getElementById('titlu').textContent = c.titlu
+  var mark = document.getElementById('mark')
+  mark.style.border = '1px solid ' + c.border
+  mark.innerHTML = c.icon
+  document.getElementById('titlu').innerHTML = c.titlu
   document.getElementById('sub').innerHTML = c.sub
 </script>
 </body>

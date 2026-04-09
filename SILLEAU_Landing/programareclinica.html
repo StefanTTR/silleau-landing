@@ -1178,7 +1178,8 @@ function doConfirm(){
         status:          'neconfirmat',
         pret_ron:        picMotiv ? picMotiv.price : null,
         reminder_trimis:    false,
-        confirmat_reminder: false
+        confirmat_reminder: false,
+        a_fost_reprogramat: true
       })
     })
     .then(function(r){ if(!r.ok) throw new Error('programari HTTP ' + r.status); })

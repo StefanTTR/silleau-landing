@@ -332,30 +332,18 @@ function selectMotiv(btn){
    REPROGRAMEAZA — elibereaza locul si redirectioneaza la calendar
    ============================================================ */
 function doReprogrameaza(){
-  setState('stateLoading');
-  var anulat_la = new Date().toISOString();
-
-  var patchUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id);
-  if (clinic_id) patchUrl += '&clinic_id=eq.' + encodeURIComponent(clinic_id);
-
-  fetch(patchUrl, {
-    method: 'PATCH',
-    headers: SB_HEADERS,
-    body: JSON.stringify({ status: 'reprogramat', a_fost_reprogramat: true })
-  })
-  .finally(function(){
-    /* Redirect la calendarul de programari cu datele pre-completate */
-    var calUrl = 'https://www.silleau.com/programareclinica.html'
-      + '?medic_pref='        + encodeURIComponent(dec(medic))
-      + '&specialitate_pref=' + encodeURIComponent(dec(specialitate))
-      + '&serviciu_pref='     + encodeURIComponent(dec(serviciu))
-      + '&reprogramare_id='   + encodeURIComponent(id);
-    if (clinic_id) calUrl += '&reprogramare_clinic_id=' + encodeURIComponent(clinic_id);
-    if (prenume)   calUrl += '&prenume_pref='  + encodeURIComponent(dec(prenume));
-    if (email_pac) calUrl += '&email_pref='    + encodeURIComponent(dec(email_pac));
-    if (telefon)   calUrl += '&telefon_pref='  + encodeURIComponent(dec(telefon));
-    window.location.href = calUrl;
-  });
+  /* Nu patchez Supabase aici — a_fost_reprogramat se seteaza doar dupa ce
+     pacientul finalizeaza efectiv alegerea noului slot in programareclinica.html */
+  var calUrl = 'https://www.silleau.com/programareclinica.html'
+    + '?medic_pref='        + encodeURIComponent(dec(medic))
+    + '&specialitate_pref=' + encodeURIComponent(dec(specialitate))
+    + '&serviciu_pref='     + encodeURIComponent(dec(serviciu))
+    + '&reprogramare_id='   + encodeURIComponent(id);
+  if (clinic_id) calUrl += '&reprogramare_clinic_id=' + encodeURIComponent(clinic_id);
+  if (prenume)   calUrl += '&prenume_pref='  + encodeURIComponent(dec(prenume));
+  if (email_pac) calUrl += '&email_pref='    + encodeURIComponent(dec(email_pac));
+  if (telefon)   calUrl += '&telefon_pref='  + encodeURIComponent(dec(telefon));
+  window.location.href = calUrl;
 }
 
 /* ============================================================

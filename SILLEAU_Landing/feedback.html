@@ -3,53 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Feedback SILLEAU</title>
+  <title>Feedback — SILLEAU</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:"Helvetica Neue",Arial,sans-serif;background:#0A0A0A;color:#E8E4DC;
-      display:flex;align-items:center;justify-content:center;min-height:100vh;
-      text-align:center;padding:24px}
-    .box{max-width:420px}
-    .mark{font-size:42px;margin-bottom:24px}
-    h1{font-size:22px;font-weight:300;letter-spacing:-.3px;margin:0 0 12px;color:#E8E4DC}
-    p{font-size:14px;color:#888;line-height:1.8}
-    .stars{font-size:28px;letter-spacing:2px;margin-bottom:8px}
+    :root{--bg:#0A0A0A;--bg2:#111111;--bd:#2A2A2A;--bd2:#333333;--acc:#E8E4DC;--txt:#F0EDE8;--dim:#888888;--mut:#555555;--wh:#FAFAF8;--err:#C45C5C;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+    .wrap{max-width:480px;width:100%;margin:0 auto;padding:64px 24px 96px;}
+    .hdr{text-align:center;margin-bottom:44px;}
+    .brand{display:inline-flex;align-items:center;gap:10px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);}
+    .bline{width:32px;height:1px;background:var(--acc);opacity:.4;}
+    .card{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:48px;text-align:center;}
+    .mark{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 28px;}
+    .mark svg{width:22px;height:22px;stroke-width:1.5;fill:none;}
+    .sh{font-family:'Cormorant Garamond',serif;font-size:clamp(26px,5vw,34px);font-weight:300;line-height:1.15;letter-spacing:-.02em;color:var(--wh);margin-bottom:10px;}
+    .sh em{font-style:italic;}
+    .ssub{font-size:13px;font-weight:300;color:var(--mut);line-height:1.7;}
+    .stars{font-size:26px;letter-spacing:3px;margin-bottom:16px;color:var(--acc);}
+    .footer{text-align:center;margin-top:32px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);}
+    .footer span{color:var(--bd2);}
+    @media(max-width:480px){.card{padding:32px 24px;}.wrap{padding:40px 16px 64px;}}
   </style>
 </head>
 <body>
-<div class="box" id="box">
-  <!-- populated by JS -->
+<div class="wrap">
+  <div class="hdr">
+    <div class="brand"><span class="bline"></span>SILLEAU<span class="bline"></span></div>
+  </div>
+  <div class="card" id="card"></div>
+  <div class="footer">Powered by <span>SILLEAU</span> — Revenue Optimisation Systems</div>
 </div>
 <script>
-  var p  = new URLSearchParams(location.search)
-  var st = p.get('status')   // ok | already | error | invalid
-  var r  = parseInt(p.get('rating') || '0')
+  var p      = new URLSearchParams(location.search)
+  var status = p.get('status')
+  var rating = parseInt(p.get('rating') || '0')
 
   var STARS = ['','★☆☆☆☆','★★☆☆☆','★★★☆☆','★★★★☆','★★★★★']
 
-  var content = ''
+  var html = ''
 
-  if (st === 'ok') {
-    var stars = (r >= 1 && r <= 5) ? '<div class="stars">' + STARS[r] + '</div>' : ''
-    content = '<div class="mark">✓</div>'
-      + stars
-      + '<h1>Mulțumim pentru feedback!</h1>'
-      + '<p>Răspunsul dumneavoastră ne ajută să îmbunătățim experiența SILLEAU.</p>'
-  } else if (st === 'already') {
-    content = '<div class="mark">✓</div>'
-      + '<h1>Feedback înregistrat</h1>'
-      + '<p>Ați oferit deja feedback pentru această programare.<br>Mulțumim!</p>'
-  } else if (st === 'invalid') {
-    content = '<div class="mark">✕</div>'
-      + '<h1>Link invalid</h1>'
-      + '<p>Parametri lipsă sau invalizi.</p>'
+  if (status === 'ok') {
+    var starsHtml = (rating >= 1 && rating <= 5)
+      ? '<div class="stars">' + STARS[rating] + '</div>' : ''
+    html = '<div class="mark" style="border:1px solid var(--acc);margin:0 auto 28px;">'
+      + '<svg viewBox="0 0 24 24" style="stroke:#E8E4DC;width:22px;height:22px;stroke-width:1.5;fill:none"><polyline points="20 6 9 17 4 12"/></svg>'
+      + '</div>'
+      + starsHtml
+      + '<div class="sh">Mulțumim pentru <em style="color:var(--acc)">feedback!</em></div>'
+      + '<div class="ssub">Răspunsul dumneavoastră ne ajută să îmbunătățim experiența SILLEAU.</div>'
+  } else if (status === 'already') {
+    html = '<div class="mark" style="border:1px solid var(--acc);margin:0 auto 28px;">'
+      + '<svg viewBox="0 0 24 24" style="stroke:#E8E4DC;width:22px;height:22px;stroke-width:1.5;fill:none"><polyline points="20 6 9 17 4 12"/></svg>'
+      + '</div>'
+      + '<div class="sh">Feedback <em style="color:var(--acc)">înregistrat</em></div>'
+      + '<div class="ssub">Ați oferit deja feedback pentru această programare.<br>Mulțumim!</div>'
+  } else if (status === 'invalid') {
+    html = '<div class="mark" style="border:1px solid var(--err);margin:0 auto 28px;">'
+      + '<svg viewBox="0 0 24 24" style="stroke:#C45C5C;width:22px;height:22px;stroke-width:1.5;fill:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      + '</div>'
+      + '<div class="sh">Link <em style="color:var(--err)">invalid</em></div>'
+      + '<div class="ssub">Parametri lipsă sau invalizi.</div>'
   } else {
-    content = '<div class="mark">✕</div>'
-      + '<h1>Eroare</h1>'
-      + '<p>A apărut o eroare temporară. Vă rugăm încercați din nou.</p>'
+    html = '<div class="mark" style="border:1px solid var(--err);margin:0 auto 28px;">'
+      + '<svg viewBox="0 0 24 24" style="stroke:#C45C5C;width:22px;height:22px;stroke-width:1.5;fill:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      + '</div>'
+      + '<div class="sh">A apărut o <em style="color:var(--err)">eroare</em></div>'
+      + '<div class="ssub">A apărut o eroare temporară. Vă rugăm încercați din nou.</div>'
   }
 
-  document.getElementById('box').innerHTML = content
+  document.getElementById('card').innerHTML = html
 </script>
 </body>
 </html>
