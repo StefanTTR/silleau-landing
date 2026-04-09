@@ -306,6 +306,7 @@ var DEBUG = false;
   /* Dacă vine din reminder, confirmarea a fost deja procesată în edge function */
   if(source === 'reminder'){
     setState('stateSuccess');
+    document.querySelector('#stateSuccess .ssub').textContent = 'Mulțumim pentru confirmare. Vă așteptăm la consultație!';
     return;
   }
 
