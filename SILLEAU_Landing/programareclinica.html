@@ -1302,16 +1302,18 @@ function doConfirm(){
       method:  'POST',
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY},
       body:    JSON.stringify({
-        canal:        picCanal,
-        email:        payload.email,
-        telefon:      payload.telefon,
-        prenume:      payload.prenume,
-        medic:        payload.medic,
-        specialitate: payload.specialitate,
-        serviciu:     payload.serviciu,
-        data:         payload.data,
-        ora:          payload.ora,
-        rechemare:    payload.rechemare
+        canal:         picCanal,
+        email:         payload.email,
+        telefon:       payload.telefon,
+        prenume:       payload.prenume,
+        medic:         payload.medic,
+        specialitate:  payload.specialitate,
+        serviciu:      payload.serviciu,
+        data:          payload.data,
+        ora:           payload.ora,
+        rechemare:     payload.rechemare,
+        programare_id: programare_id,
+        clinic_id:     CLINIC_ID
       })
     }).catch(function(){});
 
