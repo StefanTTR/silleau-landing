@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Feedback SILLEAU</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Helvetica Neue",Arial,sans-serif;background:#0A0A0A;color:#E8E4DC;
+      display:flex;align-items:center;justify-content:center;min-height:100vh;
+      text-align:center;padding:24px}
+    .box{max-width:420px}
+    .mark{font-size:42px;margin-bottom:24px}
+    h1{font-size:22px;font-weight:300;letter-spacing:-.3px;margin:0 0 12px;color:#E8E4DC}
+    p{font-size:14px;color:#888;line-height:1.8}
+    .stars{font-size:28px;letter-spacing:2px;margin-bottom:8px}
+  </style>
+</head>
+<body>
+<div class="box" id="box">
+  <!-- populated by JS -->
+</div>
+<script>
+  var p  = new URLSearchParams(location.search)
+  var st = p.get('status')   // ok | already | error | invalid
+  var r  = parseInt(p.get('rating') || '0')
+
+  var STARS = ['','★☆☆☆☆','★★☆☆☆','★★★☆☆','★★★★☆','★★★★★']
+
+  var content = ''
+
+  if (st === 'ok') {
+    var stars = (r >= 1 && r <= 5) ? '<div class="stars">' + STARS[r] + '</div>' : ''
+    content = '<div class="mark">✓</div>'
+      + stars
+      + '<h1>Mulțumim pentru feedback!</h1>'
+      + '<p>Răspunsul dumneavoastră ne ajută să îmbunătățim experiența SILLEAU.</p>'
+  } else if (st === 'already') {
+    content = '<div class="mark">✓</div>'
+      + '<h1>Feedback înregistrat</h1>'
+      + '<p>Ați oferit deja feedback pentru această programare.<br>Mulțumim!</p>'
+  } else if (st === 'invalid') {
+    content = '<div class="mark">✕</div>'
+      + '<h1>Link invalid</h1>'
+      + '<p>Parametri lipsă sau invalizi.</p>'
+  } else {
+    content = '<div class="mark">✕</div>'
+      + '<h1>Eroare</h1>'
+      + '<p>A apărut o eroare temporară. Vă rugăm încercați din nou.</p>'
+  }
+
+  document.getElementById('box').innerHTML = content
+</script>
+</body>
+</html>
