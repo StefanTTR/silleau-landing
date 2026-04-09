@@ -11,26 +11,10 @@ const SB_PATCH = {
   'Prefer':       'return=minimal',
 }
 
-const CSS = 'body{margin:0;font-family:"Helvetica Neue",Arial,sans-serif;background:#0A0A0A;color:#E8E4DC;'
-  + 'display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px;}'
-  + '.box{max-width:420px;}'
-  + '.mark{font-size:36px;margin-bottom:20px;}'
-  + 'h1{font-size:22px;font-weight:300;letter-spacing:-.3px;margin:0 0 10px;color:#E8E4DC;}'
-  + 'p{font-size:13px;color:#888;line-height:1.8;margin:0;}'
+const SITE = 'https://www.silleau.com'
 
-function page(mark: string, title: string, body: string): Response {
-  return new Response(
-    '<!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8">'
-    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    + '<title>' + title + '</title>'
-    + '<style>' + CSS + '</style></head>'
-    + '<body><div class="box">'
-    + '<div class="mark">' + mark + '</div>'
-    + '<h1>' + title + '</h1>'
-    + '<p>' + body + '</p>'
-    + '</div></body></html>',
-    { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-  )
+function redir(tip: string): Response {
+  return Response.redirect(SITE + '/mesaj.html?tip=' + tip, 302)
 }
 
 Deno.serve(async (req) => {
@@ -38,7 +22,7 @@ Deno.serve(async (req) => {
   const id  = url.searchParams.get('id')
   const clinicId = url.searchParams.get('clinic_id')
 
-  if (!id || !clinicId) return page('✕', 'Link invalid', 'ID-ul programării sau clinicii lipsește.')
+  if (!id || !clinicId) return redir('invalid')
 
   /* ── 1. Verifică statusul curent ── */
   const res  = await fetch(
@@ -49,21 +33,21 @@ Deno.serve(async (req) => {
   const rows = await res.json()
   const row  = Array.isArray(rows) ? rows[0] : null
 
-  if (!row) return page('✕', 'Programare negăsită', 'Link-ul nu mai este valid.')
+  if (!row) return redir('negasit')
 
   /* Deja reprogramată (în proces sau finalizată) */
   if (row.status === 'reprogramat' || row.a_fost_reprogramat) {
-    return page('↺', 'Deja reprogramată', 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru confirmarea noii programări.')
+    return redir('reprogramat')
   }
 
   /* Deja anulată */
   if (row.status === 'anulat') {
-    return page('✕', 'Programare anulată', 'Această programare a fost deja anulată.<br>Contactați clinica dacă doriți o nouă programare.')
+    return redir('anulat')
   }
 
   /* Deja confirmată — link folosit o singură dată */
   if (row.confirmat_reminder) {
-    return page('✓', 'Deja confirmată', 'Ați confirmat deja această programare.<br>Vă așteptăm!')
+    return redir('confirmat')
   }
 
   /* ── 2. Fetch medic ── */
@@ -88,7 +72,7 @@ Deno.serve(async (req) => {
   })
 
   /* ── 4. Redirect la confirmare.html cu detalii ── */
-  const redirectUrl = 'https://www.silleau.com/confirmare.html'
+  const redirectUrl = SITE + '/confirmare.html'
     + '?id='     + encodeURIComponent(id)
     + '&source=reminder'
     + (row.data_programare ? '&data=' + encodeURIComponent(row.data_programare) : '')

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SILLEAU</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Helvetica Neue",Arial,sans-serif;background:#0A0A0A;color:#E8E4DC;
+      display:flex;align-items:center;justify-content:center;min-height:100vh;
+      text-align:center;padding:24px}
+    .box{max-width:420px}
+    .mark{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;
+      justify-content:center;margin:0 auto 28px;font-size:22px;border:1px solid #2A2A2A}
+    .mark svg{width:22px;height:22px;stroke-width:1.5;fill:none}
+    h1{font-family:"Helvetica Neue",Arial,sans-serif;font-size:22px;font-weight:300;
+      letter-spacing:-.3px;margin:0 0 10px;color:#E8E4DC}
+    p{font-size:13px;color:#888;line-height:1.8}
+  </style>
+</head>
+<body>
+<div class="box">
+  <div class="mark" id="mark"></div>
+  <h1 id="titlu"></h1>
+  <p id="sub"></p>
+</div>
+<script>
+  var tip = new URLSearchParams(location.search).get('tip') || 'invalid'
+
+  var cfg = {
+    confirmat: {
+      border: '#E8E4DC',
+      icon: '<svg viewBox="0 0 24 24" style="stroke:#E8E4DC"><polyline points="20 6 9 17 4 12"/></svg>',
+      titlu: 'Deja confirmată',
+      sub: 'Ați confirmat deja această programare.<br>Vă așteptăm!'
+    },
+    reprogramat: {
+      border: '#888888',
+      icon: '<span style="font-size:24px;color:#888">↺</span>',
+      titlu: 'Deja reprogramată',
+      sub: 'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru confirmarea noii programări.'
+    },
+    anulat: {
+      border: '#C45C5C',
+      icon: '<svg viewBox="0 0 24 24" style="stroke:#C45C5C"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      titlu: 'Programare anulată',
+      sub: 'Această programare a fost deja anulată.<br>Contactați clinica dacă doriți o nouă programare.'
+    },
+    invalid: {
+      border: '#C45C5C',
+      icon: '<svg viewBox="0 0 24 24" style="stroke:#C45C5C"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      titlu: 'Link invalid',
+      sub: 'Link-ul nu mai este valid sau lipsesc parametrii necesari.'
+    },
+    negasit: {
+      border: '#C45C5C',
+      icon: '<svg viewBox="0 0 24 24" style="stroke:#C45C5C"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      titlu: 'Programare negăsită',
+      sub: 'Link-ul nu mai este valid.'
+    }
+  }
+
+  var c = cfg[tip] || cfg['invalid']
+  document.getElementById('mark').style.border = '1px solid ' + c.border
+  document.getElementById('mark').innerHTML = c.icon
+  document.getElementById('titlu').textContent = c.titlu
+  document.getElementById('sub').innerHTML = c.sub
+</script>
+</body>
+</html>
