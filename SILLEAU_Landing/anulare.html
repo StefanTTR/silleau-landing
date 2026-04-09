@@ -417,15 +417,16 @@ function trimiteAnulare(){
       return;
     }
 
+    /* Confirmat via reminder — linkurile din mail nu mai sunt valabile */
+    if (row.confirmat_reminder){
+      document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--acc);">confirmată</em>';
+      document.querySelector('#stateError .ssub').innerHTML = 'Ați confirmat deja această programare.<br>Pentru modificări contactați clinica direct.';
+      setState('stateError');
+      return;
+    }
+
     /* Daca a venit direct din butonul "Reprogrameaza" din email */
     if (action === 'reprogrameaza'){
-      /* Deja confirmat — nu mai poate fi reprogramat din email */
-      if (row.confirmat_reminder){
-        document.querySelector('#stateError .sh').innerHTML = 'Deja <em style="font-style:italic;color:var(--acc);">confirmată</em>';
-        document.querySelector('#stateError .ssub').innerHTML = 'Ați confirmat deja această programare.<br>Pentru reprogramare contactați clinica direct.';
-        setState('stateError');
-        return;
-      }
       doReprogrameaza();
       return;
     }
