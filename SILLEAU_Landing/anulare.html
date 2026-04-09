@@ -341,7 +341,7 @@ function doReprogrameaza(){
   fetch(patchUrl, {
     method: 'PATCH',
     headers: SB_HEADERS,
-    body: JSON.stringify({ status: 'reprogramat' })
+    body: JSON.stringify({ status: 'reprogramat', a_fost_reprogramat: true })
   })
   .finally(function(){
     /* Redirect la calendarul de programari cu datele pre-completate */
