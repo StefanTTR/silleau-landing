@@ -294,6 +294,7 @@ var DEBUG = false;
   var data   = params.get('data');
   var ora    = params.get('ora');
   var medic  = params.get('medic');
+  var source = params.get('source');
 
   if(!id){ showError('Parametrul "id" lipsește din URL.'); return; }
 
@@ -301,6 +302,12 @@ var DEBUG = false;
   if(data)  setVal('detData',  decodeURIComponent(data));
   if(ora)   setVal('detOra',   decodeURIComponent(ora));
   if(medic) setVal('detMedic', decodeURIComponent(medic));
+
+  /* Dacă vine din reminder, confirmarea a fost deja procesată în edge function */
+  if(source === 'reminder'){
+    setState('stateSuccess');
+    return;
+  }
 
   /* ── 1. Verifică statusul curent din Supabase ─────────────────
      Dacă e deja confirmat → stateAlready (idempotent, link reutilizabil) */
