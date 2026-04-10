@@ -361,29 +361,23 @@ function trimiteAnulare(){
 
   var anulat_la = new Date().toISOString();
 
-  /* 1. Supabase PATCH */
+  /* 1. Supabase PATCH — anulare + eliberare slot */
   var anularePatchUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id);
   if (clinic_id) anularePatchUrl += '&clinic_id=eq.' + encodeURIComponent(clinic_id);
   fetch(anularePatchUrl, {
     method: 'PATCH',
     headers: SB_HEADERS,
-    body: JSON.stringify({ status: 'anulat', motiv_anulare: motivSelectat, anulat_la: anulat_la })
-  }).catch(function(e){ console.warn('[SILLEAU] patch eroare:', e); });
-
-  /* 2. Zapier — notifica pacientii eligibili pentru locul eliberat */
-  fetch(ZAPIER_WEBHOOK_ANULARE, {
-    method: 'POST',
-    mode:   'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({
-      id_programare: id,
-      motiv:         motivSelectat,
-      anulat_la:     anulat_la,
-      data:          dec(data),
-      ora:           dec(ora),
-      medic:         dec(medic)
-    })
-  }).catch(function(){});
+    body: JSON.stringify({ status: 'anulat', slot_rezervat: false, motiv_anulare: motivSelectat, anulat_la: anulat_la })
+  })
+  .then(function(){
+    /* 2. Notifică pacienții eligibili pentru locul eliberat */
+    fetch('https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/notifica-slot-liber', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ programare_id: id, clinic_id: clinic_id || '' })
+    }).catch(function(){});
+  })
+  .catch(function(e){ console.warn('[SILLEAU] patch eroare:', e); });
 
   setState('stateSuccess');
 }
