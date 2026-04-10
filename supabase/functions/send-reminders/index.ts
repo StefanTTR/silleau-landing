@@ -487,7 +487,7 @@ function buildEmail(d: {
     + '</a></td></tr></table></td>'
     + '</tr></table>'
     + buildRatingHtml(
-        FEEDBACK_FN + '?id=' + encodeURIComponent(d.programareId) + '&clinic_id=' + encodeURIComponent(d.clinicId) + '&tip=reminder',
+        FEEDBACK_FN + '?id=' + encodeURIComponent(d.programareId) + '&clinic_id=' + encodeURIComponent(d.clinicId) + '&tip=reminder&sursa=reminder',
         'Cum apreciați calitatea sistemului nostru digital?',
         '1 = Foarte slab &nbsp;·&nbsp; 5 = Excelent'
       )

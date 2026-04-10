@@ -337,7 +337,7 @@ function buildEmail(d: {
       ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">' + rechemareRow + '</table>'
       : '')
     + (d.programare_id ? buildRatingHtml(
-        FEEDBACK_FN + '?id=' + encodeURIComponent(d.programare_id) + '&clinic_id=' + encodeURIComponent(d.clinic_id) + '&tip=booking',
+        FEEDBACK_FN + '?id=' + encodeURIComponent(d.programare_id) + '&clinic_id=' + encodeURIComponent(d.clinic_id) + '&tip=booking&sursa=confirmare',
         'Cât de ușor ați făcut programarea?',
         '1 = Foarte greu &nbsp;·&nbsp; 5 = Foarte ușor'
       ) : '')

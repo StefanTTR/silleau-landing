@@ -421,9 +421,12 @@ var PREF_SPEC        = _urlp.get('specialitate_pref') || '';
 var PREF_PRENUME     = _urlp.get('prenume_pref') || '';
 var PREF_EMAIL       = _urlp.get('email_pref') || '';
 var PREF_TEL         = _urlp.get('telefon_pref') || '';
-var REPROGRAMARE_ID  = _urlp.get('reprogramare_id') || '';
-var REPROGRAMARE_CID = _urlp.get('reprogramare_clinic_id') || '';
-var PREF_SERVICIU    = _urlp.get('serviciu_pref') || '';
+var REPROGRAMARE_ID      = _urlp.get('reprogramare_id') || '';
+var REPROGRAMARE_CID     = _urlp.get('reprogramare_clinic_id') || '';
+var PREF_SERVICIU        = _urlp.get('serviciu_pref') || '';
+var SLOT_NOTIFICARE_ID   = _urlp.get('slot_notificare_id') || '';
+var SLOT_PROGRAMARE_ID   = _urlp.get('slot_programare_id') || '';
+var CLAIM_SLOT_FN        = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/claim-slot';
 
 /* ─── CONFIGURARE CLINICĂ ───────────────────────────────────────
    Editați direct aceste valori pentru fiecare clinică.
@@ -1161,6 +1164,33 @@ function doConfirm(){
     status:         'neconfirmat',
     creat_la:       new Date().toISOString()
   };
+
+  /* ── Slot liber: verifică disponibilitatea înainte de confirmare ── */
+  if (SLOT_NOTIFICARE_ID) {
+    btn.innerHTML = '<span class="spin"></span>Se verifică disponibilitatea...';
+    fetch(CLAIM_SLOT_FN, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ notificare_id: SLOT_NOTIFICARE_ID })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data.success) {
+        window.location.href = 'https://www.silleau.com/mesaj.html?tip=slot_ocupat';
+        return;
+      }
+      doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload);
+    })
+    .catch(function(){
+      doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload);
+    });
+    return;
+  }
+
+  doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload);
+}
+
+function doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload) {
 
   /* ── Reprogramare: skip upsert pacienti, PATCH direct + email ── */
   if (REPROGRAMARE_ID) {

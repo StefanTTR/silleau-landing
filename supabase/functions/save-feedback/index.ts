@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
     const id       = url.searchParams.get('id')
     const clinicId = url.searchParams.get('clinic_id')
     const tip      = url.searchParams.get('tip')
+    const sursa    = url.searchParams.get('sursa') || tip || ''
     const rating   = parseInt(url.searchParams.get('rating') || '0')
 
     if (!id || !tip || rating < 1 || rating > 5) {
@@ -43,7 +44,7 @@ Deno.serve(async (req) => {
     const saveRes = await fetch(SUPABASE_URL + '/rest/v1/feedback', {
       method:  'POST',
       headers: SB_POST,
-      body:    JSON.stringify({ programare_id: id, clinic_id: clinicId, tip, rating }),
+      body:    JSON.stringify({ programare_id: id, clinic_id: clinicId, tip, sursa, rating }),
     })
 
     if (!saveRes.ok) {
