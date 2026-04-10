@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SILLEAU — Confirmare programare</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0A0A0A;--bg2:#111111;--bd:#2A2A2A;--bd2:#333333;--acc:#E8E4DC;--txt:#F0EDE8;--dim:#888888;--mut:#555555;--wh:#FAFAF8;--err:#C45C5C;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+    .wrap{max-width:520px;width:100%;margin:0 auto;padding:64px 24px 96px;}
+    .hdr{text-align:center;margin-bottom:44px;}
+    .brand{display:inline-flex;align-items:center;gap:10px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);}
+    .bline{width:32px;height:1px;background:var(--acc);opacity:.4;}
+    .card{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:48px;}
+    .tag{font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--mut);margin-bottom:8px;}
+    .sh{font-family:'Cormorant Garamond',serif;font-size:clamp(24px,5vw,32px);font-weight:300;line-height:1.15;letter-spacing:-.02em;color:var(--wh);margin-bottom:6px;}
+    .sh em{font-style:italic;}
+    .ssub{font-size:13px;font-weight:300;color:var(--mut);line-height:1.7;margin-bottom:32px;}
+    .section-label{font-size:9px;letter-spacing:.25em;text-transform:uppercase;color:var(--mut);margin-bottom:12px;margin-top:28px;}
+    .rows{border-top:1px solid var(--bd);}
+    .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--bd);}
+    .row-lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);}
+    .row-val{font-size:13px;color:var(--acc);}
+    .sep{height:1px;background:var(--bd);margin:28px 0;}
+    .btn{display:block;width:100%;padding:16px;background:var(--acc);color:var(--bg);font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;border:none;border-radius:3px;cursor:pointer;text-align:center;font-family:'Inter',sans-serif;transition:opacity .2s;}
+    .btn:hover{opacity:.85;}
+    .btn:disabled{opacity:.4;cursor:not-allowed;}
+    .footer{text-align:center;margin-top:32px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);}
+    .footer span{color:var(--bd2);}
+    .msg-card{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:48px;text-align:center;}
+    .mark{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 28px;}
+    .mark svg{width:22px;height:22px;stroke-width:1.5;fill:none;}
+    @media(max-width:480px){.card{padding:32px 20px;}.msg-card{padding:32px 20px;}.wrap{padding:40px 16px 64px;}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="brand"><span class="bline"></span>SILLEAU<span class="bline"></span></div>
+  </div>
+  <div id="content"></div>
+  <div class="footer">Powered by <span>SILLEAU</span> — Revenue Optimisation Systems</div>
+</div>
+<script>
+  var p  = new URLSearchParams(location.search)
+  var n  = p.get('n')  || ''
+  var m  = p.get('m')  || ''
+  var dp = p.get('dp') || ''
+  var op = p.get('op') || ''
+
+  var REFUZA_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/refuza-slot'
+
+  function esc(str) {
+    var d = document.createElement('div')
+    d.appendChild(document.createTextNode(str))
+    return d.innerHTML
+  }
+
+  function showCard() {
+    document.getElementById('content').innerHTML =
+      '<div class="card">'
+      + '<div class="tag">Loc disponibil mai devreme</div>'
+      + '<div class="sh">Doriți să <em>păstrați</em> programarea actuală?</div>'
+      + '<div class="ssub">Confirmați mai jos pentru a păstra programarea existentă. Oferta de loc mai devreme nu va mai fi disponibilă.</div>'
+
+      + '<div class="section-label">Programarea dumneavoastră actuală</div>'
+      + '<div class="rows">'
+      + (m  ? '<div class="row"><span class="row-lbl">Medic</span><span class="row-val">'  + esc(m)  + '</span></div>' : '')
+      + (dp ? '<div class="row"><span class="row-lbl">Data</span><span class="row-val">'   + esc(dp) + '</span></div>' : '')
+      + (op ? '<div class="row"><span class="row-lbl">Ora</span><span class="row-val">'    + esc(op) + '</span></div>' : '')
+      + '</div>'
+
+      + '<div class="sep"></div>'
+      + '<button class="btn" id="btn-refuza" onclick="doRefuza()">Păstrez programarea</button>'
+      + '</div>'
+  }
+
+  function showResult(titlu, sub, borderColor, isOk) {
+    document.getElementById('content').innerHTML =
+      '<div class="msg-card">'
+      + '<div class="mark" style="border:1px solid ' + borderColor + '">' + (isOk
+        ? '<svg viewBox="0 0 24 24" style="stroke:var(--acc)"><polyline points="20 6 9 17 4 12"/></svg>'
+        : '<svg viewBox="0 0 24 24" style="stroke:var(--err)"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      ) + '</div>'
+      + '<div class="sh" style="text-align:center;margin-bottom:10px;">' + titlu + '</div>'
+      + '<div class="ssub" style="text-align:center;">' + sub + '</div>'
+      + '</div>'
+  }
+
+  function doRefuza() {
+    if (!n) { location.href = '/mesaj.html?tip=invalid'; return }
+    var btn = document.getElementById('btn-refuza')
+    btn.disabled = true
+    btn.textContent = 'Se procesează...'
+
+    fetch(REFUZA_FN, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ notificare_id: n }),
+    })
+    .then(function(r) { return r.json() })
+    .then(function(data) {
+      if (data.success) {
+        location.href = '/mesaj.html?tip=slot_refuzat'
+      } else {
+        location.href = '/mesaj.html?tip=' + (data.reason || 'invalid')
+      }
+    })
+    .catch(function() {
+      location.href = '/mesaj.html?tip=invalid'
+    })
+  }
+
+  if (!n) {
+    showResult('Link <em style="color:var(--err)">invalid</em>', 'Link-ul nu mai este valid sau lipsesc parametrii necesari.', 'var(--err)', false)
+  } else {
+    showCard()
+  }
+</script>
+</body>
+</html>

@@ -118,15 +118,16 @@ Deno.serve(async (req) => {
 
     /* 1. Fetch notificarea */
     const notRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/notificari_slot?id=eq.${notificare_id}&select=programare_id,programare_pac_id,data_slot,ora_slot,prenume,email,medic_nume,serviciu_nume,acceptat,anulat`,
+      `${SUPABASE_URL}/rest/v1/notificari_slot?id=eq.${notificare_id}&select=programare_id,programare_pac_id,data_slot,ora_slot,prenume,email,medic_nume,serviciu_nume,acceptat,anulat,refused`,
       { headers: SB }
     )
     const notRows = await notRes.json()
     const not = Array.isArray(notRows) ? notRows[0] : null
 
-    if (!not)       return json({ success: false, reason: 'negasit' })
-    if (not.anulat) return json({ success: false, reason: 'slot_ocupat' })
+    if (!not)         return json({ success: false, reason: 'negasit' })
     if (not.acceptat) return json({ success: true }) // deja acceptat de același pacient
+    if (not.refused)  return json({ success: false, reason: 'slot_refuzat' })
+    if (not.anulat)   return json({ success: false, reason: 'slot_ocupat' })
 
     /* 2. Verifică dacă alt pacient a acceptat deja același slot */
     const existRes = await fetch(
