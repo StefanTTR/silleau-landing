@@ -3,7 +3,7 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_KEY       = Deno.env.get('RESEND_KEY')!
 const FROM_EMAIL       = 'Clinica Alfa <contact@silleau.com>'
 const SITE             = 'https://www.silleau.com'
-const REFUZA_FN        = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/refuza-slot'
+const REFUZA_PAGE      = 'https://www.silleau.com/refuza-slot.html'
 
 const SB      = { 'apikey': SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + SERVICE_ROLE_KEY }
 const SB_POST = { ...SB, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
 
     const notId = notRow?.id || ''
     const linkAccept  = buildAcceptUrl(notId, { medicNume, serviciuNume, dataSlot, oraSlot, dataPac: first.dataPac, oraPac: first.oraPac })
-    const linkDecline = `${REFUZA_FN}?n=${encodeURIComponent(notId)}`
+    const linkDecline = `${REFUZA_PAGE}?n=${encodeURIComponent(notId)}&m=${encodeURIComponent(medicNume)}&dp=${encodeURIComponent(first.dataPac)}&op=${encodeURIComponent(first.oraPac)}`
 
     const html = buildEmail({
       NUME_CLINICA:    'Clinica Alfa',
