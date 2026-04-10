@@ -3,3 +3,5 @@
 .vscode/
 supabase/.temp/
 supabase/functions/**/.DS_Store
+.claude/
+silleau-landing/
