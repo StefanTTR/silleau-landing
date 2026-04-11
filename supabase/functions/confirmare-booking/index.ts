@@ -16,6 +16,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json()
     const {
+      tip,
       canal,
       email,
       telefon,
@@ -29,6 +30,7 @@ Deno.serve(async (req) => {
       programare_id,
       clinic_id,
     } = body
+    const isReprogramare = tip === 'reprogramare'
 
     if (!isNonEmptyString(prenume) || !isNonEmptyString(medic) || !isValidDate(data) || !isValidTime(ora)) {
       return new Response(JSON.stringify({ error: 'date incomplete sau invalide' }), { status: 400, headers: CORS })
@@ -73,8 +75,8 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: FROM_EMAIL,
           to: email,
-          subject: 'Confirmare programare — ' + fmtData(data),
-          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), ora, rechemare: rechemare || '', programare_id, clinic_id }),
+          subject: (isReprogramare ? 'Confirmare reprogramare — ' : 'Confirmare programare — ') + fmtData(data),
+          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare }),
         }),
       })
       if (!emailRes.ok) {
@@ -242,7 +244,7 @@ function buildRatingHtml(baseUrl: string, question: string, legend: string): str
 function buildEmail(d: {
   prenume: string, medic: string, specialitate: string,
   serviciu: string, data: string, ora: string, rechemare: string,
-  programare_id?: string, clinic_id?: string
+  programare_id?: string, clinic_id?: string, isReprogramare?: boolean
 }): string {
   const serviciuRow = d.serviciu
     ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
@@ -312,7 +314,7 @@ function buildEmail(d: {
     + '<tr><td align="center" style="padding:32px 12px;">'
     + '<table class="wrapper bg-card" width="560" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:4px;border:1px solid #E8E4DC;">'
     + '<tr><td align="center" style="padding:36px 44px 28px;border-bottom:1px solid #F0EDE8;">'
-    + '<div class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:14px;">Confirmare programare</div>'
+    + '<div class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:14px;">' + (d.isReprogramare ? 'Confirmare reprogramare' : 'Confirmare programare') + '</div>'
     + '<div class="text-title" style="font-size:23px;color:#111111;font-weight:300;font-family:\'Helvetica Neue\',Arial,sans-serif;letter-spacing:-0.3px;">Clinica Alfa</div>'
     + '</td></tr>'
     + '<tr><td class="inner" style="padding:36px 44px 0;">'
@@ -321,7 +323,7 @@ function buildEmail(d: {
     + '<strong class="text-name" style="color:#111111;font-weight:600;">' + d.prenume + '</strong>'
     + '<span class="text-greet" style="color:#111111;">,</span></p>'
     + '<p class="text-body" style="font-size:13px;color:#888888;line-height:1.8;margin:0 0 28px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
-    + 'Programarea dumneavoastr\u0103 a fost confirmat\u0103 cu succes. Mai jos g\u0103si\u021bi detaliile consulta\u021biei.'
+    + (d.isReprogramare ? 'Reprogramarea dumneavoastr\u0103 a fost confirmat\u0103 cu succes. Mai jos g\u0103si\u021bi detaliile.' : 'Programarea dumneavoastr\u0103 a fost confirmat\u0103 cu succes. Mai jos g\u0103si\u021bi detaliile consulta\u021biei.')
     + '</p>'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">'
     + '<tr><td colspan="2" style="padding:0 0 10px;">'
@@ -342,14 +344,14 @@ function buildEmail(d: {
       : '')
     + (d.programare_id ? buildRatingHtml(
         FEEDBACK_FN + '?id=' + encodeURIComponent(d.programare_id) + '&clinic_id=' + encodeURIComponent(d.clinic_id) + '&tip=booking&sursa=confirmare',
-        'Cât de ușor ați făcut programarea?',
+        d.isReprogramare ? 'Cât de ușor ați făcut reprogramarea?' : 'Cât de ușor ați făcut programarea?',
         '1 = Foarte greu &nbsp;·&nbsp; 5 = Foarte ușor'
       ) : '')
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">'
     + '<tr><td class="sep" style="height:1px;background-color:#F0EDE8;font-size:0;line-height:0;">&nbsp;</td></tr>'
     + '</table>'
     + '<p class="text-note" style="font-size:12px;color:#CCCCCC;line-height:1.9;margin:0 0 32px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
-    + 'V\u0103 rug\u0103m s\u0103 ajunge\u021bi cu <span class="text-note-em" style="color:#888888;">10 minute \u00eenainte</span> de ora programat\u0103. Pentru reprogramare contacta\u021bi-ne la '
+    + 'V\u0103 rug\u0103m s\u0103 ajunge\u021bi cu <span class="text-note-em" style="color:#888888;">10 minute \u00eenainte</span> de ora stabilit\u0103. Pentru alte informa\u021bii contacta\u021bi-ne la '
     + '<a href="mailto:contact@silleau.com" class="link-email" style="color:#999999;text-decoration:underline;text-decoration-style:dotted;font-family:\'Helvetica Neue\',Arial,sans-serif;">contact@silleau.com</a>.'
     + '</p>'
     + '</td></tr>'
