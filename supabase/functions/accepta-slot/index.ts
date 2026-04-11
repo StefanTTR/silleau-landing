@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     const not = Array.isArray(notRows) ? notRows[0] : null
 
     if (!not)         return json({ success: false, reason: 'negasit' })
-    if (not.acceptat) return json({ success: true }) // deja acceptat de același pacient
+    if (not.acceptat) return json({ success: false, reason: 'slot_acceptat' })
     if (not.refused)  return json({ success: false, reason: 'slot_refuzat' })
     if (not.anulat)   return json({ success: false, reason: 'slot_ocupat' })
 
