@@ -20,6 +20,10 @@ const SB_PATCH_HEADERS = {
 type ReminderRow = Record<string, any>
 type ProgramareMeta = { id: string, clinic_id: string, canal_comunicare: string }
 
+function fmtData(iso: string): string {
+  return new Date(iso).toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 Deno.serve(async (_req) => {
   try {
     const now = new Date()
@@ -195,13 +199,13 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: row.email,
-        subject: 'Reminder programare — ' + row.data_programare,
+        subject: 'Reminder programare — ' + fmtData(row.data_programare || ''),
         html: buildEmail({
           prenume:         row.prenume         || '',
           medic:           row.medic           || '',
           specialitate:    row.specialitate    || '',
           serviciu:        row.serviciu        || '',
-          data:            row.data_programare || '',
+          data:            fmtData(row.data_programare || ''),
           ora:             String(row.ora_start || '').slice(0, 5),
           confirmUrl,
           reprogramareUrl,

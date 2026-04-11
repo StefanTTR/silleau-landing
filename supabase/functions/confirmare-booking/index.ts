@@ -73,8 +73,8 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from: FROM_EMAIL,
           to: email,
-          subject: 'Confirmare programare — ' + data,
-          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data, ora, rechemare: rechemare || '', programare_id, clinic_id }),
+          subject: 'Confirmare programare — ' + fmtData(data),
+          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), ora, rechemare: rechemare || '', programare_id, clinic_id }),
         }),
       })
       if (!emailRes.ok) {
@@ -88,6 +88,10 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: CORS })
   }
 })
+
+function fmtData(iso: string): string {
+  return new Date(iso).toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0
