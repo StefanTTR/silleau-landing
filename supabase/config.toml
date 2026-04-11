@@ -406,6 +406,10 @@ verify_jwt = true
 enabled = true
 verify_jwt = true
 
+[functions.anuleaza-slot]
+enabled = true
+verify_jwt = false
+
 # ── Funcții apelate din linkuri email / pagini publice — fără JWT ───────────
 [functions.confirmare-reminder]
 enabled = true
