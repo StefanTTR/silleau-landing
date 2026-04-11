@@ -383,13 +383,58 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
+# ── Funcții apelate de cron/backend — JWT obligatoriu ──────────────────────
 [functions.send-reminders]
 enabled = true
 verify_jwt = true
 import_map = "./functions/send-reminders/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/send-reminders/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/send-reminders/*.html" ]
+
+[functions.slot-eliberat]
+enabled = true
+verify_jwt = true
+
+[functions.notifica-slot-liber]
+enabled = true
+verify_jwt = true
+
+[functions.send-slot-notificari]
+enabled = true
+verify_jwt = true
+
+[functions.slot-queue]
+enabled = true
+verify_jwt = true
+
+# ── Funcții apelate din linkuri email / pagini publice — fără JWT ───────────
+[functions.confirmare-reminder]
+enabled = true
+verify_jwt = false
+
+[functions.accepta-slot]
+enabled = true
+verify_jwt = false
+
+[functions.refuza-slot]
+enabled = true
+verify_jwt = false
+
+[functions.claim-slot]
+enabled = true
+verify_jwt = false
+
+[functions.stare-slot]
+enabled = true
+verify_jwt = false
+
+[functions.save-feedback]
+enabled = true
+verify_jwt = false
+
+[functions.confirmare-booking]
+enabled = true
+verify_jwt = false
+
+[functions.acceptare-loc-nou]
+enabled = true
+verify_jwt = false
