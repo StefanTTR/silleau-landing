@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
 
     const notId = notRow?.id || ''
     const linkAccept  = buildAcceptUrl(notId, { medicNume, serviciuNume, dataSlot, oraSlot, dataPac: first.dataPac, oraPac: first.oraPac })
-    const linkDecline = `${REFUZA_PAGE}?n=${encodeURIComponent(notId)}&m=${encodeURIComponent(medicNume)}&dp=${encodeURIComponent(first.dataPac)}&op=${encodeURIComponent(first.oraPac)}`
+    const linkDecline = `${REFUZA_PAGE}?n=${encodeURIComponent(notId)}&m=${encodeURIComponent(medicNume)}&d=${encodeURIComponent(dataSlot)}&o=${encodeURIComponent(oraSlot)}&dp=${encodeURIComponent(first.dataPac)}&op=${encodeURIComponent(first.oraPac)}`
 
     const html = buildEmail({
       NUME_CLINICA:    'Clinica Alfa',
