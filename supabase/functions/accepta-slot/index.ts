@@ -22,7 +22,7 @@ function fmtData(iso: string): string {
 function fmtOra(t: string): string { return String(t).slice(0, 5) }
 
 function buildMutareEmail(p: {
-  prenume: string, medicNume: string, serviciuNume: string,
+  prenume: string, medicNume: string, specialitate: string, serviciuNume: string,
   dataNoua: string, oraNoua: string,
 }): string {
   const F = "'Helvetica Neue',Arial,sans-serif"
@@ -84,6 +84,7 @@ function buildMutareEmail(p: {
     // Detalii
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">'
     + `<tr><td class="text-label border-row" style="${lST}">Medic</td><td class="text-value border-row" style="${vST}">${p.medicNume}</td></tr>`
+    + (p.specialitate ? `<tr><td class="text-label border-row" style="${lS}">Specialitate</td><td class="text-value border-row" style="${vS}">${p.specialitate}</td></tr>` : '')
     + `<tr><td class="text-label border-row" style="${lS}">Serviciu</td><td class="text-value border-row" style="${vS}">${p.serviciuNume}</td></tr>`
     + `<tr><td class="text-label border-row" style="${lS}">Data</td><td class="text-value border-row" style="${vS}">${p.dataNoua}</td></tr>`
     + `<tr><td class="text-label border-row" style="${lS}">Ora</td><td class="text-value border-row" style="${vS}">${p.oraNoua}</td></tr>`
@@ -118,7 +119,7 @@ Deno.serve(async (req) => {
 
     /* 1. Fetch notificarea */
     const notRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/notificari_slot?id=eq.${notificare_id}&select=programare_id,programare_pac_id,data_slot,ora_slot,prenume,email,medic_nume,serviciu_nume,acceptat,anulat,refused`,
+      `${SUPABASE_URL}/rest/v1/notificari_slot?id=eq.${notificare_id}&select=programare_id,programare_pac_id,data_slot,ora_slot,prenume,email,medic_nume,specialitate,serviciu_nume,acceptat,anulat,refused`,
       { headers: SB }
     )
     const notRows = await notRes.json()
@@ -168,6 +169,7 @@ Deno.serve(async (req) => {
     const html = buildMutareEmail({
       prenume:      not.prenume || 'Pacient',
       medicNume:    not.medic_nume || '',
+      specialitate: not.specialitate || '',
       serviciuNume: not.serviciu_nume || '',
       dataNoua, oraNoua,
     })
