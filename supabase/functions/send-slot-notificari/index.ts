@@ -253,7 +253,7 @@ Deno.serve(async (_req) => {
         specialitate: not.specialitate || '',
         dataSlot, oraSlot, dataPac, oraPac,
       })
-      const linkDecline = `${REFUZA_PAGE}?n=${encodeURIComponent(not.id)}&m=${encodeURIComponent(not.medic_nume || '')}&dp=${encodeURIComponent(dataPac)}&op=${encodeURIComponent(oraPac)}`
+      const linkDecline = `${REFUZA_PAGE}?n=${encodeURIComponent(not.id)}&m=${encodeURIComponent(not.medic_nume || '')}&d=${encodeURIComponent(dataSlot)}&o=${encodeURIComponent(oraSlot)}&dp=${encodeURIComponent(dataPac)}&op=${encodeURIComponent(oraPac)}`
 
       const html = buildEmail({
         NUME_CLINICA:    'Clinica Alfa',
