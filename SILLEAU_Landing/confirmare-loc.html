@@ -231,9 +231,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 /* ============================================================
    CONFIGURARE
    ============================================================ */
-var SUPABASE_URL = 'https://wpxflbwohowigaulhxhk.supabase.co';
-var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweGZsYndvaG93aWdhdWxoeGhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MjExNTQsImV4cCI6MjA5MDA5NzE1NH0.hWpLo3bwaRVZDwxNoU0JG774OXKOY40rkkGNVWGqi7Y';
-var ACCEPTARE_LOC_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/acceptare-loc-nou';
+var SUPABASE_FUNCTIONS_URL = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1';
 
 /* ============================================================
    PARAMETRI DIN URL
@@ -244,12 +242,6 @@ var sd           = params.get('sd');           /* data noului slot */
 var so           = params.get('so');           /* ora start noului slot */
 var slot_sfarsit = params.get('slot_sfarsit'); /* ora sfarsit noului slot */
 var oferta_id    = params.get('oferta_id');    /* id din slot_oferte */
-
-var SB_HEADERS = {
-  'apikey':        SUPABASE_KEY,
-  'Authorization': 'Bearer ' + SUPABASE_KEY,
-  'Content-Type':  'application/json'
-};
 
 var programare_anulata_id = null;
 var curDataGlobal = '';
@@ -281,66 +273,26 @@ function acceptSlot(){
   lockButtons();
   document.getElementById('btnAccept').textContent = 'Se procesează...';
 
-  /* 1. Double-check — slotul sa nu fie ocupat intre timp */
-  fetch(SUPABASE_URL + '/rest/v1/slot_oferte?id=eq.' + encodeURIComponent(oferta_id)
-    + '&select=slot_ocupat,programare_anulata_id', { headers: SB_HEADERS })
+  fetch(SUPABASE_FUNCTIONS_URL + '/gestiune-slot', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action:        'accept',
+      programare_id: id,
+      oferta_id:     oferta_id,
+      clinic_id:     params.get('clinic_id') || '',
+      data_noua:     decodeURIComponent(sd || ''),
+      ora_noua:      decodeURIComponent(so || ''),
+      ora_sfarsit:   slot_sfarsit ? decodeURIComponent(slot_sfarsit) : undefined,
+      cur_data:      curDataGlobal,
+      cur_ora:       curOraGlobal
+    })
+  })
   .then(function(r){ return r.json(); })
-  .then(function(rows){
-    var oferta = Array.isArray(rows) ? rows[0] : null;
-    if(!oferta){ setState('stateError'); return; }
-    if(oferta.slot_ocupat){ setState('stateUsed'); return; }
-
-    var anulataId   = oferta.programare_anulata_id;
-    var acceptat_la = new Date().toISOString();
-    var newData     = decodeURIComponent(sd || '');
-    var newOra      = decodeURIComponent(so || '');
-
-    var patchBody = {
-      data_programare: newData,
-      ora_start:       newOra,
-      status:          'confirmat',
-      acceptat_la:     acceptat_la
-    };
-    if(slot_sfarsit) patchBody.ora_sfarsit = decodeURIComponent(slot_sfarsit);
-
-    /* 2. Muta programarea pe noul slot */
-    fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id), {
-      method: 'PATCH',
-      headers: Object.assign({}, SB_HEADERS, { 'Prefer': 'return=minimal' }),
-      body: JSON.stringify(patchBody)
-    })
-    .then(function(r){
-      if(!r.ok) throw new Error('PATCH programari ' + r.status);
-
-      /* 3. Marcheaza toate ofertele din grup ca slot_ocupat=true */
-      return fetch(
-        SUPABASE_URL + '/rest/v1/slot_oferte?programare_anulata_id=eq.' + encodeURIComponent(anulataId),
-        { method: 'PATCH', headers: Object.assign({}, SB_HEADERS, { 'Prefer': 'return=minimal' }),
-          body: JSON.stringify({ slot_ocupat: true }) }
-      );
-    })
-    .then(function(){
-      /* 4. Marcheaza aceasta oferta ca acceptata */
-      return fetch(
-        SUPABASE_URL + '/rest/v1/slot_oferte?id=eq.' + encodeURIComponent(oferta_id),
-        { method: 'PATCH', headers: Object.assign({}, SB_HEADERS, { 'Prefer': 'return=minimal' }),
-          body: JSON.stringify({ status: 'acceptat' }) }
-      );
-    })
-    .then(function(){
-      setState('stateSuccess');
-      /* Email confirmare reprogramare — fire and forget */
-      fetch(ACCEPTARE_LOC_FN, {
-        method:  'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          programare_id: id,
-          cur_data:      curDataGlobal,
-          cur_ora:       curOraGlobal
-        })
-      }).catch(function(){});
-    })
-    .catch(function(){ setState('stateError'); });
+  .then(function(res){
+    if(res.slot_ocupat){ setState('stateUsed'); return; }
+    if(res.error){ setState('stateError'); return; }
+    setState('stateSuccess');
   })
   .catch(function(){ setState('stateError'); });
 }
@@ -348,12 +300,11 @@ function acceptSlot(){
 function declineSlot(){
   lockButtons();
 
-  /* Marcheaza oferta ca expirata — cron-ul va trimite urmatorul din coada */
   if(oferta_id){
-    fetch(SUPABASE_URL + '/rest/v1/slot_oferte?id=eq.' + encodeURIComponent(oferta_id), {
-      method: 'PATCH',
-      headers: Object.assign({}, SB_HEADERS, { 'Prefer': 'return=minimal' }),
-      body: JSON.stringify({ status: 'expirat' })
+    fetch(SUPABASE_FUNCTIONS_URL + '/gestiune-slot', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'decline', oferta_id: oferta_id })
     }).catch(function(){});
   }
 
@@ -370,8 +321,7 @@ function declineSlot(){
   }
 
   /* 1. Verifica oferta in DB */
-  fetch(SUPABASE_URL + '/rest/v1/slot_oferte?id=eq.' + encodeURIComponent(oferta_id)
-    + '&select=slot_ocupat,programare_anulata_id', { headers: SB_HEADERS })
+  fetch(SUPABASE_FUNCTIONS_URL + '/public-data?resource=slot_oferta&id=' + encodeURIComponent(oferta_id))
   .then(function(r){ return r.json(); })
   .then(function(rows){
     var oferta = Array.isArray(rows) ? rows[0] : null;
@@ -381,8 +331,7 @@ function declineSlot(){
     programare_anulata_id = oferta.programare_anulata_id;
 
     /* 2. Fetch detalii programare curenta a pacientului */
-    return fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id)
-      + '&select=data_programare,ora_start', { headers: SB_HEADERS })
+    return fetch(SUPABASE_FUNCTIONS_URL + '/public-data?resource=programare_cur&id=' + encodeURIComponent(id))
     .then(function(r){ return r.json(); })
     .then(function(rows){
       var prog = Array.isArray(rows) ? rows[0] : null;

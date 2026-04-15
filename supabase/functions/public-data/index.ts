@@ -28,6 +28,10 @@ const ALLOWED_RESOURCES = new Set([
   'servicii',
   'programari',
   'zile_blocate',
+  'programare_status',   // GET status single booking by id
+  'programare_info',     // GET status+confirmat_reminder+motiv_anulare+a_fost_reprogramat by id
+  'slot_oferta',         // GET slot_oferte by id
+  'programare_cur',      // GET data_programare, ora_start by id
 ])
 
 Deno.serve(async (req) => {
@@ -53,8 +57,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    const clinicId    = url.searchParams.get('clinic_id') || ''
+    const clinicId     = url.searchParams.get('clinic_id') || ''
     const specialitate = url.searchParams.get('specialitate') || ''
+    const id           = url.searchParams.get('id') || ''
 
     let restUrl: string
 
@@ -120,6 +125,59 @@ Deno.serve(async (req) => {
           + '/rest/v1/zile_blocate'
           + '?clinic_id=eq.' + encodeURIComponent(clinicId)
           + '&select=personal_id,data'
+        break
+
+      case 'programare_status':
+        if (!id) {
+          return new Response(JSON.stringify({ error: 'id lipsa' }), {
+            status: 400,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          })
+        }
+        restUrl = SUPABASE_URL
+          + '/rest/v1/programari'
+          + '?id=eq.' + encodeURIComponent(id)
+          + '&select=status'
+        break
+
+      case 'programare_info':
+        if (!id) {
+          return new Response(JSON.stringify({ error: 'id lipsa' }), {
+            status: 400,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          })
+        }
+        restUrl = SUPABASE_URL
+          + '/rest/v1/programari'
+          + '?id=eq.' + encodeURIComponent(id)
+          + '&select=status,confirmat_reminder,motiv_anulare,a_fost_reprogramat'
+        if (clinicId) restUrl += '&clinic_id=eq.' + encodeURIComponent(clinicId)
+        break
+
+      case 'slot_oferta':
+        if (!id) {
+          return new Response(JSON.stringify({ error: 'id lipsa' }), {
+            status: 400,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          })
+        }
+        restUrl = SUPABASE_URL
+          + '/rest/v1/slot_oferte'
+          + '?id=eq.' + encodeURIComponent(id)
+          + '&select=slot_ocupat,programare_anulata_id'
+        break
+
+      case 'programare_cur':
+        if (!id) {
+          return new Response(JSON.stringify({ error: 'id lipsa' }), {
+            status: 400,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          })
+        }
+        restUrl = SUPABASE_URL
+          + '/rest/v1/programari'
+          + '?id=eq.' + encodeURIComponent(id)
+          + '&select=data_programare,ora_start'
         break
 
       default:

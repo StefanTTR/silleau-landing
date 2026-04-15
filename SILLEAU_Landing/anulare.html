@@ -259,8 +259,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
    CONFIGURARE
    ============================================================ */
 var ZAPIER_WEBHOOK_ANULARE = 'https://hooks.zapier.com/hooks/catch/26378829/upapb3p/';
-var SUPABASE_URL = 'https://wpxflbwohowigaulhxhk.supabase.co';
-var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndweGZsYndvaG93aWdhdWxoeGhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MjExNTQsImV4cCI6MjA5MDA5NzE1NH0.hWpLo3bwaRVZDwxNoU0JG774OXKOY40rkkGNVWGqi7Y';
+var SUPABASE_FUNCTIONS_URL = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1';
 
 /* ============================================================
    PARAMS
@@ -279,12 +278,6 @@ var telefon      = params.get('telefon');
 var action       = params.get('action'); // 'reprogrameaza' | null
 
 var motivSelectat = null;
-var SB_HEADERS = {
-  'apikey':        SUPABASE_KEY,
-  'Authorization': 'Bearer ' + SUPABASE_KEY,
-  'Content-Type':  'application/json',
-  'Prefer':        'return=minimal'
-};
 
 /* ============================================================
    HELPERS
@@ -359,25 +352,12 @@ function trimiteAnulare(){
   btn.disabled = true;
   btn.textContent = 'Se procesează...';
 
-  var anulat_la = new Date().toISOString();
-
-  /* 1. Supabase PATCH — anulare + eliberare slot */
-  var anularePatchUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id);
-  if (clinic_id) anularePatchUrl += '&clinic_id=eq.' + encodeURIComponent(clinic_id);
-  fetch(anularePatchUrl, {
-    method: 'PATCH',
-    headers: SB_HEADERS,
-    body: JSON.stringify({ status: 'anulat', slot_rezervat: false, motiv_anulare: motivSelectat, anulat_la: anulat_la })
-  })
-  .then(function(){
-    /* 2. Notifică pacienții eligibili pentru locul eliberat */
-    fetch('https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/notifica-slot-liber', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ programare_id: id, clinic_id: clinic_id || '' })
-    }).catch(function(){});
-  })
-  .catch(function(e){ console.warn('[SILLEAU] patch eroare:', e); });
+  /* anuleaza-slot face PATCH + notifică pacienții eligibili */
+  fetch(SUPABASE_FUNCTIONS_URL + '/anuleaza-slot', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ programare_id: id, clinic_id: clinic_id || '', motiv: motivSelectat })
+  }).catch(function(e){ console.warn('[SILLEAU] anulare eroare:', e); });
 
   setState('stateSuccess');
 }
@@ -388,11 +368,9 @@ function trimiteAnulare(){
 (function(){
   if (!id){ setState('stateError'); return; }
 
-  var initUrl = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id) + '&select=status,confirmat_reminder,motiv_anulare,a_fost_reprogramat';
-  if (clinic_id) initUrl += '&clinic_id=eq.' + encodeURIComponent(clinic_id);
-  fetch(initUrl, {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
-  })
+  var initUrl = SUPABASE_FUNCTIONS_URL + '/public-data?resource=programare_info&id=' + encodeURIComponent(id);
+  if (clinic_id) initUrl += '&clinic_id=' + encodeURIComponent(clinic_id);
+  fetch(initUrl)
   .then(function(r){ return r.json(); })
   .then(function(rows){
     var row = Array.isArray(rows) ? rows[0] : null;
