@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
 
     /* 1. Fetch programarea anulată */
     const prog = (await (await fetch(
-      `${SUPABASE_URL}/rest/v1/programari?id=eq.${programare_id}&clinic_id=eq.${clinic_id}&select=personal_id,serviciu_id,data_programare,ora_start`,
+      `${SUPABASE_URL}/rest/v1/programari?programare_id=eq.${programare_id}&clinic_id=eq.${clinic_id}&select=personal_id,serviciu_id,data_programare,ora_start`,
       { headers: SB }
     )).json())[0]
     if (!prog) return new Response(JSON.stringify({ skipped: 'programare negasita' }), { status: 200 })
@@ -247,7 +247,7 @@ Deno.serve(async (req) => {
     }
 
     /* 4. Pacienți eligibili */
-    let eligibilUrl = `${SUPABASE_URL}/rest/v1/programari?doreste_loc_mai_devreme=eq.true&personal_id=eq.${personal_id}&data_programare=gt.${data_programare}&status=neq.anulat&id=neq.${programare_id}&select=id,pacient_id,clinic_id,data_programare,ora_start`
+    let eligibilUrl = `${SUPABASE_URL}/rest/v1/programari?doreste_loc_mai_devreme=eq.true&personal_id=eq.${personal_id}&data_programare=gt.${data_programare}&status=neq.anulat&programare_id=neq.${programare_id}&select=programare_id,pacient_id,clinic_id,data_programare,ora_start`
     if (serviciu_id) eligibilUrl += `&serviciu_id=eq.${serviciu_id}`
 
     const eligibili = await (await fetch(eligibilUrl, { headers: SB })).json()
@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
       )).json())[0]
       if (!pac?.email) continue
       lista.push({
-        programareId: el.id,
+        programareId: el.programare_id,
         clinicId:     el.clinic_id || clinic_id,
         pacientId:    el.pacient_id,
         prenume:      pac.prenume || '',

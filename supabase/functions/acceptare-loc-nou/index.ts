@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     }
 
     const progList = await sbGet(
-      'programari?id=eq.' + programare_id
+      'programari?programare_id=eq.' + programare_id
       + '&clinic_id=eq.' + clinic_id
       + '&select=data_programare,ora_start,clinic_id,'
       + 'pacient:pacienti!programari_pacient_id_fkey(email,prenume),'

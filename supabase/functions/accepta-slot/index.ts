@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
 
     /* 5. Actualizează programarea pacientului cu noul slot */
     await fetch(
-      `${SUPABASE_URL}/rest/v1/programari?id=eq.${not.programare_pac_id}`,
+      `${SUPABASE_URL}/rest/v1/programari?programare_id=eq.${not.programare_pac_id}`,
       {
         method:  'PATCH',
         headers: SB_POST,

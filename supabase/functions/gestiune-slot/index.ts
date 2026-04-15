@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
 
       /* 2. Mută programarea pe noul slot */
       const p1 = await fetch(
-        SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(programare_id),
+        SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + encodeURIComponent(programare_id),
         { method: 'PATCH', headers: SB_PATCH, body: JSON.stringify(patchBody) }
       )
       if (!p1.ok) {

@@ -111,7 +111,7 @@ async function processQueueGroup(group: Grup): Promise<boolean> {
 
   try {
     const progAnulata = await sbGet(
-      'programari?id=eq.' + anulataId
+      'programari?programare_id=eq.' + anulataId
       + '&clinic_id=eq.' + clinicId
       + '&select=data_programare,ora_start,ora_sfarsit,personal_id,clinic_id,serviciu_id'
     )
@@ -156,7 +156,7 @@ async function processQueueGroup(group: Grup): Promise<boolean> {
     }
 
     const progElig = await sbGet(
-      'programari?id=eq.' + oferta.programare_eligibila_id
+      'programari?programare_id=eq.' + oferta.programare_eligibila_id
       + '&clinic_id=eq.' + clinicId
       + '&select=data_programare,ora_start'
     )

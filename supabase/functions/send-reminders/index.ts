@@ -136,8 +136,8 @@ async function fetchProgramariMeta(ids: string[]): Promise<Record<string, Progra
 
   for (const batch of chunk(cleanIds, 100)) {
     const url = SUPABASE_URL + '/rest/v1/programari'
-      + '?id=in.(' + batch.join(',') + ')'
-      + '&select=id,clinic_id,canal_comunicare'
+      + '?programare_id=in.(' + batch.join(',') + ')'
+      + '&select=programare_id,clinic_id,canal_comunicare'
 
     const res = await fetch(url, { headers: SB_HEADERS })
     if (!res.ok) {
@@ -149,9 +149,9 @@ async function fetchProgramariMeta(ids: string[]): Promise<Record<string, Progra
     if (!Array.isArray(rows)) continue
 
     for (const row of rows) {
-      if (!row?.id || !row?.clinic_id) continue
-      map[String(row.id)] = {
-        id: String(row.id),
+      if (!row?.programare_id || !row?.clinic_id) continue
+      map[String(row.programare_id)] = {
+        id: String(row.programare_id),
         clinic_id: String(row.clinic_id),
         canal_comunicare: String(row.canal_comunicare || 'email'),
       }
@@ -227,7 +227,7 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
   if (!ok) return false
 
   const patchRes = await fetch(
-    SUPABASE_URL + '/rest/v1/programari?id=eq.' + row.id + '&clinic_id=eq.' + meta.clinic_id,
+    SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + row.id + '&clinic_id=eq.' + meta.clinic_id,
     {
       method: 'PATCH',
       headers: SB_PATCH_HEADERS,

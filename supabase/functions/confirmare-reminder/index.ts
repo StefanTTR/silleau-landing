@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
 
   /* ── 1. Verifică statusul curent ── */
   const res  = await fetch(
-    SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&clinic_id=eq.' + clinicId
+    SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + id + '&clinic_id=eq.' + clinicId
       + '&select=status,confirmat_reminder,a_fost_reprogramat,data_programare,ora_start,personal_id',
     { headers: SB_GET }
   )
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
   }
 
   /* ── 3. Confirmă ── */
-  await fetch(SUPABASE_URL + '/rest/v1/programari?id=eq.' + id + '&clinic_id=eq.' + clinicId, {
+  await fetch(SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + id + '&clinic_id=eq.' + clinicId, {
     method:  'PATCH',
     headers: SB_PATCH,
     body:    JSON.stringify({ confirmat_reminder: true, status: 'confirmat' }),

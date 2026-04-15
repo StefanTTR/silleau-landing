@@ -735,6 +735,11 @@ function showSlots(ds){
           elem.classList.add('picked');
           picSlot=time;
           document.getElementById('sErr').style.display='none';
+          setTimeout(function(){
+            var btn=document.getElementById('b3n');
+            var top=btn.getBoundingClientRect().bottom+window.pageYOffset-window.innerHeight+40;
+            window.scrollTo({top:top,behavior:'smooth'});
+          }, 80);
         });
       })(t,el);
     }
@@ -984,11 +989,21 @@ function fetchBlockedDays(callback){
   })
   .then(function(list){
     (Array.isArray(list) ? list : []).forEach(function(b){
-      var mid = b.personal_id || 'ALL';
-      var ds  = b.data;
-      if(!ds) return;
+      var mid   = b.personal_id || 'ALL';
+      var start = b.data_start;
+      var end   = b.data_sfarsit || b.data_start;
+      if(!start) return;
       if(!ADMIN_BLOCKED[mid]) ADMIN_BLOCKED[mid] = new Set();
-      ADMIN_BLOCKED[mid].add(ds);
+      /* Adaugă fiecare zi din intervalul [data_start, data_sfarsit] */
+      var cur = new Date(start);
+      var fin = new Date(end);
+      while(cur <= fin){
+        var y = cur.getFullYear();
+        var m = String(cur.getMonth()+1).padStart(2,'0');
+        var d = String(cur.getDate()).padStart(2,'0');
+        ADMIN_BLOCKED[mid].add(y+'-'+m+'-'+d);
+        cur.setDate(cur.getDate()+1);
+      }
     });
     if(callback) callback();
   })

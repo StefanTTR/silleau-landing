@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
       + '&doreste_loc_mai_devreme=eq.true'
       + '&data_programare=gte.'        + weekStart
       + '&data_programare=lte.'        + weekEnd
-      + '&select=id,pacient_id,data_programare,ora_start,ora_sfarsit'
+      + '&select=programare_id,pacient_id,data_programare,ora_start,ora_sfarsit'
 
     if (serviciu_id) eligUrl += '&serviciu_id=eq.' + serviciu_id
 
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     // Salveaza coada in slot_oferte
     const oferte = prioritizati.map((c: any, i: number) => ({
       programare_anulata_id:   programare_id,
-      programare_eligibila_id: c.id,
+      programare_eligibila_id: c.programare_id,
       pacient_id:  c.pacient_id,
       clinic_id,
       pozitie:     i + 1,

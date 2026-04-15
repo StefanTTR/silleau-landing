@@ -132,9 +132,9 @@ Deno.serve(async (req) => {
 })
 
 async function fetchProgramareContext(id: string, clinicIdParam: string | null): Promise<ProgramareContext | null> {
-  let url = SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id)
+  let url = SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + encodeURIComponent(id)
   if (clinicIdParam) url += '&clinic_id=eq.' + encodeURIComponent(clinicIdParam)
-  url += '&select=id,clinic_id,data_programare,ora_start&limit=1'
+  url += '&select=programare_id,clinic_id,data_programare,ora_start&limit=1'
 
   const res = await fetch(url, { headers: SB_GET })
   if (!res.ok) {
@@ -143,10 +143,10 @@ async function fetchProgramareContext(id: string, clinicIdParam: string | null):
 
   const rows = await res.json()
   const row = Array.isArray(rows) ? rows[0] : null
-  if (!row?.id || !(row?.clinic_id || clinicIdParam)) return null
+  if (!row?.programare_id || !(row?.clinic_id || clinicIdParam)) return null
 
   return {
-    id: String(row.id),
+    id: String(row.programare_id),
     clinic_id: String(row.clinic_id || clinicIdParam || ''),
     data_programare: String(row.data_programare || ''),
     ora_start: String(row.ora_start || ''),
@@ -155,7 +155,7 @@ async function fetchProgramareContext(id: string, clinicIdParam: string | null):
 
 async function patchProgramare(id: string, clinicId: string, body: Record<string, unknown>) {
   const res = await fetch(
-    SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id) + '&clinic_id=eq.' + encodeURIComponent(clinicId),
+    SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + encodeURIComponent(id) + '&clinic_id=eq.' + encodeURIComponent(clinicId),
     {
       method:  'PATCH',
       headers: SB_PATCH,

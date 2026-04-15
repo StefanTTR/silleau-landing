@@ -200,7 +200,7 @@ async function findProgramareFromWhatsappLog(messageId: string, telefon: string)
 
 async function patchProgramare(programareId: string, clinicId: string, body: Record<string, unknown>) {
   const res = await fetch(
-    SUPABASE_URL + '/rest/v1/programari?id=eq.' + programareId + '&clinic_id=eq.' + clinicId,
+    SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + programareId + '&clinic_id=eq.' + clinicId,
     {
       method: 'PATCH',
       headers: SB_PATCH,

@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     /* 1. Verifică statusul curent */
     const getRes = await fetch(
-      SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id) + '&select=status',
+      SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + encodeURIComponent(id) + '&select=status',
       { headers: SB }
     )
     const rows = await getRes.json()
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
     /* 2. PATCH status → confirmat */
     const patchRes = await fetch(
-      SUPABASE_URL + '/rest/v1/programari?id=eq.' + encodeURIComponent(id),
+      SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + encodeURIComponent(id),
       {
         method:  'PATCH',
         headers: { ...SB, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },

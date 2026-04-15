@@ -14,7 +14,7 @@
  *   zile_blocate      → /rest/v1/zile_blocate?clinic_id=eq.X&select=personal_id,data
  */
 
-const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_URL      = Deno.env.get('APP_DB_URL') || Deno.env.get('SUPABASE_URL')!
 const SUPABASE_KEY      = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 const CORS = {
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         restUrl = SUPABASE_URL
           + '/rest/v1/zile_blocate'
           + '?clinic_id=eq.' + encodeURIComponent(clinicId)
-          + '&select=personal_id,data'
+          + '&select=personal_id,data_start,data_sfarsit'
         break
 
       case 'programare_status':
@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
         }
         restUrl = SUPABASE_URL
           + '/rest/v1/programari'
-          + '?id=eq.' + encodeURIComponent(id)
+          + '?programare_id=eq.' + encodeURIComponent(id)
           + '&select=status'
         break
 
@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
         }
         restUrl = SUPABASE_URL
           + '/rest/v1/programari'
-          + '?id=eq.' + encodeURIComponent(id)
+          + '?programare_id=eq.' + encodeURIComponent(id)
           + '&select=status,confirmat_reminder,motiv_anulare,a_fost_reprogramat'
         if (clinicId) restUrl += '&clinic_id=eq.' + encodeURIComponent(clinicId)
         break
@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
         }
         restUrl = SUPABASE_URL
           + '/rest/v1/programari'
-          + '?id=eq.' + encodeURIComponent(id)
+          + '?programare_id=eq.' + encodeURIComponent(id)
           + '&select=data_programare,ora_start'
         break
 

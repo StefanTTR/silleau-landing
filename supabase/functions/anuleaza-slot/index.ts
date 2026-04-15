@@ -42,8 +42,8 @@ Deno.serve(async (req) => {
 
     /* 1. Fetch detalii programare */
     const progRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/programari?id=eq.${programare_id}&clinic_id=eq.${clinic_id}`
-      + `&select=id,status,personal_id,serviciu_id,data_programare,ora_start,ora_sfarsit`,
+      `${SUPABASE_URL}/rest/v1/programari?programare_id=eq.${programare_id}&clinic_id=eq.${clinic_id}`
+      + `&select=programare_id,status,personal_id,serviciu_id,data_programare,ora_start,ora_sfarsit`,
       { headers: SB }
     )
     const progRows = await progRes.json()
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 
     /* 2. PATCH status anulat */
     await fetch(
-      `${SUPABASE_URL}/rest/v1/programari?id=eq.${programare_id}&clinic_id=eq.${clinic_id}`,
+      `${SUPABASE_URL}/rest/v1/programari?programare_id=eq.${programare_id}&clinic_id=eq.${clinic_id}`,
       {
         method:  'PATCH',
         headers: SB_PATCH,
