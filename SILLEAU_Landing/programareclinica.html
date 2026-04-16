@@ -1102,6 +1102,8 @@ function buildSum(){
   chkTxt += '?';
   document.getElementById('chkLocText').innerHTML = chkTxt;
   document.getElementById('chkLoc').checked = false;
+  /* Ascunde checkbox-ul la reprogramare — nu are sens */
+  document.querySelector('.opt-slot').style.display = REPROGRAMARE_ID ? 'none' : '';
 }
 
 /* ─── CONFIRM ──────────────────────────────────── */
@@ -1207,6 +1209,7 @@ function doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload)
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
+          tip:          'reprogramare',
           canal:        picCanal,
           email:        payload.email,
           telefon:      payload.telefon,
