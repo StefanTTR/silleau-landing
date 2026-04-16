@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   /* ── 1. Verifică statusul curent ── */
   const res  = await fetch(
     SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + id + '&clinic_id=eq.' + clinicId
-      + '&select=status,confirmat_reminder,a_fost_reprogramat,data_programare,ora_start,personal_id',
+      + '&select=status,confirmat_reminder,data_programare,ora_start,personal_id',
     { headers: SB_GET }
   )
   const rows = await res.json()
@@ -35,8 +35,8 @@ Deno.serve(async (req) => {
 
   if (!row) return redir('negasit')
 
-  /* Deja reprogramată (în proces sau finalizată) */
-  if (row.status === 'reprogramat' || row.a_fost_reprogramat) {
+  /* Deja reprogramată (finalizată) */
+  if (row.status === 'reprogramat') {
     return redir('reprogramat')
   }
 
