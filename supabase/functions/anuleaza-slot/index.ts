@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     if (prog.status === 'anulat') return json({ skipped: 'deja anulata' })
 
     /* 2. PATCH status anulat */
-    await fetch(
+    const patchRes = await fetch(
       `${SUPABASE_URL}/rest/v1/programari?programare_id=eq.${programare_id}&clinic_id=eq.${clinic_id}`,
       {
         method:  'PATCH',
@@ -66,6 +66,10 @@ Deno.serve(async (req) => {
         }),
       }
     )
+    if (!patchRes.ok) {
+      const txt = await patchRes.text()
+      return json({ error: 'PATCH anulare esuata: ' + patchRes.status + ' ' + txt }, 500)
+    }
 
     /* 2b. Dacă pacientul acceptase un slot eliberat anterior, eliberează-l înapoi */
     await fetch(
