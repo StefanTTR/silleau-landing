@@ -66,6 +66,12 @@ Deno.serve(async (req) => {
       }
     )
 
+    /* 2b. Dacă pacientul acceptase un slot eliberat anterior, eliberează-l înapoi */
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/slot_oferte?programare_eligibila_id=eq.${programare_id}&slot_ocupat=eq.true`,
+      { method: 'PATCH', headers: SB_PATCH, body: JSON.stringify({ slot_ocupat: false }) }
+    )
+
     /* 3. Slot sub 24h — nu are sens sa notificam */
     const slotDatetime = new Date(prog.data_programare + 'T' + String(prog.ora_start).slice(0, 5) + ':00')
     if (slotDatetime.getTime() - Date.now() < 24 * 60 * 60 * 1000) {
