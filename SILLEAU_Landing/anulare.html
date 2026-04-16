@@ -376,7 +376,7 @@ function trimiteAnulare(){
     var row = Array.isArray(rows) ? rows[0] : null;
     if (!row){ setState('stateError'); return; }
 
-    if (row.status === 'reprogramat' || row.a_fost_reprogramat){
+    if (row.status === 'reprogramat'){
       showBlockedState(ICON_REPRO, 'var(--dim)',
         'Deja <em style="font-style:italic;color:var(--dim);">reprogramată</em>',
         'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru detalii.');
