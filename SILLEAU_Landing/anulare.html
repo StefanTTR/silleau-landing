@@ -278,6 +278,7 @@ var telefon      = params.get('telefon');
 var action       = params.get('action'); // 'reprogrameaza' | null
 
 var motivSelectat = null;
+var numarReprogramari = 0;
 
 /* ============================================================
    HELPERS
@@ -325,6 +326,12 @@ function selectMotiv(btn){
    REPROGRAMEAZA — elibereaza locul si redirectioneaza la calendar
    ============================================================ */
 function doReprogrameaza(){
+  if (numarReprogramari >= 2) {
+    showBlockedState(ICON_REPRO, 'var(--dim)',
+      'Limită <em style="font-style:italic;color:var(--dim);">atinsă</em>',
+      'Ați ajuns la a treia reprogramare.<br>Pentru a realiza reprogramarea vă rugăm să contactați clinica telefonic.');
+    return;
+  }
   /* Nu patchez Supabase aici — a_fost_reprogramat se seteaza doar dupa ce
      pacientul finalizeaza efectiv alegerea noului slot in programareclinica.html */
   var calUrl = 'https://www.silleau.com/programareclinica.html'
@@ -398,13 +405,8 @@ function trimiteAnulare(){
       return;
     }
 
-    /* Limită reprogramări: 2 reprogramări permise (a 3-a e blocată) */
-    if ((row.numar_reprogramari || 0) >= 2) {
-      showBlockedState(ICON_REPRO, 'var(--dim)',
-        'Limită <em style="font-style:italic;color:var(--dim);">atinsă</em>',
-        'Ați ajuns la a treia reprogramare.<br>Pentru a realiza reprogramarea vă rugăm să contactați clinica telefonic.');
-      return;
-    }
+    /* Stocăm numărul de reprogramări pentru doReprogrameaza() */
+    numarReprogramari = row.numar_reprogramari || 0;
 
     /* Daca a venit direct din butonul "Reprogrameaza" din email */
     if (action === 'reprogrameaza'){

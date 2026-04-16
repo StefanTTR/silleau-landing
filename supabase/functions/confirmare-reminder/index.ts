@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
   if (!row) return redir('negasit')
 
   /* Deja reprogramată (în proces sau finalizată) */
-  if (row.status === 'reprogramat' || row.a_fost_reprogramat) {
+  if (row.status === 'reprogramat') {
     return redir('reprogramat')
   }
 
