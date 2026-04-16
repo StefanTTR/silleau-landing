@@ -232,8 +232,9 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
       method: 'PATCH',
       headers: SB_PATCH_HEADERS,
       body: JSON.stringify({
-        reminder_trimis: true,
+        reminder_trimis:    true,
         reminder_trimis_la: new Date().toISOString(),
+        a_fost_reprogramat: false,
       }),
     }
   )

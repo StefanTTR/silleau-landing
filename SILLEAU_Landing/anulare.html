@@ -359,14 +359,19 @@ function trimiteAnulare(){
   btn.disabled = true;
   btn.textContent = 'Se procesează...';
 
-  /* anuleaza-slot face PATCH + notifică pacienții eligibili */
   fetch(SUPABASE_FUNCTIONS_URL + '/anuleaza-slot', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ programare_id: id, clinic_id: clinic_id || '', motiv: motivSelectat })
-  }).catch(function(e){ console.warn('[SILLEAU] anulare eroare:', e); });
-
-  setState('stateSuccess');
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(){ setState('stateSuccess'); })
+  .catch(function(e){
+    console.warn('[SILLEAU] anulare eroare:', e);
+    btn.disabled = false;
+    btn.textContent = 'Confirmă anularea';
+    setState('stateError');
+  });
 }
 
 /* ============================================================
@@ -383,10 +388,10 @@ function trimiteAnulare(){
     var row = Array.isArray(rows) ? rows[0] : null;
     if (!row){ setState('stateError'); return; }
 
-    if (row.status === 'reprogramat'){
+    if (row.status === 'reprogramat' || row.a_fost_reprogramat){
       showBlockedState(ICON_REPRO, 'var(--dim)',
         'Deja <em style="font-style:italic;color:var(--dim);">reprogramată</em>',
-        'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru detalii.');
+        'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru confirmarea noii programări.');
       return;
     }
 

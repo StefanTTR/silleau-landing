@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     }
 
     const slotPayload = {
-      programare_id:   prog.id,
+      programare_id:   prog.programare_id,
       clinic_id,
       personal_id:     prog.personal_id,
       serviciu_id:     prog.serviciu_id,
