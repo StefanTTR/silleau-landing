@@ -398,6 +398,14 @@ function trimiteAnulare(){
       return;
     }
 
+    /* Limită reprogramări: 2 reprogramări permise (a 3-a e blocată) */
+    if ((row.numar_reprogramari || 0) >= 2) {
+      showBlockedState(ICON_REPRO, 'var(--dim)',
+        'Limită <em style="font-style:italic;color:var(--dim);">atinsă</em>',
+        'Ați ajuns la a treia reprogramare.<br>Pentru a realiza reprogramarea vă rugăm să contactați clinica telefonic.');
+      return;
+    }
+
     /* Daca a venit direct din butonul "Reprogrameaza" din email */
     if (action === 'reprogrameaza'){
       doReprogrameaza();

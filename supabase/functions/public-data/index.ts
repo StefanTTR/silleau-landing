@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
         restUrl = SUPABASE_URL
           + '/rest/v1/programari'
           + '?programare_id=eq.' + encodeURIComponent(id)
-          + '&select=status,confirmat_reminder,motiv_anulare,a_fost_reprogramat'
+          + '&select=status,confirmat_reminder,motiv_anulare,a_fost_reprogramat,numar_reprogramari'
         if (clinicId) restUrl += '&clinic_id=eq.' + encodeURIComponent(clinicId)
         break
 

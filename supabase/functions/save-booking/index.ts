@@ -100,20 +100,29 @@ Deno.serve(async (req) => {
       let rpUrl = SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + encodeURIComponent(reprogramare_id)
       if (reprogramare_cid) rpUrl += '&clinic_id=eq.' + encodeURIComponent(reprogramare_cid)
 
+      // Fetch numar_reprogramari curent pentru incrementare
+      const curRes = await fetch(
+        SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + encodeURIComponent(reprogramare_id) + '&select=numar_reprogramari',
+        { headers: DB_HEADERS }
+      )
+      const curRows = await curRes.json()
+      const curNr = (Array.isArray(curRows) && curRows[0]) ? (curRows[0].numar_reprogramari || 0) : 0
+
       const rpRes = await fetch(rpUrl, {
         method:  'PATCH',
         headers: { ...DB_HEADERS, 'Prefer': 'return=minimal' },
         body: JSON.stringify({
           personal_id,
-          serviciu_id:        serviciu_id ?? null,
+          serviciu_id:          serviciu_id ?? null,
           data_programare,
           ora_start,
           ora_sfarsit,
-          status:             'neconfirmat',
-          pret_ron:           pret_ron ?? null,
-          reminder_trimis:    false,
-          confirmat_reminder: false,
-          a_fost_reprogramat: true,
+          status:               'neconfirmat',
+          pret_ron:             pret_ron ?? null,
+          reminder_trimis:      false,
+          confirmat_reminder:   false,
+          a_fost_reprogramat:   true,
+          numar_reprogramari:   curNr + 1,
         }),
       })
 
