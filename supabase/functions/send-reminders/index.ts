@@ -90,7 +90,7 @@ async function fetchReminderRows(windowStartIso: string, windowEndIso: string): 
 
   for (const column of timestampColumns) {
     const url = SUPABASE_URL + '/rest/v1/v_reminder'
-      + '?select=' + encodeURIComponent(baseSelect + ',' + column)
+      + '?select=' + baseSelect + ',' + column
       + '&' + column + '=gte.' + encodeURIComponent(windowStartIso)
       + '&' + column + '=lt.' + encodeURIComponent(windowEndIso)
       + '&reminder_trimis=eq.false'
@@ -109,7 +109,7 @@ async function fetchReminderRows(windowStartIso: string, windowEndIso: string): 
 
   const fallbackDate = windowStartIso.slice(0, 10)
   const fallbackUrl = SUPABASE_URL + '/rest/v1/v_reminder'
-    + '?select=' + encodeURIComponent(baseSelect)
+    + '?select=' + baseSelect
     + '&data_programare=eq.' + fallbackDate
     + '&reminder_trimis=eq.false'
     + '&status=in.(neconfirmat,confirmat)'
