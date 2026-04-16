@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
     /* 1. Upsert pacienti */
     const pacRes = await fetch(SUPABASE_URL + '/rest/v1/pacienti?on_conflict=telefon', {
       method:  'POST',
-      headers: { ...DB_HEADERS, 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      headers: { ...DB_HEADERS, 'Prefer': 'resolution=ignore-duplicates,return=representation' },
       body: JSON.stringify({ email, prenume, nume, telefon }),
     })
     if (!pacRes.ok) {
@@ -198,7 +198,31 @@ Deno.serve(async (req) => {
       })
     }
     const pacRows = await pacRes.json()
-    const pacient_id: string = Array.isArray(pacRows) ? pacRows[0].id : pacRows.id
+    let pacient_id: string
+    if (Array.isArray(pacRows) && pacRows.length === 0) {
+      // Pacient existent (ignore-duplicates) — fetch după telefon
+      const exRes = await fetch(
+        SUPABASE_URL + '/rest/v1/pacienti?telefon=eq.' + encodeURIComponent(telefon) + '&select=id',
+        { headers: DB_HEADERS }
+      )
+      if (!exRes.ok) {
+        const txt = await exRes.text()
+        return new Response(JSON.stringify({ error: 'pacienti lookup ' + exRes.status + ': ' + txt }), {
+          status: 500,
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+        })
+      }
+      const exRows = await exRes.json()
+      if (!Array.isArray(exRows) || exRows.length === 0) {
+        return new Response(JSON.stringify({ error: 'pacient negasit dupa telefon' }), {
+          status: 500,
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+        })
+      }
+      pacient_id = exRows[0].id
+    } else {
+      pacient_id = Array.isArray(pacRows) ? pacRows[0].id : pacRows.id
+    }
 
     /* 2. Upsert pacienti_clinici */
     const pcRes = await fetch(SUPABASE_URL + '/rest/v1/pacienti_clinici', {

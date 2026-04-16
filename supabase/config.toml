@@ -442,3 +442,11 @@ verify_jwt = false
 [functions.acceptare-loc-nou]
 enabled = true
 verify_jwt = false
+
+[functions.save-booking]
+enabled = true
+verify_jwt = false
+
+[functions.public-data]
+enabled = true
+verify_jwt = false
