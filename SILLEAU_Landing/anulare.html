@@ -364,8 +364,14 @@ function trimiteAnulare(){
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ programare_id: id, clinic_id: clinic_id || '', motiv: motivSelectat })
   })
-  .then(function(r){ return r.json(); })
-  .then(function(){ setState('stateSuccess'); })
+  .then(function(r){
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(data){
+    if (data && data.error) throw new Error(data.error);
+    setState('stateSuccess');
+  })
   .catch(function(e){
     console.warn('[SILLEAU] anulare eroare:', e);
     btn.disabled = false;
