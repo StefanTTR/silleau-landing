@@ -59,9 +59,10 @@ Deno.serve(async (req) => {
         method:  'PATCH',
         headers: SB_PATCH,
         body:    JSON.stringify({
-          status:        'anulat',
-          motiv_anulare: motiv || 'anulat_de_pacient',
-          anulat_la:     new Date().toISOString(),
+          status:         'anulat',
+          slot_rezervat:  false,
+          motiv_anulare:  motiv || 'anulat_de_pacient',
+          anulat_la:      new Date().toISOString(),
         }),
       }
     )
