@@ -386,12 +386,6 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
    Cheia `id` = UUID-ul real — folosit în BOOKED și ADMIN_BLOCKED. */
 var DOCS = [];
 
-/* Fallback schedule dacă medicul nu are rânduri în program_personal */
-var DEFAULT_SCH = {
-  Mon:{start:'09:00',end:'17:00'},Tue:{start:'09:00',end:'17:00'},
-  Wed:{start:'09:00',end:'17:00'},Thu:{start:'09:00',end:'17:00'},
-  Fri:{start:'09:00',end:'14:00'}
-};
 
 /* ─── SUPABASE EDGE FUNCTIONS ───────────────────────────────────
    Toate cererile către Supabase trec prin edge functions.
@@ -872,7 +866,7 @@ function hideMotiv(){
 
 
 /* ─── FETCH CONFIG CLINICĂ ──────────────────────────────────────
-   Config hardcodat — editați DEFAULT_SCH, CLINIC_NAME direct în JS.
+   Config hardcodat — editați CLINIC_NAME direct în JS.
 ──────────────────────────────────────────────────────────────────*/
 function fetchConfig(callback){
   document.title = 'Programare — ' + CLINIC_NAME;
@@ -906,7 +900,7 @@ function fetchDoctors(callback){
         spec:    p.specialitate || '',
         ini:     ini,
         blocked: [],
-        sch:     orarMap[p.id] || DEFAULT_SCH
+        sch:     orarMap[p.id] || {}
       };
     });
     if(callback) callback();
