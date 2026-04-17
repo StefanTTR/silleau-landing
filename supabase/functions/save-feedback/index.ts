@@ -16,17 +16,16 @@ Deno.serve(async (req) => {
     const url      = new URL(req.url)
     const id       = url.searchParams.get('id')
     const clinicId = url.searchParams.get('clinic_id')
-    const tip      = url.searchParams.get('tip')
-    const sursa    = url.searchParams.get('sursa') || tip || ''
+    const sursa    = url.searchParams.get('sursa') || ''
     const rating   = parseInt(url.searchParams.get('rating') || '0')
 
-    if (!id || !tip || rating < 1 || rating > 5) {
+    if (!id || !sursa || rating < 1 || rating > 5) {
       return redirect('invalid')
     }
 
     /* Verifică dacă a mai dat feedback */
     const checkRes = await fetch(
-      SUPABASE_URL + '/rest/v1/feedback?programare_id=eq.' + id + '&tip=eq.' + tip + '&select=id',
+      SUPABASE_URL + '/rest/v1/feedback?programare_id=eq.' + id + '&sursa=eq.' + sursa + '&select=id',
       { headers: SB_GET }
     )
 
@@ -44,7 +43,7 @@ Deno.serve(async (req) => {
     const saveRes = await fetch(SUPABASE_URL + '/rest/v1/feedback', {
       method:  'POST',
       headers: SB_POST,
-      body:    JSON.stringify({ programare_id: id, clinic_id: clinicId, tip, sursa, rating }),
+      body:    JSON.stringify({ programare_id: id, clinic_id: clinicId, sursa, rating }),
     })
 
     if (!saveRes.ok) {
