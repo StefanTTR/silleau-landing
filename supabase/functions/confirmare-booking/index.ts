@@ -1,6 +1,7 @@
-const RESEND_KEY      = Deno.env.get('RESEND_KEY')!
-const SUPABASE_URL    = Deno.env.get('SUPABASE_URL')!
-const FROM_EMAIL      = 'Clinica Alfa <contact@silleau.com>'
+const RESEND_KEY       = Deno.env.get('RESEND_KEY')!
+const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const FROM_EMAIL       = 'Clinica Alfa <contact@silleau.com>'
 const FEEDBACK_FN     = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/save-feedback'
 const SITE            = 'https://www.silleau.com'
 const META_WA_TOKEN   = Deno.env.get('META_WA_TOKEN')!
@@ -73,6 +74,7 @@ Deno.serve(async (req) => {
       if (!isValidEmail(email)) {
         return new Response(JSON.stringify({ error: 'email lipsa sau invalid' }), { status: 400, headers: CORS })
       }
+      const theme = await fetchClinicTheme(clinic_id)
       const emailRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
@@ -80,7 +82,7 @@ Deno.serve(async (req) => {
           from: FROM_EMAIL,
           to: email,
           subject: (isReprogramare ? 'Confirmare reprogramare — ' : 'Confirmare programare — ') + fmtData(data),
-          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), data_iso: data_iso || data, ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare, sub24h: isWithin24h(data_iso || data, ora), email: email || '', telefon: telefon || '' }),
+          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), data_iso: data_iso || data, ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare, sub24h: isWithin24h(data_iso || data, ora), email: email || '', telefon: telefon || '', theme }),
         }),
       })
       if (!emailRes.ok) {
@@ -94,6 +96,43 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: CORS })
   }
 })
+
+type ClinicTheme = {
+  acc:         string   // culoare accent (borduri, separator, buton dark)
+  accLight:    string   // versiune deschisă pentru separator rânduri
+  btnBg:       string   // fundal buton Confirmă (light mode)
+  clinicName:  string   // nume afișat în mail
+}
+
+const THEME_DEFAULT: ClinicTheme = {
+  acc:        '#E8E4DC',
+  accLight:   '#F0EDE8',
+  btnBg:      '#111111',
+  clinicName: 'Clinica',
+}
+
+async function fetchClinicTheme(clinicId: string | undefined): Promise<ClinicTheme> {
+  if (!clinicId) return THEME_DEFAULT
+  try {
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/clinici?id=eq.' + encodeURIComponent(clinicId) + '&select=tema,nume',
+      { headers: { 'apikey': SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + SERVICE_ROLE_KEY } }
+    )
+    if (!res.ok) return THEME_DEFAULT
+    const rows = await res.json()
+    const row  = Array.isArray(rows) ? rows[0] : null
+    if (!row)  return THEME_DEFAULT
+    const t = row.tema || {}
+    return {
+      acc:        t.acc        || THEME_DEFAULT.acc,
+      accLight:   t.acc_light  || THEME_DEFAULT.accLight,
+      btnBg:      t.bg         || THEME_DEFAULT.btnBg,
+      clinicName: t.nume_afisat || row.nume || THEME_DEFAULT.clinicName,
+    }
+  } catch {
+    return THEME_DEFAULT
+  }
+}
 
 function fmtData(iso: string): string {
   return new Date(iso).toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -311,16 +350,22 @@ function buildEmail(d: {
   prenume: string, medic: string, specialitate: string,
   serviciu: string, data: string, data_iso: string, ora: string, rechemare: string,
   email: string, telefon: string,
-  programare_id?: string, clinic_id?: string, isReprogramare?: boolean, sub24h?: boolean
+  programare_id?: string, clinic_id?: string, isReprogramare?: boolean, sub24h?: boolean,
+  theme?: ClinicTheme
 }): string {
+  const th = d.theme || THEME_DEFAULT
+  const acc      = th.acc
+  const accLight = th.accLight
+  const btnBg    = th.btnBg
+  const clinicName = th.clinicName
   const serviciuRow = d.serviciu
-    ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
-      + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.serviciu + '</td></tr>'
+    ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
+      + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.serviciu + '</td></tr>'
     : ''
 
   const rechemareRow = d.rechemare
-    ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;width:55%;font-family:\'Helvetica Neue\',Arial,sans-serif;">Urm\u0103toarea consulta\u021bie</td>'
-      + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.rechemare + '</td></tr>'
+    ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-top:1px solid ' + accLight + ';border-bottom:1px solid ' + accLight + ';width:55%;font-family:\'Helvetica Neue\',Arial,sans-serif;">Urm\u0103toarea consulta\u021bie</td>'
+      + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-top:1px solid ' + accLight + ';border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.rechemare + '</td></tr>'
     : ''
 
   return '<!DOCTYPE html>'
@@ -333,21 +378,21 @@ function buildEmail(d: {
     + 'body{font-family:\'Helvetica Neue\',Arial,sans-serif;-webkit-text-size-adjust:100%;}'
     + 'table{border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;}'
     + '.bg-outer{background-color:#ffffff;}'
-    + '.bg-card{background-color:#ffffff;border:1px solid #E8E4DC;}'
+    + '.bg-card{background-color:#ffffff;border:1px solid ' + acc + ';}'
     + '.text-tag{color:#BBBBBB;}.text-title{color:#111111;}.text-greet{color:#111111;}'
     + '.text-name{color:#111111;}.text-body{color:#888888;}.text-label{color:#BBBBBB;}'
     + '.text-value{color:#111111;}.text-note{color:#CCCCCC;}.text-note-em{color:#888888;}'
     + '.text-foot-n{color:#BBBBBB;}.text-foot-s{color:#CCCCCC;}.text-brand{color:#DDDDDD;}'
-    + '.border-row{border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;}'
-    + '.sep{background-color:#F0EDE8;}'
+    + '.border-row{border-top:1px solid ' + accLight + ';border-bottom:1px solid ' + accLight + ';}'
+    + '.sep{background-color:' + accLight + ';}'
     + 'a.link-email{color:#999999!important;text-decoration:underline;text-decoration-style:dotted;}'
     + '@media(prefers-color-scheme:dark){'
     + '.bg-outer{background-color:#111111!important;}'
     + '.bg-card{background-color:#111111!important;border:1px solid #1E1E1E!important;}'
     + '.text-tag{color:#444444!important;}'
-    + '.text-title{color:#E8E4DC!important;}'
+    + '.text-title{color:' + acc + '!important;}'
     + '.text-greet{color:#C8C4BC!important;}'
-    + '.text-name{color:#E8E4DC!important;}'
+    + '.text-name{color:' + acc + '!important;}'
     + '.text-body{color:#666666!important;}'
     + '.text-label{color:#444444!important;}'
     + '.text-value{color:#C8C4BC!important;}'
@@ -379,10 +424,10 @@ function buildEmail(d: {
     + '<body class="bg-outer" style="margin:0;padding:0;background-color:#ffffff;">'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0" class="bg-outer" style="background-color:#ffffff;">'
     + '<tr><td align="center" style="padding:32px 12px;">'
-    + '<table class="wrapper bg-card" width="560" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:4px;border:1px solid #E8E4DC;">'
-    + '<tr><td align="center" style="padding:36px 44px 28px;border-bottom:1px solid #F0EDE8;">'
+    + '<table class="wrapper bg-card" width="560" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:4px;border:1px solid ' + acc + ';">'
+    + '<tr><td align="center" style="padding:36px 44px 28px;border-bottom:1px solid ' + accLight + ';">'
     + '<div class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:14px;">' + (d.isReprogramare ? 'Confirmare reprogramare' : 'Confirmare programare') + '</div>'
-    + '<div class="text-title" style="font-size:23px;color:#111111;font-weight:300;font-family:\'Helvetica Neue\',Arial,sans-serif;letter-spacing:-0.3px;">Clinica Alfa</div>'
+    + '<div class="text-title" style="font-size:23px;color:#111111;font-weight:300;font-family:\'Helvetica Neue\',Arial,sans-serif;letter-spacing:-0.3px;">' + clinicName + '</div>'
     + '</td></tr>'
     + '<tr><td class="inner" style="padding:36px 44px 0;">'
     + '<p style="font-size:15px;margin:0 0 6px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
@@ -396,15 +441,15 @@ function buildEmail(d: {
     + '<tr><td colspan="2" style="padding:0 0 10px;">'
     + '<span class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;">Detalii consulta\u021bie</span>'
     + '</td></tr>'
-    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;width:42%;font-family:\'Helvetica Neue\',Arial,sans-serif;">Medic</td>'
-    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.medic + '</td></tr>'
-    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Specialitate</td>'
-    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.specialitate + '</td></tr>'
+    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-top:1px solid ' + accLight + ';border-bottom:1px solid ' + accLight + ';width:42%;font-family:\'Helvetica Neue\',Arial,sans-serif;">Medic</td>'
+    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-top:1px solid ' + accLight + ';border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.medic + '</td></tr>'
+    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">Specialitate</td>'
+    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.specialitate + '</td></tr>'
     + serviciuRow
-    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Data</td>'
-    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.data + '</td></tr>'
-    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Ora</td>'
-    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.ora + '</td></tr>'
+    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">Data</td>'
+    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.data + '</td></tr>'
+    + '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">Ora</td>'
+    + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.ora + '</td></tr>'
     + '</table>'
     + (rechemareRow
       ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">' + rechemareRow + '</table>'
