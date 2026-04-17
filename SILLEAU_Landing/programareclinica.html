@@ -842,7 +842,8 @@ function showMotiv(){
         el.classList.add('picked');
         picMotiv=s;
         document.getElementById('motivErr').style.display='none';
-        /* re-render slots dacă data e deja selectată */
+        /* re-render calendar + slots cu noul serviciu */
+        calRender();
         var ds=document.getElementById('i-dt').value;
         if(ds) showSlots(ds);
       });
