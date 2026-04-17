@@ -1232,19 +1232,8 @@ function doConfirm(){
   var total = dur + buf;
   var ora_sfarsit = minToTime(timeToMin(picSlot) + total);
 
-  /* Payload Zapier — toate câmpurile pentru email automation.
-     programare_id se completează după INSERT (UUID generat de Supabase).
-     ─── Mapare → confirmare-booking.html ──────────────────────────────
-     gives["STEP"]["prenume"]      → fn
-     gives["STEP"]["medic"]        → picDoc.name
-     gives["STEP"]["specialitate"] → picDoc.spec
-     gives["STEP"]["serviciu"]     → picMotiv.label
-     gives["STEP"]["data"]         → ds  (YYYY-MM-DD)
-     gives["STEP"]["ora"]          → picSlot
-     gives["STEP"]["rechemare"]    → picMotiv.fu
-     gives["STEP"]["email_clinica"]→ CLINIC_EMAIL
-     gives["STEP"]["programare_id"]→ UUID din Supabase (pentru link anulare/confirmare)
-  ─────────────────────────────────────────────────────────────────── */
+  /* Payload confirmare-booking — toate câmpurile pentru email automation.
+     programare_id se completează după INSERT (UUID generat de Supabase). */
   var payload = {
     prenume:        fn,
     nume_pacient:   fn + ' ' + ln,

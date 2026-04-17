@@ -112,7 +112,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
   <div class="hdr">
     <div class="brand">
       <span class="bline"></span>
-      SILLEAU
+      <span class="brand-name">SILLEAU</span>
       <span class="bline"></span>
     </div>
   </div>
@@ -232,6 +232,32 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
    CONFIGURARE
    ============================================================ */
 var SUPABASE_FUNCTIONS_URL = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1';
+var PUBLIC_DATA_FN = SUPABASE_FUNCTIONS_URL + '/public-data';
+
+function applyTheme(t, nome) {
+  var r = document.documentElement;
+  if(t.bg)   r.style.setProperty('--bg',  t.bg);
+  if(t.bg2)  r.style.setProperty('--bg2', t.bg2);
+  if(t.bg3)  r.style.setProperty('--bg3', t.bg3);
+  if(t.bd)   r.style.setProperty('--bd',  t.bd);
+  if(t.acc)  r.style.setProperty('--acc', t.acc);
+  if(t.acc2) r.style.setProperty('--acc2',t.acc2);
+  if(t.txt)  r.style.setProperty('--txt', t.txt);
+  if(t.mut)  r.style.setProperty('--mut', t.mut);
+  if(t.wh)   r.style.setProperty('--wh',  t.wh);
+  var name = (t.nome_afisat || nome || '').trim();
+  if(name) document.querySelectorAll('.brand-name').forEach(function(el){ el.textContent = name; });
+}
+function fetchAndApplyTheme(clinicId) {
+  if(!clinicId) return;
+  fetch(PUBLIC_DATA_FN + '?resource=clinic_theme&clinic_id=' + encodeURIComponent(clinicId))
+  .then(function(r){ return r.json(); })
+  .then(function(list){
+    var row = Array.isArray(list) ? list[0] : null;
+    if(row) applyTheme(row.tema || {}, row.nume || '');
+  })
+  .catch(function(){});
+}
 
 /* ============================================================
    PARAMETRI DIN URL
@@ -242,6 +268,9 @@ var sd           = params.get('sd');           /* data noului slot */
 var so           = params.get('so');           /* ora start noului slot */
 var slot_sfarsit = params.get('slot_sfarsit'); /* ora sfarsit noului slot */
 var oferta_id    = params.get('oferta_id');    /* id din slot_oferte */
+var clinic_id    = params.get('clinic_id') || '';
+
+fetchAndApplyTheme(clinic_id);
 
 var programare_anulata_id = null;
 var curDataGlobal = '';

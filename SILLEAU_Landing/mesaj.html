@@ -27,7 +27,7 @@
 <body>
 <div class="wrap">
   <div class="hdr">
-    <div class="brand"><span class="bline"></span>SILLEAU<span class="bline"></span></div>
+    <div class="brand"><span class="bline"></span><span class="brand-name">SILLEAU</span><span class="bline"></span></div>
   </div>
   <div class="card">
     <div class="mark" id="mark"></div>
@@ -37,7 +37,34 @@
   <div class="footer">Powered by <span>SILLEAU</span> — Revenue Optimisation Systems</div>
 </div>
 <script>
-  var tip = new URLSearchParams(location.search).get('tip') || 'invalid'
+  var PUBLIC_DATA_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/public-data';
+  function applyTheme(t, nome) {
+    var r = document.documentElement;
+    if(t.bg)   r.style.setProperty('--bg',  t.bg);
+    if(t.bg2)  r.style.setProperty('--bg2', t.bg2);
+    if(t.bd)   r.style.setProperty('--bd',  t.bd);
+    if(t.acc)  r.style.setProperty('--acc', t.acc);
+    if(t.txt)  r.style.setProperty('--txt', t.txt);
+    if(t.mut)  r.style.setProperty('--mut', t.mut);
+    if(t.wh)   r.style.setProperty('--wh',  t.wh);
+    var name = (t.nome_afisat || nome || '').trim();
+    if(name) document.querySelectorAll('.brand-name').forEach(function(el){ el.textContent = name; });
+  }
+  function fetchAndApplyTheme(clinicId) {
+    if(!clinicId) return;
+    fetch(PUBLIC_DATA_FN + '?resource=clinic_theme&clinic_id=' + encodeURIComponent(clinicId))
+    .then(function(r){ return r.json(); })
+    .then(function(list){
+      var row = Array.isArray(list) ? list[0] : null;
+      if(row) applyTheme(row.tema || {}, row.nume || '');
+    })
+    .catch(function(){});
+  }
+
+  var _p        = new URLSearchParams(location.search)
+  var tip       = _p.get('tip') || 'invalid'
+  var clinic_id = _p.get('clinic_id') || ''
+  fetchAndApplyTheme(clinic_id);
 
   var cfg = {
     confirmat: {

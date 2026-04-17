@@ -13,8 +13,11 @@ const SB_PATCH = {
 
 const SITE = 'https://www.silleau.com'
 
-function redir(tip: string): Response {
-  return Response.redirect(SITE + '/mesaj.html?tip=' + tip, 302)
+function redir(tip: string, clinicId?: string | null): Response {
+  return Response.redirect(
+    SITE + '/mesaj.html?tip=' + tip + (clinicId ? '&clinic_id=' + encodeURIComponent(clinicId) : ''),
+    302
+  )
 }
 
 Deno.serve(async (req) => {
@@ -33,21 +36,21 @@ Deno.serve(async (req) => {
   const rows = await res.json()
   const row  = Array.isArray(rows) ? rows[0] : null
 
-  if (!row) return redir('negasit')
+  if (!row) return redir('negasit', clinicId)
 
   /* Deja reprogramată (finalizată) */
   if (row.status === 'reprogramat') {
-    return redir('reprogramat')
+    return redir('reprogramat', clinicId)
   }
 
   /* Deja anulată */
   if (row.status === 'anulat') {
-    return redir('anulat')
+    return redir('anulat', clinicId)
   }
 
   /* Deja confirmată — link folosit o singură dată */
   if (row.confirmat_reminder) {
-    return redir('confirmat')
+    return redir('confirmat', clinicId)
   }
 
   /* ── 2. Fetch medic ── */
@@ -73,7 +76,8 @@ Deno.serve(async (req) => {
 
   /* ── 4. Redirect la confirmare.html cu detalii ── */
   const redirectUrl = SITE + '/confirmare.html'
-    + '?id='     + encodeURIComponent(id)
+    + '?id='        + encodeURIComponent(id)
+    + '&clinic_id=' + encodeURIComponent(clinicId)
     + '&source=reminder'
     + (row.data_programare ? '&data=' + encodeURIComponent(row.data_programare) : '')
     + (row.ora_start       ? '&ora='  + encodeURIComponent(String(row.ora_start).slice(0, 5)) : '')

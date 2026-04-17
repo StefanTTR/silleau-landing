@@ -39,22 +39,52 @@
 <body>
 <div class="wrap">
   <div class="hdr">
-    <div class="brand"><span class="bline"></span>SILLEAU<span class="bline"></span></div>
+    <div class="brand"><span class="bline"></span><span class="brand-name">SILLEAU</span><span class="bline"></span></div>
   </div>
   <div id="content"><div class="loading">Se verifică...</div></div>
   <div class="footer">Powered by <span>SILLEAU</span> — Revenue Optimisation Systems</div>
 </div>
 <script>
-  var p  = new URLSearchParams(location.search)
-  var n  = p.get('n')  || ''
-  var m  = p.get('m')  || ''
-  var d  = p.get('d')  || ''
-  var o  = p.get('o')  || ''
-  var dp = p.get('dp') || ''
-  var op = p.get('op') || ''
+  var p   = new URLSearchParams(location.search)
+  var n   = p.get('n')   || ''
+  var m   = p.get('m')   || ''
+  var d   = p.get('d')   || ''
+  var o   = p.get('o')   || ''
+  var dp  = p.get('dp')  || ''
+  var op  = p.get('op')  || ''
+  var cid = p.get('cid') || ''
 
-  var REFUZA_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/refuza-slot'
-  var STARE_FN  = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/stare-slot'
+  var REFUZA_FN    = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/refuza-slot'
+  var STARE_FN     = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/stare-slot'
+  var PUBLIC_DATA_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/public-data'
+
+  function applyTheme(t, nome) {
+    var r = document.documentElement;
+    if(t.bg)   r.style.setProperty('--bg',  t.bg);
+    if(t.bg2)  r.style.setProperty('--bg2', t.bg2);
+    if(t.bd)   r.style.setProperty('--bd',  t.bd);
+    if(t.acc)  r.style.setProperty('--acc', t.acc);
+    if(t.txt)  r.style.setProperty('--txt', t.txt);
+    if(t.mut)  r.style.setProperty('--mut', t.mut);
+    if(t.wh)   r.style.setProperty('--wh',  t.wh);
+    var name = (t.nome_afisat || nome || '').trim();
+    if(name) document.querySelectorAll('.brand-name').forEach(function(el){ el.textContent = name; });
+  }
+  function fetchAndApplyTheme(clinicId) {
+    if(!clinicId) return;
+    fetch(PUBLIC_DATA_FN + '?resource=clinic_theme&clinic_id=' + encodeURIComponent(clinicId))
+    .then(function(r){ return r.json(); })
+    .then(function(list){
+      var row = Array.isArray(list) ? list[0] : null;
+      if(row) applyTheme(row.tema || {}, row.nume || '');
+    })
+    .catch(function(){});
+  }
+  fetchAndApplyTheme(cid);
+
+  function mesajUrl(tip) {
+    return '/mesaj.html?tip=' + tip + (cid ? '&clinic_id=' + encodeURIComponent(cid) : '')
+  }
 
   function esc(str) {
     var el = document.createElement('div')
@@ -97,7 +127,7 @@
   }
 
   function doRefuza() {
-    if (!n) { location.href = '/mesaj.html?tip=invalid'; return }
+    if (!n) { location.href = mesajUrl('invalid'); return }
     var btn = document.getElementById('btn-refuza')
     btn.disabled = true
     btn.textContent = 'Se procesează...'
@@ -116,11 +146,11 @@
       } else if (data.reason === 'slot_acceptat') {
         showResult('ok', 'Programare deja <em>mutată</em>', 'Ați confirmat deja mutarea programării. Ne vedem ' + esc(d) + ', ora ' + esc(o) + '.', 'var(--acc)')
       } else {
-        location.href = '/mesaj.html?tip=' + (data.reason || 'invalid')
+        location.href = mesajUrl(data.reason || 'invalid')
       }
     })
     .catch(function() {
-      location.href = '/mesaj.html?tip=invalid'
+      location.href = mesajUrl('invalid')
     })
   }
 
@@ -140,9 +170,7 @@
           showCard()
         }
       })
-      .catch(function() {
-        showCard()
-      })
+      .catch(function() { showCard() })
   }
 </script>
 </body>

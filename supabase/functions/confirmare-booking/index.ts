@@ -98,24 +98,26 @@ Deno.serve(async (req) => {
 })
 
 type ClinicTheme = {
-  acc:         string   // culoare accent (borduri, separator, buton dark)
-  accLight:    string   // versiune deschisă pentru separator rânduri
-  btnBg:       string   // fundal buton Confirmă (light mode)
-  clinicName:  string   // nume afișat în mail
+  acc:          string   // culoare accent (borduri, separator, buton dark)
+  accLight:     string   // versiune deschisă pentru separator rânduri
+  btnBg:        string   // fundal buton Confirmă (light mode)
+  clinicName:   string   // nume afișat în mail
+  emailContact: string   // email contact afișat în footer
 }
 
 const THEME_DEFAULT: ClinicTheme = {
-  acc:        '#E8E4DC',
-  accLight:   '#F0EDE8',
-  btnBg:      '#111111',
-  clinicName: 'Clinica',
+  acc:          '#E8E4DC',
+  accLight:     '#F0EDE8',
+  btnBg:        '#111111',
+  clinicName:   'Clinica',
+  emailContact: 'contact@silleau.com',
 }
 
 async function fetchClinicTheme(clinicId: string | undefined): Promise<ClinicTheme> {
   if (!clinicId) return THEME_DEFAULT
   try {
     const res = await fetch(
-      SUPABASE_URL + '/rest/v1/clinici?id=eq.' + encodeURIComponent(clinicId) + '&select=tema,nume',
+      SUPABASE_URL + '/rest/v1/clinici?id=eq.' + encodeURIComponent(clinicId) + '&select=tema,nume,email',
       { headers: { 'apikey': SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + SERVICE_ROLE_KEY } }
     )
     if (!res.ok) return THEME_DEFAULT
@@ -124,10 +126,11 @@ async function fetchClinicTheme(clinicId: string | undefined): Promise<ClinicThe
     if (!row)  return THEME_DEFAULT
     const t = row.tema || {}
     return {
-      acc:        t.acc        || THEME_DEFAULT.acc,
-      accLight:   t.acc_light  || THEME_DEFAULT.accLight,
-      btnBg:      t.bg         || THEME_DEFAULT.btnBg,
-      clinicName: t.nume_afisat || row.nume || THEME_DEFAULT.clinicName,
+      acc:          t.acc          || THEME_DEFAULT.acc,
+      accLight:     t.acc_light    || THEME_DEFAULT.accLight,
+      btnBg:        t.bg           || THEME_DEFAULT.btnBg,
+      clinicName:   t.nume_afisat  || row.nume  || THEME_DEFAULT.clinicName,
+      emailContact: t.email_contact || row.email || THEME_DEFAULT.emailContact,
     }
   } catch {
     return THEME_DEFAULT
@@ -354,10 +357,11 @@ function buildEmail(d: {
   theme?: ClinicTheme
 }): string {
   const th = d.theme || THEME_DEFAULT
-  const acc      = th.acc
-  const accLight = th.accLight
-  const btnBg    = th.btnBg
-  const clinicName = th.clinicName
+  const acc          = th.acc
+  const accLight     = th.accLight
+  const btnBg        = th.btnBg
+  const clinicName   = th.clinicName
+  const emailContact = th.emailContact
   const serviciuRow = d.serviciu
     ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
       + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.serviciu + '</td></tr>'
@@ -465,15 +469,15 @@ function buildEmail(d: {
     + '</table>'
     + '<p class="text-note" style="font-size:12px;color:#CCCCCC;line-height:1.9;margin:0 0 32px;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
     + 'V\u0103 rug\u0103m s\u0103 ajunge\u021bi cu <span class="text-note-em" style="color:#888888;">10 minute \u00eenainte</span> de ora stabilit\u0103. Pentru alte informa\u021bii contacta\u021bi-ne la '
-    + '<a href="mailto:contact@silleau.com" class="link-email" style="color:#999999;text-decoration:underline;text-decoration-style:dotted;font-family:\'Helvetica Neue\',Arial,sans-serif;">contact@silleau.com</a>.'
+    + '<a href="mailto:' + emailContact + '" class="link-email" style="color:#999999;text-decoration:underline;text-decoration-style:dotted;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + emailContact + '</a>.'
     + '</p>'
     + '</td></tr>'
     + '<tr><td class="footer-td" style="padding:20px 44px;border-top:1px solid #F0EDE8;">'
     + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
     + '<td style="vertical-align:middle;">'
-    + '<div class="text-foot-n" style="font-size:12px;color:#BBBBBB;margin-bottom:2px;font-family:\'Helvetica Neue\',Arial,sans-serif;">Clinica Alfa</div>'
+    + '<div class="text-foot-n" style="font-size:12px;color:#BBBBBB;margin-bottom:2px;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + clinicName + '</div>'
     + '<div class="text-foot-s" style="font-size:11px;color:#CCCCCC;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
-    + '<a href="mailto:contact@silleau.com" class="link-email" style="color:#CCCCCC;text-decoration:underline;text-decoration-style:dotted;font-family:\'Helvetica Neue\',Arial,sans-serif;">contact@silleau.com</a>'
+    + '<a href="mailto:' + emailContact + '" class="link-email" style="color:#CCCCCC;text-decoration:underline;text-decoration-style:dotted;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + emailContact + '</a>'
     + '</div></td>'
     + '<td style="text-align:right;vertical-align:middle;">'
     + '<div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:2px;">SILLEAU Framework</div>'
