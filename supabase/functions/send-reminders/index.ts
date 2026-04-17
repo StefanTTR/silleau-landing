@@ -2,10 +2,10 @@ const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 type ClinicTheme = {
-  acc: string; accLight: string; btnBg: string; clinicName: string; emailContact: string
+  acc: string; accLight: string; btnBg: string; clinicName: string; emailContact: string; hideBrand: boolean
 }
 const THEME_DEFAULT: ClinicTheme = {
-  acc: '#E8E4DC', accLight: '#F0EDE8', btnBg: '#111111', clinicName: 'Clinica', emailContact: 'contact@silleau.com'
+  acc: '#E8E4DC', accLight: '#F0EDE8', btnBg: '#111111', clinicName: 'Clinica', emailContact: 'contact@silleau.com', hideBrand: false
 }
 async function fetchClinicTheme(clinicId: string): Promise<ClinicTheme> {
   try {
@@ -24,6 +24,7 @@ async function fetchClinicTheme(clinicId: string): Promise<ClinicTheme> {
       btnBg:        t.bg            || THEME_DEFAULT.btnBg,
       clinicName:   t.nume_afisat   || row.nume  || THEME_DEFAULT.clinicName,
       emailContact: t.email_contact || row.email || THEME_DEFAULT.emailContact,
+      hideBrand:    !!t.hide_brand,
     }
   } catch { return THEME_DEFAULT }
 }
@@ -540,10 +541,12 @@ function buildEmail(d: {
     + '<div class="text-foot-s" style="font-size:11px;color:#CCCCCC;font-family:\'Helvetica Neue\',Arial,sans-serif;">'
     + '<a href="mailto:' + emailContact + '" class="link-email" style="color:#CCCCCC;text-decoration:underline;text-decoration-style:dotted;font-family:\'Helvetica Neue\',Arial,sans-serif;">' + emailContact + '</a>'
     + '</div></td>'
-    + '<td style="text-align:right;vertical-align:middle;">'
-    + '<div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:2px;">SILLEAU Framework</div>'
-    + '<div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:1px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;">Revenue Optimisation Systems</div>'
-    + '</td></tr></table>'
+    + (th.hideBrand ? '' :
+        '<td style="text-align:right;vertical-align:middle;">'
+        + '<div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:2px;">SILLEAU Framework</div>'
+        + '<div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:1px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;">Revenue Optimisation Systems</div>'
+        + '</td>')
+    + '</tr></table>'
     + '</td></tr>'
     + '</table></td></tr></table>'
     + '</body></html>'
