@@ -621,6 +621,25 @@ function isHol(ds){return getHD(parseInt(ds))    .has(ds);}
 function isWE(ds){var d=new Date(ds+'T12:00:00').getDay();return d===0||d===6;}
 function isOff(ds){return isHol(ds)||isWE(ds);}
 
+/* Returnează data string a celei de-a N-a zile disponibile (lucrătoare, cu program medic)
+   începând de mâine. Folosit pentru pragul checkbox-ului "loc mai devreme". */
+function nthAvailDay(n){
+  var d=new Date();d.setHours(0,0,0,0);
+  var count=0;
+  var maxD=new Date();maxD.setMonth(maxD.getMonth()+6);
+  while(count<n&&d<=maxD){
+    d.setDate(d.getDate()+1);
+    var ds=d2s(d);
+    var dow=new Date(ds+'T12:00:00').getDay();
+    if(dow===0||dow===6) continue;
+    if(isHol(ds)) continue;
+    if(picDoc&&isDayUnavailable(picDoc,ds)) continue;
+    if(picDoc&&!picDoc.sch[WDMAP[dow]]) continue;
+    count++;
+  }
+  return d2s(d);
+}
+
 /* ─── CALENDAR ─────────────────────────────────── */
 var WDMAP=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function calRender(){
@@ -1102,11 +1121,9 @@ function buildSum(){
   chkTxt += '?';
   document.getElementById('chkLocText').innerHTML = chkTxt;
   document.getElementById('chkLoc').checked = false;
-  /* Ascunde checkbox-ul la reprogramare sau dacă data e la ≤ 4 zile distanță */
-  var today = new Date(); today.setHours(0,0,0,0);
-  var selD  = new Date(ds + 'T00:00:00'); selD.setHours(0,0,0,0);
-  var diffZile = Math.round((selD - today) / 86400000);
-  document.querySelector('.opt-slot').style.display = (REPROGRAMARE_ID || diffZile <= 4) ? 'none' : '';
+  /* Ascunde checkbox-ul la reprogramare sau dacă data e în primele 4 zile disponibile */
+  var threshold = nthAvailDay(4);
+  document.querySelector('.opt-slot').style.display = (REPROGRAMARE_ID || ds <= threshold) ? 'none' : '';
 }
 
 /* ─── CONFIRM ──────────────────────────────────── */
