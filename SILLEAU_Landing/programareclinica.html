@@ -621,7 +621,36 @@ function isHol(ds){return getHD(parseInt(ds))    .has(ds);}
 function isWE(ds){var d=new Date(ds+'T12:00:00').getDay();return d===0||d===6;}
 function isOff(ds){return isHol(ds)||isWE(ds);}
 
-/* Returnează data string a celei de-a N-a zile disponibile (lucrătoare, cu program medic)
+/* Verifică dacă există cel puțin un slot liber pentru picDoc+picMotiv într-o zi.
+   Folosește aceeași logică ca showSlots() fără randare DOM. */
+function dayHasAvailableSlots(ds){
+  if(!picDoc||!picMotiv) return true;
+  var dayName=WDMAP[new Date(ds+'T12:00:00').getDay()];
+  if(!picDoc.sch[dayName]) return false;
+  var dur=picMotiv.dur;
+  var buf=picMotiv.buf!=null?picMotiv.buf:bufferFor(dur);
+  var total=dur+buf;
+  var step=stepFor(total);
+  var slots=generateSlots(picDoc.id,dayName,step);
+  var bookings=getBlockedMins(picDoc.id,ds,step);
+  var endM=timeToMin(picDoc.sch[dayName].end);
+  var now=new Date();
+  var earliest=new Date(now.getTime()+(6*60+10)*60*1000);
+  var selDate=new Date(ds+'T00:00:00');
+  for(var i=0;i<slots.length;i++){
+    var t=slots[i];
+    var sm=timeToMin(t);
+    if(sm+total>endM) continue;
+    var p=t.split(':');
+    var slotDt=new Date(selDate.getFullYear(),selDate.getMonth(),selDate.getDate(),+p[0],+p[1],0,0);
+    if(slotDt<earliest) continue;
+    if(isSlotBlocked(bookings,sm,total)) continue;
+    return true;
+  }
+  return false;
+}
+
+/* Returnează data string a celei de-a N-a zile cu sloturi disponibile
    începând de mâine. Folosit pentru pragul checkbox-ului "loc mai devreme". */
 function nthAvailDay(n){
   var d=new Date();d.setHours(0,0,0,0);
@@ -635,6 +664,7 @@ function nthAvailDay(n){
     if(isHol(ds)) continue;
     if(picDoc&&isDayUnavailable(picDoc,ds)) continue;
     if(picDoc&&!picDoc.sch[WDMAP[dow]]) continue;
+    if(!dayHasAvailableSlots(ds)) continue;
     count++;
   }
   return d2s(d);
