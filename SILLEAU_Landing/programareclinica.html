@@ -695,6 +695,8 @@ function calRender(){
     var tooFar=(ds>maxDs);
     /* check if manually blocked for selected doctor */
     var docBlocked=picDoc&&isDayUnavailable(picDoc,ds);
+    /* check if fully booked (no free slots for selected doctor+service) */
+    var fullyBooked=!past&&!tooFar&&!we&&!hol&&!docBlocked&&picDoc&&picMotiv&&!dayHasAvailableSlots(ds);
     var el=document.createElement('div');
     el.textContent=day;
     var cls=['cday'];
@@ -702,10 +704,10 @@ function calRender(){
     else if(past||tooFar){cls.push('coff');}
     else if(hol){cls.push('coff','cholday');}
     else if(we){cls.push('coff');}
-    else if(docBlocked){cls.push('coff','cunavail');}
+    else if(docBlocked||fullyBooked){cls.push('coff','cunavail');}
     else if(ds===today){cls.push('ctoday');}
     el.className=cls.join(' ');
-    if(!past&&!hol&&!we&&!tooFar&&!docBlocked){
+    if(!past&&!hol&&!we&&!tooFar&&!docBlocked&&!fullyBooked){
       (function(dateStr,elem){
         elem.addEventListener('click',function(){
           document.getElementById('i-dt').value=dateStr;
