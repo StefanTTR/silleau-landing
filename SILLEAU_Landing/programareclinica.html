@@ -1102,8 +1102,11 @@ function buildSum(){
   chkTxt += '?';
   document.getElementById('chkLocText').innerHTML = chkTxt;
   document.getElementById('chkLoc').checked = false;
-  /* Ascunde checkbox-ul la reprogramare — nu are sens */
-  document.querySelector('.opt-slot').style.display = REPROGRAMARE_ID ? 'none' : '';
+  /* Ascunde checkbox-ul la reprogramare sau dacă data e la ≤ 4 zile distanță */
+  var today = new Date(); today.setHours(0,0,0,0);
+  var selD  = new Date(ds + 'T00:00:00'); selD.setHours(0,0,0,0);
+  var diffZile = Math.round((selD - today) / 86400000);
+  document.querySelector('.opt-slot').style.display = (REPROGRAMARE_ID || diffZile <= 4) ? 'none' : '';
 }
 
 /* ─── CONFIRM ──────────────────────────────────── */
