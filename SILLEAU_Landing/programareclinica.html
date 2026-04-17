@@ -338,7 +338,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
           <span id="chkLocText"></span>
         </label>
       </div>
-      <p style="font-size:12px;color:var(--mut);line-height:1.8;margin-bottom:6px;">Prin confirmare sunteți de acord cu <a href="#" style="color:var(--acc)">politica de confidențialitate</a>. Veți primi un e-mail de confirmare și un reminder cu 24h înainte.</p>
+      <p id="pConsimt" style="font-size:12px;color:var(--mut);line-height:1.8;margin-bottom:6px;">Prin confirmare sunteți de acord cu <a href="#" style="color:var(--acc)">politica de confidențialitate</a>. Veți primi un e-mail de confirmare și un reminder cu 24h înainte.</p>
       <div class="btnrow">
         <button type="button" class="btn btn-ghost" id="b4p">← Înapoi</button>
         <button type="button" class="btn btn-conf"  id="b4n">Confirmă programarea</button>
@@ -1158,6 +1158,13 @@ function buildSum(){
   /* Ascunde checkbox-ul la reprogramare sau dacă data e în primele 4 zile disponibile */
   var threshold = nthAvailDay(4);
   document.querySelector('.opt-slot').style.display = (REPROGRAMARE_ID || ds <= threshold) ? 'none' : '';
+  /* Text consimțământ: fără mențiunea reminderului dacă programarea e sub 24h */
+  var apptMs = new Date(ds + 'T' + picSlot + ':00').getTime();
+  var sub24h  = (apptMs - Date.now()) < 24 * 60 * 60 * 1000;
+  document.getElementById('pConsimt').innerHTML = 'Prin confirmare sunteți de acord cu <a href="#" style="color:var(--acc)">politica de confidențialitate</a>. '
+    + (sub24h
+        ? 'Ve\u021bi primi un e-mail de confirmare.'
+        : 'Ve\u021bi primi un e-mail de confirmare \u0219i un reminder cu 24h \u00eenainte.');
 }
 
 /* ─── CONFIRM ──────────────────────────────────── */
@@ -1323,6 +1330,8 @@ function doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload)
     BOOKED[picDoc.id][ds].push({start: picSlot, total: total});
 
     /* ── Email / WhatsApp confirmare booking */
+    var apptMs2  = new Date(ds + 'T' + picSlot + ':00').getTime();
+    var isSub24h = (apptMs2 - Date.now()) < 24 * 60 * 60 * 1000;
     fetch(CONFIRMARE_BOOKING_FN, {
       method:  'POST',
       headers: {'Content-Type': 'application/json'},
@@ -1335,10 +1344,12 @@ function doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload)
         specialitate:  payload.specialitate,
         serviciu:      payload.serviciu,
         data:          payload.data,
+        data_iso:      ds,
         ora:           payload.ora,
         rechemare:     payload.rechemare,
         programare_id: programare_id,
-        clinic_id:     CLINIC_ID
+        clinic_id:     CLINIC_ID,
+        sub24h:        isSub24h
       })
     }).catch(function(){});
 
@@ -1366,10 +1377,14 @@ function showSucc(p){
     [p.canal==='whatsapp'?'WhatsApp':'E-mail', p.canal==='whatsapp'?p.telefon:p.email],
     ['Telefon',                      p.telefon],
   ],'succSum');
+  var apptMs3 = new Date(p.data_ora).getTime();
+  var succSub24h = (apptMs3 - Date.now()) < 24 * 60 * 60 * 1000;
   document.getElementById('succSec').querySelector('.ssub').textContent=
-    p.canal==='whatsapp'
-      ? 'Programarea a fost \u00eenregistrat\u0103. Ve\u021bi primi un mesaj WhatsApp de confirmare \u0219i un reminder cu 24h \u00eenainte.'
-      : 'Programarea a fost \u00eenregistrat\u0103. Ve\u021bi primi un e-mail de confirmare \u0219i un reminder cu 24h \u00eenainte.';
+    succSub24h
+      ? 'Programarea a fost \u00eenregistrat\u0103. Ve\u021bi primi un e-mail de confirmare.'
+      : p.canal==='whatsapp'
+        ? 'Programarea a fost \u00eenregistrat\u0103. Ve\u021bi primi un mesaj WhatsApp de confirmare \u0219i un reminder cu 24h \u00eenainte.'
+        : 'Programarea a fost \u00eenregistrat\u0103. Ve\u021bi primi un e-mail de confirmare \u0219i un reminder cu 24h \u00eenainte.';
 }
 /* ─── RESET ────────────────────────────────────── */
 function doReset(){

@@ -1,6 +1,8 @@
 const RESEND_KEY      = Deno.env.get('RESEND_KEY')!
+const SUPABASE_URL    = Deno.env.get('SUPABASE_URL')!
 const FROM_EMAIL      = 'Clinica Alfa <contact@silleau.com>'
 const FEEDBACK_FN     = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/save-feedback'
+const SITE            = 'https://www.silleau.com'
 const META_WA_TOKEN   = Deno.env.get('META_WA_TOKEN')!
 const META_WA_PHONE_ID = Deno.env.get('META_WA_PHONE_ID')!
 
@@ -25,10 +27,12 @@ Deno.serve(async (req) => {
       specialitate,
       serviciu,
       data,
+      data_iso,
       ora,
       rechemare,
       programare_id,
       clinic_id,
+      sub24h,
     } = body
     const isReprogramare = tip === 'reprogramare'
 
@@ -76,7 +80,7 @@ Deno.serve(async (req) => {
           from: FROM_EMAIL,
           to: email,
           subject: (isReprogramare ? 'Confirmare reprogramare — ' : 'Confirmare programare — ') + fmtData(data),
-          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare }),
+          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), data_iso: data_iso || data, ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare, sub24h: !!sub24h, email: email || '', telefon: telefon || '' }),
         }),
       })
       if (!emailRes.ok) {
@@ -218,6 +222,54 @@ function buildWhatsApp(d: {
   return lines.join('\n')
 }
 
+function buildActionButtons(
+  programareId: string, clinicId: string, dataIso: string, ora: string,
+  medic: string, specialitate: string, serviciu: string,
+  prenume: string, email: string, telefon: string
+): string {
+  const confirmUrl     = SUPABASE_URL + '/functions/v1/confirmare-reminder?id=' + encodeURIComponent(programareId) + '&clinic_id=' + encodeURIComponent(clinicId)
+  const reprogramareUrl = SITE + '/anulare?id=' + encodeURIComponent(programareId)
+    + '&clinic_id=' + encodeURIComponent(clinicId)
+    + '&action=reprogrameaza'
+    + '&medic=' + encodeURIComponent(medic)
+    + '&specialitate=' + encodeURIComponent(specialitate)
+    + '&serviciu=' + encodeURIComponent(serviciu)
+    + '&prenume=' + encodeURIComponent(prenume)
+    + '&email=' + encodeURIComponent(email)
+    + '&telefon=' + encodeURIComponent(telefon)
+  const anulareUrl     = SITE + '/anulare?id=' + encodeURIComponent(programareId)
+    + '&clinic_id=' + encodeURIComponent(clinicId)
+    + '&data=' + encodeURIComponent(dataIso)
+    + '&ora=' + encodeURIComponent(ora.slice(0, 5))
+    + '&medic=' + encodeURIComponent(medic)
+    + '&specialitate=' + encodeURIComponent(specialitate)
+    + '&serviciu=' + encodeURIComponent(serviciu)
+    + '&prenume=' + encodeURIComponent(prenume)
+    + '&email=' + encodeURIComponent(email)
+    + '&telefon=' + encodeURIComponent(telefon)
+
+  return '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">'
+    + '<tr><td bgcolor="#111111" style="background-color:#111111;border-radius:3px;">'
+    + '<a href="' + confirmUrl + '" style="display:block;padding:16px 12px;font-size:11px;color:#ffffff;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:600;text-decoration:none;text-align:center;">'
+    + '\u2713 &nbsp;Confirm\u0103 programarea'
+    + '</a></td></tr></table>'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">'
+    + '<tr>'
+    + '<td style="width:50%;padding-right:5px;vertical-align:top;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+    + '<td style="background-color:#ffffff;border:1px solid #C8C4BC;border-radius:3px;">'
+    + '<a href="' + reprogramareUrl + '" style="display:block;padding:13px 10px;font-size:10px;color:#555555;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;text-decoration:none;text-align:center;">'
+    + '\u21ba &nbsp;Reprogrameaz\u0103'
+    + '</a></td></tr></table></td>'
+    + '<td style="width:50%;padding-left:5px;vertical-align:top;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>'
+    + '<td style="background-color:#ffffff;border:1px solid #E8E4DC;border-radius:3px;">'
+    + '<a href="' + anulareUrl + '" style="display:block;padding:13px 10px;font-size:10px;color:#BBBBBB;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;text-decoration:none;text-align:center;">'
+    + '\u2715 &nbsp;Anuleaz\u0103'
+    + '</a></td></tr></table></td>'
+    + '</tr></table>'
+}
+
 function buildRatingHtml(baseUrl: string, question: string, legend: string): string {
   let btns = ''
   for (let i = 1; i <= 5; i++) {
@@ -243,8 +295,9 @@ function buildRatingHtml(baseUrl: string, question: string, legend: string): str
 
 function buildEmail(d: {
   prenume: string, medic: string, specialitate: string,
-  serviciu: string, data: string, ora: string, rechemare: string,
-  programare_id?: string, clinic_id?: string, isReprogramare?: boolean
+  serviciu: string, data: string, data_iso: string, ora: string, rechemare: string,
+  email: string, telefon: string,
+  programare_id?: string, clinic_id?: string, isReprogramare?: boolean, sub24h?: boolean
 }): string {
   const serviciuRow = d.serviciu
     ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #F0EDE8;font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
@@ -342,6 +395,7 @@ function buildEmail(d: {
     + (rechemareRow
       ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">' + rechemareRow + '</table>'
       : '')
+    + (d.sub24h && d.programare_id && d.clinic_id ? buildActionButtons(d.programare_id, d.clinic_id, d.data_iso, d.ora, d.medic, d.specialitate, d.serviciu, d.prenume, d.email, d.telefon) : '')
     + (d.programare_id ? buildRatingHtml(
         FEEDBACK_FN + '?id=' + encodeURIComponent(d.programare_id) + '&clinic_id=' + encodeURIComponent(d.clinic_id) + '&sursa=' + (d.isReprogramare ? 'reprogramare' : 'booking'),
         d.isReprogramare ? 'Cât de ușor ați făcut reprogramarea?' : 'Cât de ușor ați făcut programarea?',
