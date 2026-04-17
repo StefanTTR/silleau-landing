@@ -8,7 +8,7 @@
   <style>
     :root{--bg:#0A0A0A;--bg2:#111111;--bd:#2A2A2A;--bd2:#333333;--acc:#E8E4DC;--txt:#F0EDE8;--dim:#888888;--mut:#555555;--wh:#FAFAF8;--err:#C45C5C;}
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;align-items:center;justify-content:center;visibility:hidden;}
     .wrap{max-width:480px;width:100%;margin:0 auto;padding:64px 24px 96px;}
     .hdr{text-align:center;margin-bottom:44px;}
     .brand{display:inline-flex;align-items:center;gap:10px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);}
@@ -61,14 +61,20 @@
     if(name) document.querySelectorAll('.brand-name').forEach(function(el){ el.textContent = name; });
   }
   function fetchAndApplyTheme(clinicId) {
-    if(!clinicId) return;
+    setTimeout(function(){ document.body.style.visibility='visible'; }, 2000);
+    if(!clinicId) { document.body.style.visibility='visible'; return; }
+    try {
+      var _c = localStorage.getItem('st_'+clinicId);
+      if(_c){ var _r=JSON.parse(_c); applyTheme(_r.tema||{},_r.nume||''); document.body.style.visibility='visible'; }
+    } catch(e){}
     fetch(PUBLIC_DATA_FN + '?resource=clinic_theme&clinic_id=' + encodeURIComponent(clinicId))
     .then(function(r){ return r.json(); })
     .then(function(list){
       var row = Array.isArray(list) ? list[0] : null;
-      if(row) applyTheme(row.tema || {}, row.nume || '');
+      if(row){ try{localStorage.setItem('st_'+clinicId,JSON.stringify(row));}catch(e){} applyTheme(row.tema||{},row.nume||''); }
+      document.body.style.visibility='visible';
     })
-    .catch(function(){});
+    .catch(function(){ document.body.style.visibility='visible'; });
   }
 
   var _p        = new URLSearchParams(location.search)

@@ -22,7 +22,7 @@
   --font-heading: 'Cormorant Garamond', serif;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;visibility:hidden;}
 .wrap{max-width:680px;margin:0 auto;padding:64px 24px 96px;}
 
 /* HEADER */
@@ -871,10 +871,29 @@ function hideMotiv(){
    Fallback la tema SILLEAU dacă nu există sau apare eroare.
 ──────────────────────────────────────────────────────────────────*/
 function fetchConfig(callback){
+  setTimeout(function(){ document.body.style.visibility='visible'; }, 2000);
+  // Aplică tema sincron din cache (fără flash)
+  try {
+    var _cc = localStorage.getItem('st_'+CLINIC_ID);
+    if(_cc){
+      var _cr = JSON.parse(_cc); var _ct = (_cr&&_cr.tema)||{}; var _root = document.documentElement;
+      if(_ct.bg)  _root.style.setProperty('--bg',  _ct.bg);
+      if(_ct.bg2) _root.style.setProperty('--bg2', _ct.bg2);
+      if(_ct.bg3) _root.style.setProperty('--bg3', _ct.bg3);
+      if(_ct.bd)  _root.style.setProperty('--bd',  _ct.bd);
+      if(_ct.acc) _root.style.setProperty('--acc', _ct.acc);
+      if(_ct.txt) _root.style.setProperty('--txt', _ct.txt);
+      if(_ct.mut) _root.style.setProperty('--mut', _ct.mut);
+      if(_ct.wh)  _root.style.setProperty('--wh',  _ct.wh);
+      if(_ct.bd2) _root.style.setProperty('--bd2', _ct.bd2);
+      document.body.style.visibility='visible';
+    }
+  } catch(e){}
   fetch(PUBLIC_DATA_FN + '?resource=clinic_theme&clinic_id=' + encodeURIComponent(CLINIC_ID))
   .then(function(r){ return r.json(); })
   .then(function(list){
     var row = Array.isArray(list) ? list[0] : null;
+    if(row){ try{localStorage.setItem('st_'+CLINIC_ID,JSON.stringify(row));}catch(e){} }
     var t   = (row && row.tema) ? row.tema : {};
     var root = document.documentElement;
     if(t.bg)  root.style.setProperty('--bg',  t.bg);
@@ -918,11 +937,13 @@ function fetchConfig(callback){
     if(t.hide_brand){
       document.querySelectorAll('.footer, .hdr').forEach(function(el){ el.style.display='none'; });
     }
+    document.body.style.visibility='visible';
     if(callback) callback();
   })
   .catch(function(e){
     console.warn('[SILLEAU] fetchTheme eroare:', e);
     document.title = 'Programare — ' + CLINIC_NAME;
+    document.body.style.visibility='visible';
     if(callback) callback();
   });
 }
