@@ -32,6 +32,7 @@ const ALLOWED_RESOURCES = new Set([
   'programare_info',     // GET status+confirmat_reminder+motiv_anulare+a_fost_reprogramat by id
   'slot_oferta',         // GET slot_oferte by id
   'programare_cur',      // GET data_programare, ora_start by id
+  'clinic_theme',        // GET tema + nume_afisat din clinici by clinic_id
 ])
 
 Deno.serve(async (req) => {
@@ -178,6 +179,19 @@ Deno.serve(async (req) => {
           + '/rest/v1/programari'
           + '?programare_id=eq.' + encodeURIComponent(id)
           + '&select=data_programare,ora_start'
+        break
+
+      case 'clinic_theme':
+        if (!clinicId) {
+          return new Response(JSON.stringify({ error: 'clinic_id lipsa' }), {
+            status: 400,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          })
+        }
+        restUrl = SUPABASE_URL
+          + '/rest/v1/clinici'
+          + '?id=eq.' + encodeURIComponent(clinicId)
+          + '&select=tema,nume'
         break
 
       default:

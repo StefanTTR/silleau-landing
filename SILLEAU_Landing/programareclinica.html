@@ -7,18 +7,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:    #0A0A0A;
-  --bg2:   #111111;
-  --bg3:   #181818;
-  --bd:    #2A2A2A;
-  --bd2:   #333333;
-  --acc:   #E8E4DC;
-  --acc2:  #F0EDE8;
-  --txt:   #F0EDE8;
-  --dim:   #888888;
-  --mut:   #555555;
-  --wh:    #FAFAF8;
-  --err:   #C45C5C;
+  --bg:           #0A0A0A;
+  --bg2:          #111111;
+  --bg3:          #181818;
+  --bd:           #2A2A2A;
+  --bd2:          #333333;
+  --acc:          #E8E4DC;
+  --acc2:         #F0EDE8;
+  --txt:          #F0EDE8;
+  --dim:          #888888;
+  --mut:          #555555;
+  --wh:           #FAFAF8;
+  --err:          #C45C5C;
+  --font-heading: 'Cormorant Garamond', serif;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;}
@@ -37,7 +38,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
 .hdr.hidden{max-height:0;opacity:0;margin-bottom:0;}
 .brand{display:inline-flex;align-items:center;gap:10px;font-size:10px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:26px;}
 .bline{width:32px;height:1px;background:var(--acc);opacity:.4;}
-h1{font-family:'Cormorant Garamond',serif;font-size:clamp(34px,6vw,52px);font-weight:300;line-height:1.1;letter-spacing:-.02em;color:var(--wh);margin-bottom:12px;}
+h1{font-family:var(--font-heading);font-size:clamp(34px,6vw,52px);font-weight:300;line-height:1.1;letter-spacing:-.02em;color:var(--wh);margin-bottom:12px;}
 h1 em{font-style:italic;color:var(--acc);}
 .sub{font-size:13px;font-weight:300;color:var(--mut);line-height:1.7;}
 
@@ -59,7 +60,7 @@ h1 em{font-style:italic;color:var(--acc);}
 .sec{display:none;}
 .sec.on{display:block;animation:sIn .3s ease;}
 @keyframes sIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
-.stitle{font-family:'Cormorant Garamond',serif;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:28px;padding-bottom:14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:12px;}
+.stitle{font-family:var(--font-heading);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin-bottom:28px;padding-bottom:14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:12px;}
 .stitle::before{content:attr(data-n);font-size:26px;font-style:italic;font-weight:300;color:var(--bd2);letter-spacing:0;line-height:1;}
 
 /* FIELDS */
@@ -81,7 +82,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .dcard:hover{background:var(--bg);transform:translateX(3px);}
 .dcard.picked{border-color:var(--acc);background:#161616;}
 .dcard.picked::after{content:'✓';position:absolute;right:18px;font-size:12px;color:var(--acc);}
-.dav{width:38px;height:38px;flex-shrink:0;border-radius:50%;background:var(--bd2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--acc);}
+.dav{width:38px;height:38px;flex-shrink:0;border-radius:50%;background:var(--bd2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:14px;color:var(--acc);}
 .dname{font-size:14px;font-weight:400;color:var(--wh);margin-bottom:3px;}
 .dspec{font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);}
 
@@ -90,7 +91,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .calnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .calnav-btn{background:none;border:1px solid var(--bd2);color:var(--dim);border-radius:2px;width:28px;height:28px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
 .calnav-btn:hover{border-color:var(--acc);color:var(--acc);}
-.calmonth{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:400;color:var(--wh);letter-spacing:.05em;text-transform:capitalize;}
+.calmonth{font-family:var(--font-heading);font-size:15px;font-weight:400;color:var(--wh);letter-spacing:.05em;text-transform:capitalize;}
 .calwk{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:5px;}
 .calwk span{text-align:center;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);padding:3px 0;}
 .calwk span:nth-child(6),.calwk span:nth-child(7){color:#333;}
@@ -143,7 +144,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .succ{display:none;text-align:center;padding:10px 0;}
 .succ.on{display:block;}
 .smark{width:60px;height:60px;border:1px solid var(--acc);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--acc);margin:0 auto 22px;}
-.sh{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;color:var(--wh);margin-bottom:10px;}
+.sh{font-family:var(--font-heading);font-size:34px;font-weight:300;color:var(--wh);margin-bottom:10px;}
 .sh em{font-style:italic;color:var(--acc);}
 .ssub{font-size:13px;color:var(--mut);line-height:1.7;max-width:400px;margin:0 auto 28px;}
 
@@ -168,7 +169,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 }
 .motiv-pretitle::before,.motiv-pretitle::after{content:'';width:24px;height:1px;background:var(--acc);opacity:.4;}
 .motiv-q{
-  font-family:'Cormorant Garamond',serif;
+  font-family:var(--font-heading);
   font-size:clamp(24px,4vw,34px);font-weight:300;
   color:var(--wh);line-height:1.2;margin-bottom:10px;
 }
@@ -865,12 +866,52 @@ function hideMotiv(){
 }
 
 
-/* ─── FETCH CONFIG CLINICĂ ──────────────────────────────────────
-   Config hardcodat — editați CLINIC_NAME direct în JS.
+/* ─── FETCH TEMĂ CLINICĂ ────────────────────────────────────────
+   Citește `tema` jsonb din `clinici` și suprascrie CSS variables.
+   Fallback la tema SILLEAU dacă nu există sau apare eroare.
 ──────────────────────────────────────────────────────────────────*/
 function fetchConfig(callback){
-  document.title = 'Programare — ' + CLINIC_NAME;
-  if(callback) callback(false);
+  fetch(PUBLIC_DATA_FN + '?resource=clinic_theme&clinic_id=' + encodeURIComponent(CLINIC_ID))
+  .then(function(r){ return r.json(); })
+  .then(function(list){
+    var row = Array.isArray(list) ? list[0] : null;
+    var t   = (row && row.tema) ? row.tema : {};
+    var root = document.documentElement;
+    if(t.bg)  root.style.setProperty('--bg',  t.bg);
+    if(t.bg2) root.style.setProperty('--bg2', t.bg2);
+    if(t.bg3) root.style.setProperty('--bg3', t.bg3);
+    if(t.bd)  root.style.setProperty('--bd',  t.bd);
+    if(t.acc) root.style.setProperty('--acc', t.acc);
+    if(t.txt) root.style.setProperty('--txt', t.txt);
+    if(t.mut) root.style.setProperty('--mut', t.mut);
+    if(t.wh)  root.style.setProperty('--wh',  t.wh);
+    if(t.bd2) root.style.setProperty('--bd2', t.bd2);
+    if(t.err) root.style.setProperty('--err', t.err);
+    if(t.dim) root.style.setProperty('--dim', t.dim);
+    /* Nume clinică */
+    if(row && row.nume) CLINIC_NAME = (t.nume_afisat || row.nume);
+    document.title = 'Programare — ' + CLINIC_NAME;
+    /* Logo */
+    if(t.logo_url){
+      var logo = document.querySelector('.logo-img');
+      if(logo) logo.src = t.logo_url;
+    }
+    /* Font heading custom (Google Fonts) */
+    if(t.font_heading && t.font_heading !== 'Cormorant Garamond'){
+      var lnk = document.createElement('link');
+      lnk.rel  = 'stylesheet';
+      lnk.href = 'https://fonts.googleapis.com/css2?family='
+        + encodeURIComponent(t.font_heading) + ':ital,wght@0,300;0,400;1,300;1,400&display=swap';
+      document.head.appendChild(lnk);
+      document.documentElement.style.setProperty('--font-heading', "'" + t.font_heading + "', serif");
+    }
+    if(callback) callback();
+  })
+  .catch(function(e){
+    console.warn('[SILLEAU] fetchTheme eroare:', e);
+    document.title = 'Programare — ' + CLINIC_NAME;
+    if(callback) callback();
+  });
 }
 
 /* ─── FETCH DOCTORI + ORAR DIN SUPABASE ────────────────────────
