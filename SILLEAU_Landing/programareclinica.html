@@ -704,7 +704,8 @@ function calRender(){
     else if(past||tooFar){cls.push('coff');}
     else if(hol){cls.push('coff','cholday');}
     else if(we){cls.push('coff');}
-    else if(docBlocked||fullyBooked){cls.push('coff','cunavail');}
+    else if(docBlocked){cls.push('coff','cunavail');}
+    else if(fullyBooked){cls.push('coff');}
     else if(ds===today){cls.push('ctoday');}
     el.className=cls.join(' ');
     if(!past&&!hol&&!we&&!tooFar&&!docBlocked&&!fullyBooked){
