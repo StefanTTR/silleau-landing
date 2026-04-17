@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
           from: FROM_EMAIL,
           to: email,
           subject: (isReprogramare ? 'Confirmare reprogramare — ' : 'Confirmare programare — ') + fmtData(data),
-          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), data_iso: data_iso || data, ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare, sub24h: !!sub24h, email: email || '', telefon: telefon || '' }),
+          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), data_iso: data_iso || data, ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare, sub24h: isWithin24h(data_iso || data, ora), email: email || '', telefon: telefon || '' }),
         }),
       })
       if (!emailRes.ok) {
@@ -97,6 +97,25 @@ Deno.serve(async (req) => {
 
 function fmtData(iso: string): string {
   return new Date(iso).toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+/* Verifică dacă ora_start a programării (timezone România) e la mai puțin de 24h față de acum. */
+function isWithin24h(dataIso: string, oraStart: string): boolean {
+  try {
+    const [year, month, day] = dataIso.split('-').map(Number)
+    const [hours, minutes]   = oraStart.slice(0, 5).split(':').map(Number)
+    // Determinăm offset-ul României la acea dată prin conversia prânzului UTC
+    const noonUtc   = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
+    const noonRoStr = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(noonUtc)
+    const [noonH, noonM] = noonRoStr.split(':').map(Number)
+    const offsetMs  = (noonH * 60 + noonM - 720) * 60_000
+    const slotUtcMs = Date.UTC(year, month - 1, day, hours, minutes) - offsetMs
+    return (slotUtcMs - Date.now()) < 24 * 60 * 60 * 1_000
+  } catch {
+    return false
+  }
 }
 
 function isNonEmptyString(v: unknown): v is string {
