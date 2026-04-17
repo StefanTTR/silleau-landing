@@ -621,6 +621,21 @@ function isHol(ds){return getHD(parseInt(ds))    .has(ds);}
 function isWE(ds){var d=new Date(ds+'T12:00:00').getDay();return d===0||d===6;}
 function isOff(ds){return isHol(ds)||isWE(ds);}
 
+/* Convertește data+ora din timezone-ul României (Europe/Bucharest) în ms UTC.
+   Folosit pentru calculul ferestrei sub24h. */
+function romaniaSlotToUtcMs(ds, timeStr){
+  var parts=ds.split('-').map(Number);
+  var tp=timeStr.split(':').map(Number);
+  var year=parts[0],month=parts[1],day=parts[2],hours=tp[0],minutes=tp[1];
+  var noonUtc=new Date(Date.UTC(year,month-1,day,12,0,0));
+  var noonRoStr=new Intl.DateTimeFormat('en-GB',{
+    timeZone:'Europe/Bucharest',hour:'2-digit',minute:'2-digit',hour12:false
+  }).format(noonUtc);
+  var noonParts=noonRoStr.split(':').map(Number);
+  var offsetMs=(noonParts[0]*60+noonParts[1]-720)*60000;
+  return Date.UTC(year,month-1,day,hours,minutes)-offsetMs;
+}
+
 /* Verifică dacă există cel puțin un slot liber pentru picDoc+picMotiv într-o zi.
    Folosește aceeași logică ca showSlots() fără randare DOM. */
 function dayHasAvailableSlots(ds){
@@ -1158,9 +1173,8 @@ function buildSum(){
   /* Ascunde checkbox-ul la reprogramare sau dacă data e în primele 4 zile disponibile */
   var threshold = nthAvailDay(4);
   document.querySelector('.opt-slot').style.display = (REPROGRAMARE_ID || ds <= threshold) ? 'none' : '';
-  /* Text consimțământ: fără mențiunea reminderului dacă programarea e sub 24h */
-  var apptMs = new Date(ds + 'T' + picSlot + ':00').getTime();
-  var sub24h  = (apptMs - Date.now()) < 24 * 60 * 60 * 1000;
+  /* Text consimțământ: fără mențiunea reminderului dacă programarea e sub 24h (ora RO) */
+  var sub24h = (romaniaSlotToUtcMs(ds, picSlot) - Date.now()) < 24 * 60 * 60 * 1000;
   document.getElementById('pConsimt').innerHTML = 'Prin confirmare sunteți de acord cu <a href="#" style="color:var(--acc)">politica de confidențialitate</a>. '
     + (sub24h
         ? 'Ve\u021bi primi un e-mail de confirmare.'
@@ -1330,8 +1344,7 @@ function doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload)
     BOOKED[picDoc.id][ds].push({start: picSlot, total: total});
 
     /* ── Email / WhatsApp confirmare booking */
-    var apptMs2  = new Date(ds + 'T' + picSlot + ':00').getTime();
-    var isSub24h = (apptMs2 - Date.now()) < 24 * 60 * 60 * 1000;
+    var isSub24h = (romaniaSlotToUtcMs(ds, picSlot) - Date.now()) < 24 * 60 * 60 * 1000;
     fetch(CONFIRMARE_BOOKING_FN, {
       method:  'POST',
       headers: {'Content-Type': 'application/json'},
@@ -1377,8 +1390,8 @@ function showSucc(p){
     [p.canal==='whatsapp'?'WhatsApp':'E-mail', p.canal==='whatsapp'?p.telefon:p.email],
     ['Telefon',                      p.telefon],
   ],'succSum');
-  var apptMs3 = new Date(p.data_ora).getTime();
-  var succSub24h = (apptMs3 - Date.now()) < 24 * 60 * 60 * 1000;
+  var _dt = p.data_ora ? p.data_ora.split('T') : [p.data||'', (p.ora||'').slice(0,5)];
+  var succSub24h = (romaniaSlotToUtcMs(_dt[0], (_dt[1]||p.ora||'').slice(0,5)) - Date.now()) < 24 * 60 * 60 * 1000;
   document.getElementById('succSec').querySelector('.ssub').textContent=
     succSub24h
       ? 'Programarea a fost \u00eenregistrat\u0103. Ve\u021bi primi un e-mail de confirmare.'
