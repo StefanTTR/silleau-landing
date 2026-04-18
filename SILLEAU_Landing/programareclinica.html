@@ -1244,6 +1244,7 @@ function _makeResizable(el, key){
 }
 
 function enableLayoutEditor(){
+  if(_layoutEditMode) return; /* Guard: previne dubla-inițializare (handle-uri duplicate) */
   if(isMobileLayout()) return;
   _layoutEditMode = true;
   /* Aplicăm layout-ul curent dacă există (ca să păstrăm pozițiile editate anterior) */
@@ -1254,6 +1255,14 @@ function enableLayoutEditor(){
     /* Skip elementele ascunse */
     var cs = getComputedStyle(el);
     if(cs.display === 'none' || el.offsetParent === null) return;
+    /* Strânge outline-ul la conținut, nu la lățimea container-ului.
+       Păstrează _origDisplay ca să putem restaura la exit. */
+    if(el.tagName !== 'IMG'){
+      el._origDisplay = el.style.display;
+      el._origMaxWidth = el.style.maxWidth;
+      el.style.display = 'inline-block';
+      el.style.maxWidth = 'calc(100% - 20px)';
+    }
     el.style.transformOrigin = 'top left';
     _makeDraggable(el, key);
     _makeResizable(el, key);
@@ -1271,6 +1280,9 @@ function disableLayoutEditor(){
     el.style.outline = '';
     el.style.cursor = '';
     el._resizeHandle = null;
+    /* Restaurează display-ul original dacă l-am modificat la enable */
+    if(el._origDisplay !== undefined){ el.style.display  = el._origDisplay;  delete el._origDisplay; }
+    if(el._origMaxWidth !== undefined){ el.style.maxWidth = el._origMaxWidth; delete el._origMaxWidth; }
   });
   document.querySelectorAll('.layout-resize-handle').forEach(function(h){ h.remove(); });
 }
