@@ -147,8 +147,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height
 .prev-tabs{display:flex;gap:4px;flex:1;}
 .prev-tab{padding:6px 12px;border:1px solid var(--bd);border-radius:3px;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);cursor:pointer;transition:all .15s;background:transparent;}
 .prev-tab.active{border-color:var(--acc);color:var(--acc);}
-.device-btns{display:flex;gap:3px;}
-.dev-btn{width:28px;height:28px;border:1px solid var(--bd);border-radius:3px;background:transparent;color:var(--mut);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s;}
+.device-btns{display:flex;gap:8px;align-items:center;}
+.dev-btn{width:30px;height:28px;border:1px solid var(--bd);border-radius:3px;background:transparent;color:var(--mut);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s;position:relative;padding:0;}
+.dev-btn svg{width:14px;height:14px;display:block;}
+.dev-btn.active{color:var(--acc);border-color:var(--acc);}
+.dev-btn[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#0A0A0A;color:var(--wh);padding:4px 8px;font-size:10px;letter-spacing:.04em;white-space:nowrap;border-radius:3px;border:1px solid var(--bd2);z-index:50;pointer-events:none;}
+.dev-btn[data-tip]:hover::before{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--bd2);z-index:50;pointer-events:none;}
+.btn-save-layout{margin-left:12px;padding:7px 14px;background:var(--acc);color:#111;border:none;border-radius:3px;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:opacity .2s;}
+.btn-save-layout:hover{opacity:.88;}
 .dev-btn.active{border-color:var(--acc);color:var(--acc);}
 .prev-wrap{flex:1;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px;background:#181818;}
 .prev-frame{background:#fff;border-radius:4px;overflow:hidden;transition:width .3s,height .3s;box-shadow:0 4px 32px rgba(0,0,0,.5);}
@@ -549,10 +555,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height
         <button class="prev-tab" data-page="mesaj" onclick="switchPage(this)">Mesaj</button>
       </div>
       <div class="device-btns">
-        <button class="dev-btn" id="btnEditLayout" title="Editează aspect (drag & drop)" onclick="toggleLayoutEditor()" style="display:none;">✎ Aspect</button>
-        <button class="dev-btn" id="btnResetLayout" title="Resetează aspect la default" onclick="resetLayoutFromParent()" style="display:none;">↺</button>
-        <button class="dev-btn active" title="Desktop" onclick="setDevice('desktop',this)">⬜</button>
-        <button class="dev-btn" title="Mobile" onclick="setDevice('mobile',this)">📱</button>
+        <button class="dev-btn" id="btnEditLayout" data-tip="Editează aspect" onclick="toggleLayoutEditor()" style="display:none;">✎</button>
+        <button class="dev-btn" id="btnResetLayout" data-tip="Resetează aspect" onclick="resetLayoutFromParent()" style="display:none;">↺</button>
+        <button class="dev-btn active" data-tip="Desktop" onclick="setDevice('desktop',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="1"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </button>
+        <button class="dev-btn" data-tip="Mobil" onclick="setDevice('mobile',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        </button>
+        <button class="btn-save-layout" id="btnSaveLayout" onclick="saveLayoutAndExit()" style="display:none;">Salvează aspect →</button>
       </div>
     </div>
     <div class="prev-wrap">
@@ -1150,20 +1161,22 @@ function buildThemeMsg() {
 /* ── Layout editor (Canva-like) — doar pe tab-ul Formular ── */
 var _layoutEditing = false
 function toggleLayoutEditor(){
-  if (_prevPage !== 'form') {
-    switchToFormTab()
-  }
+  if (_prevPage !== 'form') switchToFormTab()
   _layoutEditing = !_layoutEditing
-  var btn = document.getElementById('btnEditLayout')
-  if (_layoutEditing) {
-    btn.classList.add('active')
-    btn.textContent = '✓ Salvează aspect'
-    reloadPreviewWithEdit(true)
-  } else {
-    btn.classList.remove('active')
-    btn.textContent = '✎ Aspect'
-    reloadPreviewWithEdit(false)
-  }
+  var btnEdit = document.getElementById('btnEditLayout')
+  var btnSave = document.getElementById('btnSaveLayout')
+  btnEdit.classList.toggle('active', _layoutEditing)
+  btnSave.style.display = _layoutEditing ? '' : 'none'
+  reloadPreviewWithEdit(_layoutEditing)
+}
+function saveLayoutAndExit(){
+  /* Layout-ul deja e in _branding.layout (actualizat la fiecare drag via postMessage).
+     Butonul iese din edit mode si confirma vizual salvarea — persistenta reala are loc
+     la 'Trimite spre aprobare'. */
+  _layoutEditing = false
+  document.getElementById('btnEditLayout').classList.remove('active')
+  document.getElementById('btnSaveLayout').style.display = 'none'
+  reloadPreviewWithEdit(false)
 }
 function resetLayoutFromParent(){
   if (!confirm('Resetezi aspectul la cel default?')) return

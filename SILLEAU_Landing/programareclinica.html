@@ -1210,22 +1210,55 @@ function enableLayoutEditor(){
   _layoutEditMode = true;
   var hdr = document.querySelector('.hdr');
   if(!hdr) return;
-  hdr.style.position = 'relative';
-  hdr.style.minHeight = '320px';
-  /* Forțează poziționare absolută pe toate cele 5 elemente ca să poată fi dragate */
+
+  /* PAS 1 — capturează pozițiile default (flow normal) ale fiecărui element
+     relativ la .hdr, ÎNAINTE să modificăm vreun style. */
+  var hdrRect = hdr.getBoundingClientRect();
+  var defaults = {};
   Object.keys(_layoutTargets).forEach(function(key){
     var el = document.querySelector(_layoutTargets[key]);
     if(!el) return;
+    /* Dacă elementul e ascuns (ex: slogan fără text), îl skip-uim */
+    if(el.offsetParent === null && getComputedStyle(el).display === 'none') return;
+    var rect = el.getBoundingClientRect();
+    if(rect.width === 0 && rect.height === 0) return;
+    defaults[key] = {
+      x: rect.left - hdrRect.left,
+      y: rect.top  - hdrRect.top,
+      w: rect.width,
+      h: rect.height
+    };
+  });
+
+  /* PAS 2 — setează containerul ca relative, apoi aplică poziționare absolută
+     folosind fie layout-ul salvat, fie defaults captate la pasul 1. */
+  hdr.style.position = 'relative';
+  hdr.style.minHeight = Math.max(hdrRect.height, 320) + 'px';
+
+  Object.keys(defaults).forEach(function(key){
+    var el = document.querySelector(_layoutTargets[key]);
+    if(!el) return;
     var cur = _currentLayout[key];
-    el.style.position = 'absolute';
-    el.style.left = '0';
-    el.style.top = '0';
-    el.style.margin = '0';
-    el.style.transform = 'translate(' + ((cur && cur.x) || 0) + 'px,' + ((cur && cur.y) || 0) + 'px)';
+    var def = defaults[key];
+    var x = (cur && cur.x !== undefined) ? cur.x : def.x;
+    var y = (cur && cur.y !== undefined) ? cur.y : def.y;
+
+    el.style.position  = 'absolute';
+    el.style.left      = '0';
+    el.style.top       = '0';
+    el.style.margin    = '0';
+    el.style.transform = 'translate(' + x + 'px,' + y + 'px)';
     if(cur && cur.w) el.style.width  = cur.w + 'px';
     if(cur && cur.h) el.style.height = cur.h + 'px';
+
     _makeDraggable(el, key, hdr);
     if(key === 'logo') _makeResizable(el, key);
+
+    /* Seed _currentLayout cu defaults dacă nu exista, ca la prima mutare
+       să avem poziția de start corectă. */
+    if(!cur){
+      _currentLayout[key] = { x: Math.round(x), y: Math.round(y) };
+    }
   });
 }
 
