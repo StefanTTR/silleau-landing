@@ -1101,7 +1101,7 @@ function applyLayout(layout){
     /* Pe mobil: curăță orice transform aplicat */
     Object.keys(_layoutTargets).forEach(function(key){
       var el = document.querySelector(_layoutTargets[key]);
-      if(el){ el.style.transform = ''; el.style.width = ''; el.style.height = ''; }
+      if(el){ el.style.transform = ''; el.style.width = ''; el.style.height = ''; el.style.fontSize = ''; }
     });
     return;
   }
@@ -1109,11 +1109,16 @@ function applyLayout(layout){
     var el = document.querySelector(_layoutTargets[key]);
     var pos = _currentLayout[key];
     if(!el) return;
-    if(!pos){ el.style.transform = ''; return; }
+    if(!pos){ el.style.transform = ''; el.style.fontSize = ''; el.style.width = ''; el.style.height = ''; return; }
     el.style.transform = 'translate(' + (pos.x || 0) + 'px,' + (pos.y || 0) + 'px)';
-    if(key === 'logo'){
+    el.style.transformOrigin = 'top left';
+    /* Logo <img> => width/height direct */
+    if(el.tagName === 'IMG'){
       if(pos.w) el.style.width  = pos.w + 'px';
       if(pos.h) el.style.height = pos.h + 'px';
+    } else {
+      /* Text block => font-size proporțional */
+      if(pos.fs) el.style.fontSize = pos.fs + 'px';
     }
   });
 }
@@ -1124,8 +1129,10 @@ function resetLayout(){
     var el = document.querySelector(_layoutTargets[key]);
     if(!el) return;
     el.style.transform = '';
+    el.style.transformOrigin = '';
     el.style.width = '';
     el.style.height = '';
+    el.style.fontSize = '';
     el.style.outline = '';
     el.style.cursor = '';
   });
@@ -1183,6 +1190,7 @@ function _positionResizeHandle(el, handle){
 function _makeResizable(el, key){
   var hdr = document.querySelector('.hdr');
   if(!hdr) return;
+  var isImage = el.tagName === 'IMG';
   /* Handle ca sibling în .hdr (imgs nu pot avea copii in DOM) */
   var h = document.createElement('div');
   h.className = 'layout-resize-handle';
@@ -1197,22 +1205,37 @@ function _makeResizable(el, key){
     var rect = el.getBoundingClientRect();
     var startW = rect.width, startH = rect.height;
     var ratio = startW / Math.max(startH, 1);
+    var startFontSize = isImage ? 0 : parseFloat(getComputedStyle(el).fontSize);
     var sx = ev.clientX;
+
     function move(e){
       var dw = (e.clientX - sx);
-      var nw = Math.max(32, startW + dw);
-      var nh = nw / ratio;
-      el.style.width  = nw + 'px';
-      el.style.height = nh + 'px';
+      if(isImage){
+        /* Logo: resize proporțional prin width/height */
+        var nw = Math.max(32, startW + dw);
+        var nh = nw / ratio;
+        el.style.width  = nw + 'px';
+        el.style.height = nh + 'px';
+      } else {
+        /* Text: scale font-size proporțional cu dragul lateral */
+        var scale = Math.max(0.4, (startW + dw) / startW);
+        el.style.fontSize = (startFontSize * scale) + 'px';
+      }
       _positionResizeHandle(el, h);
     }
     function up(){
       document.removeEventListener('mousemove', move);
       document.removeEventListener('mouseup', up);
-      _currentLayout[key] = Object.assign({}, _currentLayout[key] || {}, {
-        w: Math.round(parseFloat(el.style.width)),
-        h: Math.round(parseFloat(el.style.height))
-      });
+      if(isImage){
+        _currentLayout[key] = Object.assign({}, _currentLayout[key] || {}, {
+          w: Math.round(parseFloat(el.style.width)),
+          h: Math.round(parseFloat(el.style.height))
+        });
+      } else {
+        _currentLayout[key] = Object.assign({}, _currentLayout[key] || {}, {
+          fs: Math.round(parseFloat(el.style.fontSize) * 10) / 10
+        });
+      }
       _emitLayout();
     }
     document.addEventListener('mousemove', move);
@@ -1231,8 +1254,9 @@ function enableLayoutEditor(){
     /* Skip elementele ascunse */
     var cs = getComputedStyle(el);
     if(cs.display === 'none' || el.offsetParent === null) return;
+    el.style.transformOrigin = 'top left';
     _makeDraggable(el, key);
-    if(key === 'logo') _makeResizable(el, key);
+    _makeResizable(el, key);
   });
 }
 
