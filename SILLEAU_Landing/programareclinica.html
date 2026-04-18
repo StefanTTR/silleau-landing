@@ -1155,8 +1155,6 @@ function _emitLayout(){
 
 function _makeDraggable(el, key){
   el.style.cursor = 'move';
-  el.style.outline = '1px dashed rgba(232,228,220,.5)';
-  el.style.outlineOffset = '2px';
   function onDown(ev){
     /* Nu capta dragul dacă user apasă pe handle de resize */
     if(ev.target.classList && ev.target.classList.contains('layout-resize-handle')) return;
@@ -1265,12 +1263,17 @@ function _makeResizable(el, key){
 
 function _initElementForEdit(el, key){
   if(!el) return;
-  /* Skip elementele ascunse */
   var cs = getComputedStyle(el);
   if(cs.display === 'none' || el.offsetParent === null) return;
-  /* Skip dacă deja are listener (evită dubla-inițializare per element) */
   if(_dragListeners.some(function(L){ return L.el === el; })) return;
-  /* Strânge outline-ul la conținut (display:table + margin auto) */
+
+  /* Determinăm refEl = elementul pe care se aliniază outline-ul ȘI handle-ul.
+     Pentru .brand (wrapper cu blines), refEl = .clinic-name (doar textul). */
+  var refEl = (key === 'brand') ? (el.querySelector('.clinic-name') || el) : el;
+  el._handleRef = refEl;
+  el._outlineEl = refEl;
+
+  /* Shrink la conținut prin display:table */
   if(el.tagName !== 'IMG'){
     var cs2 = getComputedStyle(el);
     if(cs2.display !== 'inline' && cs2.display !== 'inline-block' && cs2.display !== 'inline-flex' && cs2.display !== 'table'){
@@ -1288,7 +1291,22 @@ function _initElementForEdit(el, key){
       el.style.paddingRight = '10px';
     }
   }
+  /* Letter-spacing trailing face ca rect-ul să fie mai lat decât textul vizibil.
+     În edit mode, setăm letter-spacing normal pe refEl ca outline și handle să fie fix pe text. */
+  if(refEl !== el || key === 'brand'){
+    var ls = getComputedStyle(refEl).letterSpacing;
+    if(ls && ls !== 'normal' && parseFloat(ls) !== 0){
+      refEl._origLetterSpacing = refEl.style.letterSpacing;
+      refEl.style.letterSpacing = 'normal';
+    }
+  }
   el.style.transformOrigin = 'top left';
+  /* Outline pe refEl — aceeași geometrie folosită pentru handle. */
+  refEl._origOutline       = refEl.style.outline;
+  refEl._origOutlineOffset = refEl.style.outlineOffset;
+  refEl.style.outline       = '1px dashed rgba(232,228,220,.5)';
+  refEl.style.outlineOffset = '0';
+
   _makeDraggable(el, key);
   _makeResizable(el, key);
 }
@@ -1311,9 +1329,16 @@ function disableLayoutEditor(){
   Object.keys(_layoutTargets).forEach(function(key){
     var el = document.querySelector(_layoutTargets[key]);
     if(!el) return;
-    el.style.outline = '';
     el.style.cursor = '';
     el._resizeHandle = null;
+    /* Restore outline + letter-spacing pe refEl (poate fi altul decât el) */
+    var outlineEl = el._outlineEl || el;
+    if(outlineEl._origOutline       !== undefined){ outlineEl.style.outline       = outlineEl._origOutline;       delete outlineEl._origOutline; }
+    else { outlineEl.style.outline = ''; }
+    if(outlineEl._origOutlineOffset !== undefined){ outlineEl.style.outlineOffset = outlineEl._origOutlineOffset; delete outlineEl._origOutlineOffset; }
+    if(outlineEl._origLetterSpacing !== undefined){ outlineEl.style.letterSpacing = outlineEl._origLetterSpacing; delete outlineEl._origLetterSpacing; }
+    el._outlineEl = null;
+    el._handleRef = null;
     /* Restaurează display/width/margin originale dacă le-am modificat la enable */
     if(el._origDisplay      !== undefined){ el.style.display      = el._origDisplay;      delete el._origDisplay; }
     if(el._origWidth        !== undefined){ el.style.width        = el._origWidth;        delete el._origWidth; }
