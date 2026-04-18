@@ -1032,6 +1032,10 @@ function applyThemeLive(row){
   if(sloganEl){
     if(row.slogan){ sloganEl.textContent = row.slogan; sloganEl.style.display = ''; }
     else { sloganEl.style.display = 'none'; }
+    /* Dacă edit mode e activ și sloganul tocmai a devenit vizibil, adaugă-l în editor */
+    if(_layoutEditMode && row.slogan){
+      setTimeout(function(){ _initElementForEdit(sloganEl, 'clinic-slogan'); }, 0);
+    }
   }
   if(row.favicon_url){
     var fav = document.querySelector('link[rel="icon"]') || document.createElement('link');
@@ -1179,9 +1183,21 @@ function _makeDraggable(el, key){
   _dragListeners.push({ el: el, fn: onDown });
 }
 
+function _getTightRect(el){
+  /* Range API măsoară doar nodurile de text, excluzând letter-spacing trailing,
+     padding și alte spațieri care nu sunt vizual vizibile. */
+  try {
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    var r = range.getBoundingClientRect();
+    if(r && r.width > 0) return r;
+  } catch(e){}
+  return el.getBoundingClientRect();
+}
+
 function _positionResizeHandle(refEl, handle){
   var hdr = document.querySelector('.hdr');
-  var r = refEl.getBoundingClientRect();
+  var r = _getTightRect(refEl);
   var hr = hdr.getBoundingClientRect();
   handle.style.left = (r.right - hr.left - 7) + 'px';
   handle.style.top  = (r.bottom - hr.top  - 7) + 'px';
@@ -1247,43 +1263,43 @@ function _makeResizable(el, key){
   });
 }
 
+function _initElementForEdit(el, key){
+  if(!el) return;
+  /* Skip elementele ascunse */
+  var cs = getComputedStyle(el);
+  if(cs.display === 'none' || el.offsetParent === null) return;
+  /* Skip dacă deja are listener (evită dubla-inițializare per element) */
+  if(_dragListeners.some(function(L){ return L.el === el; })) return;
+  /* Strânge outline-ul la conținut (display:table + margin auto) */
+  if(el.tagName !== 'IMG'){
+    var cs2 = getComputedStyle(el);
+    if(cs2.display !== 'inline' && cs2.display !== 'inline-block' && cs2.display !== 'inline-flex' && cs2.display !== 'table'){
+      el._origDisplay      = el.style.display;
+      el._origWidth        = el.style.width;
+      el._origMaxWidth     = el.style.maxWidth;
+      el._origMarginLeft   = el.style.marginLeft;
+      el._origMarginRight  = el.style.marginRight;
+      el.style.display     = 'table';
+      el.style.marginLeft  = 'auto';
+      el.style.marginRight = 'auto';
+    }
+    if(el.querySelector('em, i') || cs2.fontStyle === 'italic'){
+      el._origPaddingRight = el.style.paddingRight;
+      el.style.paddingRight = '10px';
+    }
+  }
+  el.style.transformOrigin = 'top left';
+  _makeDraggable(el, key);
+  _makeResizable(el, key);
+}
+
 function enableLayoutEditor(){
-  if(_layoutEditMode) return; /* Guard: previne dubla-inițializare (handle-uri duplicate) */
+  if(_layoutEditMode) return;
   if(isMobileLayout()) return;
   _layoutEditMode = true;
-  /* Aplicăm layout-ul curent dacă există (ca să păstrăm pozițiile editate anterior) */
   applyLayout(_currentLayout);
   Object.keys(_layoutTargets).forEach(function(key){
-    var el = document.querySelector(_layoutTargets[key]);
-    if(!el) return;
-    /* Skip elementele ascunse */
-    var cs = getComputedStyle(el);
-    if(cs.display === 'none' || el.offsetParent === null) return;
-    /* Strânge outline-ul la conținut, NU la lățimea container-ului.
-       display:table + margin:auto = shrink-to-content garantat în toate browserele.
-       Inline-flex (.brand) rămâne neatinsă, deja hugs content. */
-    if(el.tagName !== 'IMG'){
-      var cs2 = getComputedStyle(el);
-      if(cs2.display !== 'inline' && cs2.display !== 'inline-block' && cs2.display !== 'inline-flex' && cs2.display !== 'table'){
-        el._origDisplay      = el.style.display;
-        el._origWidth        = el.style.width;
-        el._origMaxWidth     = el.style.maxWidth;
-        el._origMarginLeft   = el.style.marginLeft;
-        el._origMarginRight  = el.style.marginRight;
-        el.style.display     = 'table';
-        el.style.marginLeft  = 'auto';
-        el.style.marginRight = 'auto';
-      }
-      /* Italic overhang: coada literelor cursive depășește vizual getBoundingClientRect.
-         Adaug padding-right ca handle-ul să aibă spațiu vizual lângă ultima literă. */
-      if(el.querySelector('em, i') || cs2.fontStyle === 'italic'){
-        el._origPaddingRight = el.style.paddingRight;
-        el.style.paddingRight = '10px';
-      }
-    }
-    el.style.transformOrigin = 'top left';
-    _makeDraggable(el, key);
-    _makeResizable(el, key);
+    _initElementForEdit(document.querySelector(_layoutTargets[key]), key);
   });
 }
 
