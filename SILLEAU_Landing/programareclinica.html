@@ -1270,6 +1270,12 @@ function enableLayoutEditor(){
         el.style.marginLeft  = 'auto';
         el.style.marginRight = 'auto';
       }
+      /* Italic overhang: coada literelor cursive depășește vizual getBoundingClientRect.
+         Adaug padding-right ca handle-ul să aibă spațiu vizual lângă ultima literă. */
+      if(el.querySelector('em, i') || cs2.fontStyle === 'italic'){
+        el._origPaddingRight = el.style.paddingRight;
+        el.style.paddingRight = '10px';
+      }
     }
     el.style.transformOrigin = 'top left';
     _makeDraggable(el, key);
@@ -1289,11 +1295,12 @@ function disableLayoutEditor(){
     el.style.cursor = '';
     el._resizeHandle = null;
     /* Restaurează display/width/margin originale dacă le-am modificat la enable */
-    if(el._origDisplay     !== undefined){ el.style.display     = el._origDisplay;     delete el._origDisplay; }
-    if(el._origWidth       !== undefined){ el.style.width       = el._origWidth;       delete el._origWidth; }
-    if(el._origMaxWidth    !== undefined){ el.style.maxWidth    = el._origMaxWidth;    delete el._origMaxWidth; }
-    if(el._origMarginLeft  !== undefined){ el.style.marginLeft  = el._origMarginLeft;  delete el._origMarginLeft; }
-    if(el._origMarginRight !== undefined){ el.style.marginRight = el._origMarginRight; delete el._origMarginRight; }
+    if(el._origDisplay      !== undefined){ el.style.display      = el._origDisplay;      delete el._origDisplay; }
+    if(el._origWidth        !== undefined){ el.style.width        = el._origWidth;        delete el._origWidth; }
+    if(el._origMaxWidth     !== undefined){ el.style.maxWidth     = el._origMaxWidth;     delete el._origMaxWidth; }
+    if(el._origMarginLeft   !== undefined){ el.style.marginLeft   = el._origMarginLeft;   delete el._origMarginLeft; }
+    if(el._origMarginRight  !== undefined){ el.style.marginRight  = el._origMarginRight;  delete el._origMarginRight; }
+    if(el._origPaddingRight !== undefined){ el.style.paddingRight = el._origPaddingRight; delete el._origPaddingRight; }
   });
   document.querySelectorAll('.layout-resize-handle').forEach(function(h){ h.remove(); });
 }
