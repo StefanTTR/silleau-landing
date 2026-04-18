@@ -1256,19 +1256,17 @@ function enableLayoutEditor(){
     var cs = getComputedStyle(el);
     if(cs.display === 'none' || el.offsetParent === null) return;
     /* Strânge outline-ul la conținut, NU la lățimea container-ului.
-       Block elements (h1, p): max-content + margin auto = block îngust la textul interior, centrat.
-       Inline-flex (.brand): deja hugs content, nu modificăm. */
+       display:table + margin:auto = shrink-to-content garantat în toate browserele.
+       Inline-flex (.brand) rămâne neatinsă, deja hugs content. */
     if(el.tagName !== 'IMG'){
       var cs2 = getComputedStyle(el);
-      if(cs2.display === 'block'){
+      if(cs2.display !== 'inline' && cs2.display !== 'inline-block' && cs2.display !== 'inline-flex' && cs2.display !== 'table'){
+        el._origDisplay      = el.style.display;
         el._origWidth        = el.style.width;
         el._origMaxWidth     = el.style.maxWidth;
         el._origMarginLeft   = el.style.marginLeft;
         el._origMarginRight  = el.style.marginRight;
-        /* max-content = lățimea intrinsecă a textului (linia cea mai lată).
-           Combinat cu margin auto, block-ul se centrează și se strânge la text. */
-        el.style.width       = 'max-content';
-        el.style.maxWidth    = '100%';
+        el.style.display     = 'table';
         el.style.marginLeft  = 'auto';
         el.style.marginRight = 'auto';
       }
@@ -1290,7 +1288,8 @@ function disableLayoutEditor(){
     el.style.outline = '';
     el.style.cursor = '';
     el._resizeHandle = null;
-    /* Restaurează width/maxWidth/margin originale dacă le-am modificat la enable */
+    /* Restaurează display/width/margin originale dacă le-am modificat la enable */
+    if(el._origDisplay     !== undefined){ el.style.display     = el._origDisplay;     delete el._origDisplay; }
     if(el._origWidth       !== undefined){ el.style.width       = el._origWidth;       delete el._origWidth; }
     if(el._origMaxWidth    !== undefined){ el.style.maxWidth    = el._origMaxWidth;    delete el._origMaxWidth; }
     if(el._origMarginLeft  !== undefined){ el.style.marginLeft  = el._origMarginLeft;  delete el._origMarginLeft; }
