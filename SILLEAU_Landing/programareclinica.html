@@ -1255,13 +1255,19 @@ function enableLayoutEditor(){
     /* Skip elementele ascunse */
     var cs = getComputedStyle(el);
     if(cs.display === 'none' || el.offsetParent === null) return;
-    /* Strânge outline-ul la conținut, nu la lățimea container-ului.
-       Păstrează _origDisplay ca să putem restaura la exit. */
+    /* Strânge outline-ul la conținut, NU la lățimea container-ului.
+       Pentru elemente block (h1, p), fit-content + margin auto = block îngust, centrat.
+       Pentru .brand (inline-flex), lăsăm să curgă natural (deja hugs content). */
     if(el.tagName !== 'IMG'){
-      el._origDisplay = el.style.display;
-      el._origMaxWidth = el.style.maxWidth;
-      el.style.display = 'inline-block';
-      el.style.maxWidth = 'calc(100% - 20px)';
+      var cs2 = getComputedStyle(el);
+      if(cs2.display === 'block'){
+        el._origWidth = el.style.width;
+        el._origMarginLeft = el.style.marginLeft;
+        el._origMarginRight = el.style.marginRight;
+        el.style.width = 'fit-content';
+        el.style.marginLeft = 'auto';
+        el.style.marginRight = 'auto';
+      }
     }
     el.style.transformOrigin = 'top left';
     _makeDraggable(el, key);
@@ -1280,9 +1286,10 @@ function disableLayoutEditor(){
     el.style.outline = '';
     el.style.cursor = '';
     el._resizeHandle = null;
-    /* Restaurează display-ul original dacă l-am modificat la enable */
-    if(el._origDisplay !== undefined){ el.style.display  = el._origDisplay;  delete el._origDisplay; }
-    if(el._origMaxWidth !== undefined){ el.style.maxWidth = el._origMaxWidth; delete el._origMaxWidth; }
+    /* Restaurează width/margin originale dacă le-am modificat la enable */
+    if(el._origWidth !== undefined){ el.style.width = el._origWidth; delete el._origWidth; }
+    if(el._origMarginLeft  !== undefined){ el.style.marginLeft  = el._origMarginLeft;  delete el._origMarginLeft; }
+    if(el._origMarginRight !== undefined){ el.style.marginRight = el._origMarginRight; delete el._origMarginRight; }
   });
   document.querySelectorAll('.layout-resize-handle').forEach(function(h){ h.remove(); });
 }
