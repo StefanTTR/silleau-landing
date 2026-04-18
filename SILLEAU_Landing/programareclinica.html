@@ -19,6 +19,13 @@
   --mut:          #555555;
   --wh:           #FAFAF8;
   --err:          #C45C5C;
+  --ok:           #6A9E6A;
+  --r-btn:        2px;
+  --r-card:       4px;
+  --r-inp:        3px;
+  --sp-card:      48px;
+  --sp-row:       13px;
+  --sp-gap:       28px;
   --font-heading: 'Cormorant Garamond', serif;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -43,7 +50,7 @@ h1 em{font-style:italic;color:var(--acc);}
 .sub{font-size:13px;font-weight:300;color:var(--mut);line-height:1.7;}
 
 /* CARD */
-.card{background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:48px;}
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r-card);padding:var(--sp-card);}
 
 /* STEPS */
 .steps{display:flex;align-items:flex-start;margin-bottom:42px;position:relative;}
@@ -69,7 +76,7 @@ h1 em{font-style:italic;color:var(--acc);}
 .row2 .fld{margin-bottom:0;}
 label{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);}
 label .req{color:var(--acc);}
-input,textarea{font-family:'Inter',sans-serif;font-size:14px;font-weight:300;color:var(--wh);background:var(--bg3);border:1px solid var(--bd2);border-radius:3px;padding:13px 16px;outline:none;width:100%;transition:border-color .2s,box-shadow .2s;}
+input,textarea{font-family:'Inter',sans-serif;font-size:14px;font-weight:300;color:var(--wh);background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r-inp);padding:13px 16px;outline:none;width:100%;transition:border-color .2s,box-shadow .2s;}
 input::placeholder,textarea::placeholder{color:var(--mut);}
 input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232,228,220,.05);}
 .errmsg{font-size:10px;color:var(--err);display:none;}
@@ -78,7 +85,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 
 /* DOCTORS */
 .dlist{display:flex;flex-direction:column;gap:7px;margin-bottom:20px;}
-.dcard{display:flex;align-items:center;gap:16px;border:1px solid var(--bd2);border-radius:3px;padding:15px 20px;cursor:pointer;background:var(--bg3);transition:all .2s;position:relative;}
+.dcard{display:flex;align-items:center;gap:16px;border:1px solid var(--bd2);border-radius:var(--r-inp);padding:15px 20px;cursor:pointer;background:var(--bg3);transition:all .2s;position:relative;}
 .dcard:hover{background:var(--bg);transform:translateX(3px);}
 .dcard.picked{border-color:var(--acc);background:#161616;}
 .dcard.picked::after{content:'✓';position:absolute;right:18px;font-size:12px;color:var(--acc);}
@@ -113,7 +120,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 /* SLOTS */
 .slotlbl{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:10px;display:block;}
 .slotgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;}
-.slot{border:1px solid var(--bd2);border-radius:3px;padding:10px 4px;text-align:center;cursor:pointer;font-size:12px;font-weight:300;color:var(--txt);background:var(--bg3);transition:all .15s;}
+.slot{border:1px solid var(--bd2);border-radius:var(--r-inp);padding:10px 4px;text-align:center;cursor:pointer;font-size:12px;font-weight:300;color:var(--txt);background:var(--bg3);transition:all .15s;}
 .slot:hover:not(.taken){border-color:var(--acc);color:var(--wh);}
 .slot.picked{background:var(--acc);border-color:var(--acc);color:#111;font-weight:500;}
 .slot.taken{opacity:.22;cursor:not-allowed;text-decoration:line-through;}
@@ -124,7 +131,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 
 /* BUTTONS */
 .btnrow{display:flex;gap:12px;justify-content:flex-end;margin-top:30px;padding-top:22px;border-top:1px solid var(--bd);}
-.btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;padding:13px 28px;border-radius:2px;cursor:pointer;border:none;outline:none;transition:all .2s;}
+.btn{font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;padding:13px 28px;border-radius:var(--r-btn);cursor:pointer;border:none;outline:none;transition:all .2s;}
 .btn-ghost{background:transparent;border:1px solid var(--bd2);color:var(--dim);}
 .btn-ghost:hover{border-color:var(--dim);color:var(--wh);}
 .btn-main{background:var(--acc);color:#111;}
@@ -134,7 +141,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none !important;}
 
 /* SUMMARY */
-.sumblock{background:var(--bg3);border:1px solid var(--bd);border-radius:3px;overflow:hidden;margin-bottom:20px;}
+.sumblock{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r-inp);overflow:hidden;margin-bottom:20px;}
 .sumrow{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:13px 20px;border-bottom:1px solid var(--bd);}
 .sumrow:last-child{border-bottom:none;}
 .sumkey{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);flex-shrink:0;}
@@ -244,9 +251,15 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 <div class="wrap">
 
   <div class="hdr" id="mainHdr">
-    <div class="brand"><span class="bline"></span>SILLEAU Framework<span class="bline"></span></div>
+    <div class="brand">
+      <span class="bline silleau-only"></span>
+      <img class="logo-img" alt="" style="display:none;max-height:48px;max-width:200px;object-fit:contain;">
+      <span class="clinic-name">SILLEAU Framework</span>
+      <span class="bline silleau-only"></span>
+    </div>
     <h1>Programează-ți<br><em>consultația</em></h1>
-    <p class="sub">Completați formularul pentru programarea unei consultații.<br>Confirmarea va ajunge pe adresa dvs. de e-mail.</p>
+    <p class="clinic-slogan" style="display:none;margin-top:10px;font-size:14px;font-style:italic;color:var(--acc);"></p>
+    <p class="sub silleau-only">Completați formularul pentru programarea unei consultații.<br>Confirmarea va ajunge pe adresa dvs. de e-mail.</p>
   </div>
 
   <div class="card">
@@ -1008,9 +1021,15 @@ function applyThemeLive(row){
     document.querySelectorAll('.brand-name, .clinic-name').forEach(function(el){ el.textContent = name; });
   }
   var logoUrl = row.logo_url || t.logo_url;
-  if(logoUrl){
-    var logo = document.querySelector('.logo-img');
-    if(logo) logo.src = logoUrl;
+  var logo = document.querySelector('.logo-img');
+  if(logo){
+    if(logoUrl){ logo.src = logoUrl; logo.style.display = ''; }
+    else { logo.style.display = 'none'; }
+  }
+  var sloganEl = document.querySelector('.clinic-slogan');
+  if(sloganEl){
+    if(row.slogan){ sloganEl.textContent = row.slogan; sloganEl.style.display = ''; }
+    else { sloganEl.style.display = 'none'; }
   }
   if(row.favicon_url){
     var fav = document.querySelector('link[rel="icon"]') || document.createElement('link');
@@ -1018,19 +1037,22 @@ function applyThemeLive(row){
     fav.href = row.favicon_url;
     if(!fav.parentNode) document.head.appendChild(fav);
   }
-  if(t.hide_brand || row.hide_silleau){
-    document.querySelectorAll('.footer, .hdr').forEach(function(el){ el.style.display='none'; });
-  }
+  /* Hide SILLEAU branding — afectează doar elementele .silleau-only + .footer, nu tot header-ul */
+  var hideSilleau = !!(t.hide_brand || row.hide_silleau);
+  document.querySelectorAll('.silleau-only, .footer').forEach(function(el){
+    el.style.display = hideSilleau ? 'none' : '';
+  });
 }
 window.addEventListener('message', function(e){
   if(!e.data || e.data.type !== 'silleau_theme') return;
   applyThemeLive({
-    tema:        e.data.tema || {},
-    nume:        e.data.nome || '',
-    nume_afisat: e.data.nome || '',
-    logo_url:    e.data.logo_url,
-    favicon_url: e.data.favicon_url,
-    hide_silleau:e.data.hide_silleau
+    tema:         e.data.tema || {},
+    nume:         e.data.nome || '',
+    nume_afisat:  e.data.nome || '',
+    slogan:       e.data.slogan || '',
+    logo_url:     e.data.logo_url,
+    favicon_url:  e.data.favicon_url,
+    hide_silleau: e.data.hide_silleau
   });
 });
 try { window.parent.postMessage({ type: 'silleau_ready' }, '*'); } catch(err) {}

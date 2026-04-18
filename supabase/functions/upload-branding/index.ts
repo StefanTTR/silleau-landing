@@ -146,29 +146,35 @@ Deno.serve(async (req) => {
 
   const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}?v=${Date.now()}`
 
-  // Persistă URL-ul în clinic_branding (upsert) și marchează statusul ca pending_approval
+  // Persistă URL-ul în clinic_branding (best-effort). Dacă rândul nu există încă
+  // (clinic care nu a apelat salveaza-tema niciodată), PATCH returnează 0 rânduri
+  // afectate — clientul va persista URL-ul la prima salvare via salveaza-tema.
   const urlColumn = kind === 'logo' ? 'logo_url' : 'favicon_url'
-  const upsertBody: Record<string, unknown> = {
-    clinic_id:    tok.clinic_id,
-    status:       'pending_approval',
-    submitted_at: new Date().toISOString(),
-  }
-  upsertBody[urlColumn] = publicUrl
+  const patchBody: Record<string, unknown> = { status: 'pending_approval', submitted_at: new Date().toISOString() }
+  patchBody[urlColumn] = publicUrl
 
-  const persistRes = await fetch(`${SUPABASE_URL}/rest/v1/clinic_branding`, {
-    method: 'POST',
-    headers: {
-      'apikey':        SERVICE_ROLE_KEY,
-      'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
-      'Content-Type':  'application/json',
-      'Prefer':        'resolution=merge-duplicates,return=minimal',
-    },
-    body: JSON.stringify(upsertBody),
-  })
-  if (!persistRes.ok) {
-    const txt = await persistRes.text()
-    return json({ error: 'persistenta_esuata', details: txt }, 500)
+  let persisted = false
+  try {
+    const patchRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/clinic_branding?clinic_id=eq.${encodeURIComponent(tok.clinic_id)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey':        SERVICE_ROLE_KEY,
+          'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
+          'Content-Type':  'application/json',
+          'Prefer':        'return=minimal',
+        },
+        body: JSON.stringify(patchBody),
+      }
+    )
+    persisted = patchRes.ok
+    if (!persisted) {
+      console.warn('[upload-branding] PATCH failed', patchRes.status, await patchRes.text())
+    }
+  } catch (e) {
+    console.warn('[upload-branding] PATCH exception', e)
   }
 
-  return json({ url: publicUrl, path, kind, size, mime })
+  return json({ url: publicUrl, path, kind, size, mime, persisted })
 })

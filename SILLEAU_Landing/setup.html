@@ -543,6 +543,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height
         <button class="prev-tab active" data-page="form" onclick="switchPage(this)">Formular</button>
         <button class="prev-tab" data-page="confirmare" onclick="switchPage(this)">Confirmare</button>
         <button class="prev-tab" data-page="anulare" onclick="switchPage(this)">Anulare</button>
+        <button class="prev-tab" data-page="confirmloc" onclick="switchPage(this)">Loc confirmat</button>
+        <button class="prev-tab" data-page="accepta" onclick="switchPage(this)">Slot oferit</button>
+        <button class="prev-tab" data-page="refuz" onclick="switchPage(this)">Refuz slot</button>
+        <button class="prev-tab" data-page="feedback" onclick="switchPage(this)">Feedback</button>
         <button class="prev-tab" data-page="mesaj" onclick="switchPage(this)">Mesaj</button>
       </div>
       <div class="device-btns">
@@ -1077,10 +1081,14 @@ var _iframeReady = false
 var _pendingTheme= null
 
 var PREV_URLS = {
-  form:      '/programareclinica.html?preview=1&clinic_id=',
-  confirmare:'/confirmare.html?preview=1&clinic_id=',
-  anulare:   '/anulare.html?preview=1&clinic_id=',
-  mesaj:     '/mesaj.html?tip=slot_mutat&preview=1&clinic_id='
+  form:       '/programareclinica.html?preview=1&clinic_id=',
+  confirmare: '/confirmare.html?preview=1&clinic_id=',
+  anulare:    '/anulare.html?preview=1&clinic_id=',
+  confirmloc: '/confirmare-loc.html?preview=1&clinic_id=',
+  accepta:    '/accepta-slot.html?preview=1&m=Dr.+Ionescu&d=Joi%2C+24+Apr&o=09%3A00&dp=Luni%2C+28+Apr&op=14%3A00&clinic_id=',
+  refuz:      '/refuza-slot.html?preview=1&clinic_id=',
+  feedback:   '/feedback.html?preview=1&status=ok&rating=5&clinic_id=',
+  mesaj:      '/mesaj.html?tip=slot_mutat&preview=1&clinic_id='
 }
 
 function initPreview() {
@@ -1114,6 +1122,7 @@ function buildThemeMsg() {
     type:         'silleau_theme',
     tema:         t,
     nome:         t.nume_afisat,
+    slogan:       _branding.slogan || '',
     logo_url:     _branding.logo_url || null,
     favicon_url:  _branding.favicon_url || null,
     hide_silleau: _branding.hide_silleau || false
@@ -1155,7 +1164,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var inpNome   = document.getElementById('inp-nome')
   var inpSlogan = document.getElementById('inp-slogan')
   if (inpNome)   inpNome.addEventListener('input',   function(){ _branding.nume_afisat = this.value; sendThemeToPreview() })
-  if (inpSlogan) inpSlogan.addEventListener('input',  function(){ _branding.slogan = this.value })
+  if (inpSlogan) inpSlogan.addEventListener('input',  function(){ _branding.slogan = this.value; sendThemeToPreview() })
   // Mail inputs: collect on submit
 })
 
