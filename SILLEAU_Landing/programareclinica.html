@@ -1077,54 +1077,52 @@ try { window.parent.postMessage({ type: 'silleau_ready' }, '*'); } catch(err) {}
    prin ?edit=1 sau postMessage 'silleau_edit_mode'. Pe mobil (<640px)
    se ignoră complet — fallback la fluxul default.
 ──────────────────────────────────────────────────────────────────*/
+/* Target `.brand` ca întreg wrapper (logo + linii decorative + nume clinică se mută împreună).
+   Logo-ul are target propriu pentru resize individual, dar dragul se face la nivelul .brand. */
 var _layoutTargets = {
   'logo':          '.logo-img',
-  'clinic-name':   '.clinic-name',
+  'brand':         '.brand',
   'clinic-slogan': '.clinic-slogan',
   'main-title':    '.main-title',
   'sub':           '.sub'
 };
 var _layoutEditMode = false;
 var _currentLayout  = {};
+var _dragListeners  = []; /* ca să-i pot înlătura curat la disable */
 
 function isMobileLayout(){ return window.matchMedia('(max-width: 640px)').matches; }
 
+/* STRATEGIE: folosim doar `transform: translate(x, y)` — elementele rămân în flow,
+   translate NU declanșează reflow, nu sare nimic. Translate(0,0) = poziție identică
+   cu default. User trage → translate crește. Salvăm valorile translate în layout. */
 function applyLayout(layout){
   _currentLayout = layout || {};
-  if(isMobileLayout()) return; /* Pe mobil folosim layout-ul default */
-  if(!layout || Object.keys(layout).length === 0) return;
-  var hdr = document.querySelector('.hdr');
-  if(!hdr) return;
-  hdr.style.position = 'relative';
-  var maxY = 0;
+  if(isMobileLayout()){
+    /* Pe mobil: curăță orice transform aplicat */
+    Object.keys(_layoutTargets).forEach(function(key){
+      var el = document.querySelector(_layoutTargets[key]);
+      if(el){ el.style.transform = ''; el.style.width = ''; el.style.height = ''; }
+    });
+    return;
+  }
   Object.keys(_layoutTargets).forEach(function(key){
     var el = document.querySelector(_layoutTargets[key]);
-    var pos = layout[key];
-    if(!el || !pos) return;
-    el.style.position = 'absolute';
-    el.style.left = '0';
-    el.style.top = '0';
-    el.style.margin = '0';
+    var pos = _currentLayout[key];
+    if(!el) return;
+    if(!pos){ el.style.transform = ''; return; }
     el.style.transform = 'translate(' + (pos.x || 0) + 'px,' + (pos.y || 0) + 'px)';
-    if(pos.w) el.style.width  = pos.w + 'px';
-    if(pos.h) el.style.height = pos.h + 'px';
-    var h = (pos.h || el.offsetHeight || 40);
-    if((pos.y || 0) + h > maxY) maxY = (pos.y || 0) + h;
+    if(key === 'logo'){
+      if(pos.w) el.style.width  = pos.w + 'px';
+      if(pos.h) el.style.height = pos.h + 'px';
+    }
   });
-  if(maxY > 0) hdr.style.minHeight = (maxY + 24) + 'px';
 }
 
 function resetLayout(){
   _currentLayout = {};
-  var hdr = document.querySelector('.hdr');
-  if(hdr){ hdr.style.position = ''; hdr.style.minHeight = ''; }
   Object.keys(_layoutTargets).forEach(function(key){
     var el = document.querySelector(_layoutTargets[key]);
     if(!el) return;
-    el.style.position = '';
-    el.style.left = '';
-    el.style.top = '';
-    el.style.margin = '';
     el.style.transform = '';
     el.style.width = '';
     el.style.height = '';
@@ -1144,11 +1142,12 @@ function _emitLayout(){
   try { window.parent.postMessage({ type: 'silleau_layout_change', layout: _currentLayout }, '*'); } catch(e){}
 }
 
-function _makeDraggable(el, key, hdr){
+function _makeDraggable(el, key){
   el.style.cursor = 'move';
   el.style.outline = '1px dashed rgba(232,228,220,.5)';
   el.style.outlineOffset = '2px';
-  el.addEventListener('mousedown', function(ev){
+  function onDown(ev){
+    /* Nu capta dragul dacă user apasă pe handle de resize */
     if(ev.target.classList && ev.target.classList.contains('layout-resize-handle')) return;
     ev.preventDefault();
     var start = _readTransform(el);
@@ -1157,6 +1156,7 @@ function _makeDraggable(el, key, hdr){
       var nx = start.x + (e.clientX - sx);
       var ny = start.y + (e.clientY - sy);
       el.style.transform = 'translate(' + nx + 'px,' + ny + 'px)';
+      if(el._resizeHandle) _positionResizeHandle(el, el._resizeHandle);
     }
     function up(){
       document.removeEventListener('mousemove', move);
@@ -1167,29 +1167,44 @@ function _makeDraggable(el, key, hdr){
     }
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
-  });
+  }
+  el.addEventListener('mousedown', onDown);
+  _dragListeners.push({ el: el, fn: onDown });
+}
+
+function _positionResizeHandle(el, handle){
+  var hdr = document.querySelector('.hdr');
+  var r = el.getBoundingClientRect();
+  var hr = hdr.getBoundingClientRect();
+  handle.style.left = (r.right - hr.left - 7) + 'px';
+  handle.style.top  = (r.bottom - hr.top  - 7) + 'px';
 }
 
 function _makeResizable(el, key){
-  /* Colț dreapta-jos pentru resize proporțional */
+  var hdr = document.querySelector('.hdr');
+  if(!hdr) return;
+  /* Handle ca sibling în .hdr (imgs nu pot avea copii in DOM) */
   var h = document.createElement('div');
   h.className = 'layout-resize-handle';
-  h.style.cssText = 'position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:var(--acc);border:1px solid #111;border-radius:50%;cursor:nwse-resize;z-index:10;';
-  el.style.position = 'absolute';
-  /* Plasăm handle ca sibling absolut — dar e mai simplu ca child */
-  el.appendChild(h);
+  h.style.cssText = 'position:absolute;width:14px;height:14px;background:var(--acc);border:2px solid #111;border-radius:50%;cursor:nwse-resize;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.3);';
+  hdr.style.position = 'relative'; /* necesar ca handle să se poziționeze relativ la .hdr */
+  hdr.appendChild(h);
+  _positionResizeHandle(el, h);
+  el._resizeHandle = h;
+
   h.addEventListener('mousedown', function(ev){
     ev.preventDefault(); ev.stopPropagation();
     var rect = el.getBoundingClientRect();
     var startW = rect.width, startH = rect.height;
     var ratio = startW / Math.max(startH, 1);
-    var sx = ev.clientX, sy = ev.clientY;
+    var sx = ev.clientX;
     function move(e){
       var dw = (e.clientX - sx);
-      var nw = Math.max(24, startW + dw);
+      var nw = Math.max(32, startW + dw);
       var nh = nw / ratio;
       el.style.width  = nw + 'px';
       el.style.height = nh + 'px';
+      _positionResizeHandle(el, h);
     }
     function up(){
       document.removeEventListener('mousemove', move);
@@ -1208,70 +1223,30 @@ function _makeResizable(el, key){
 function enableLayoutEditor(){
   if(isMobileLayout()) return;
   _layoutEditMode = true;
-  var hdr = document.querySelector('.hdr');
-  if(!hdr) return;
-
-  /* PAS 1 — capturează pozițiile default (flow normal) ale fiecărui element
-     relativ la .hdr, ÎNAINTE să modificăm vreun style. */
-  var hdrRect = hdr.getBoundingClientRect();
-  var defaults = {};
+  /* Aplicăm layout-ul curent dacă există (ca să păstrăm pozițiile editate anterior) */
+  applyLayout(_currentLayout);
   Object.keys(_layoutTargets).forEach(function(key){
     var el = document.querySelector(_layoutTargets[key]);
     if(!el) return;
-    /* Dacă elementul e ascuns (ex: slogan fără text), îl skip-uim */
-    if(el.offsetParent === null && getComputedStyle(el).display === 'none') return;
-    var rect = el.getBoundingClientRect();
-    if(rect.width === 0 && rect.height === 0) return;
-    defaults[key] = {
-      x: rect.left - hdrRect.left,
-      y: rect.top  - hdrRect.top,
-      w: rect.width,
-      h: rect.height
-    };
-  });
-
-  /* PAS 2 — setează containerul ca relative, apoi aplică poziționare absolută
-     folosind fie layout-ul salvat, fie defaults captate la pasul 1. */
-  hdr.style.position = 'relative';
-  hdr.style.minHeight = Math.max(hdrRect.height, 320) + 'px';
-
-  Object.keys(defaults).forEach(function(key){
-    var el = document.querySelector(_layoutTargets[key]);
-    if(!el) return;
-    var cur = _currentLayout[key];
-    var def = defaults[key];
-    var x = (cur && cur.x !== undefined) ? cur.x : def.x;
-    var y = (cur && cur.y !== undefined) ? cur.y : def.y;
-
-    el.style.position  = 'absolute';
-    el.style.left      = '0';
-    el.style.top       = '0';
-    el.style.margin    = '0';
-    el.style.transform = 'translate(' + x + 'px,' + y + 'px)';
-    if(cur && cur.w) el.style.width  = cur.w + 'px';
-    if(cur && cur.h) el.style.height = cur.h + 'px';
-
-    _makeDraggable(el, key, hdr);
+    /* Skip elementele ascunse */
+    var cs = getComputedStyle(el);
+    if(cs.display === 'none' || el.offsetParent === null) return;
+    _makeDraggable(el, key);
     if(key === 'logo') _makeResizable(el, key);
-
-    /* Seed _currentLayout cu defaults dacă nu exista, ca la prima mutare
-       să avem poziția de start corectă. */
-    if(!cur){
-      _currentLayout[key] = { x: Math.round(x), y: Math.round(y) };
-    }
   });
 }
 
 function disableLayoutEditor(){
   _layoutEditMode = false;
+  /* Înlătură listener-ele de drag */
+  _dragListeners.forEach(function(L){ L.el.removeEventListener('mousedown', L.fn); });
+  _dragListeners = [];
   Object.keys(_layoutTargets).forEach(function(key){
     var el = document.querySelector(_layoutTargets[key]);
     if(!el) return;
     el.style.outline = '';
     el.style.cursor = '';
-    /* Înlătură handler-ele prin clonare (tehnica standard pentru reset) */
-    var clone = el.cloneNode(true);
-    el.parentNode.replaceChild(clone, el);
+    el._resizeHandle = null;
   });
   document.querySelectorAll('.layout-resize-handle').forEach(function(h){ h.remove(); });
 }
