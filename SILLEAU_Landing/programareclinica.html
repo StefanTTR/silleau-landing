@@ -1163,7 +1163,7 @@ function _makeDraggable(el, key){
       var nx = start.x + (e.clientX - sx);
       var ny = start.y + (e.clientY - sy);
       el.style.transform = 'translate(' + nx + 'px,' + ny + 'px)';
-      if(el._resizeHandle) _positionResizeHandle(el, el._resizeHandle);
+      if(el._resizeHandle) _positionResizeHandle(el._handleRef || el, el._resizeHandle);
     }
     function up(){
       document.removeEventListener('mousemove', move);
@@ -1179,9 +1179,9 @@ function _makeDraggable(el, key){
   _dragListeners.push({ el: el, fn: onDown });
 }
 
-function _positionResizeHandle(el, handle){
+function _positionResizeHandle(refEl, handle){
   var hdr = document.querySelector('.hdr');
-  var r = el.getBoundingClientRect();
+  var r = refEl.getBoundingClientRect();
   var hr = hdr.getBoundingClientRect();
   handle.style.left = (r.right - hr.left - 7) + 'px';
   handle.style.top  = (r.bottom - hr.top  - 7) + 'px';
@@ -1191,13 +1191,17 @@ function _makeResizable(el, key){
   var hdr = document.querySelector('.hdr');
   if(!hdr) return;
   var isImage = el.tagName === 'IMG';
+  /* Pentru .brand (logo + linii decorative + nume), handle-ul se aliniază la textul intern
+     (.clinic-name), nu la întregul wrapper care include blines. */
+  var refEl = (key === 'brand') ? (el.querySelector('.clinic-name') || el) : el;
+  el._handleRef = refEl;
   /* Handle ca sibling în .hdr (imgs nu pot avea copii in DOM) */
   var h = document.createElement('div');
   h.className = 'layout-resize-handle';
   h.style.cssText = 'position:absolute;width:14px;height:14px;background:var(--acc);border:2px solid #111;border-radius:50%;cursor:nwse-resize;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.3);';
   hdr.style.position = 'relative'; /* necesar ca handle să se poziționeze relativ la .hdr */
   hdr.appendChild(h);
-  _positionResizeHandle(el, h);
+  _positionResizeHandle(refEl, h);
   el._resizeHandle = h;
 
   h.addEventListener('mousedown', function(ev){
@@ -1221,7 +1225,7 @@ function _makeResizable(el, key){
         var scale = Math.max(0.4, (startW + dw) / startW);
         el.style.fontSize = (startFontSize * scale) + 'px';
       }
-      _positionResizeHandle(el, h);
+      _positionResizeHandle(refEl, h);
     }
     function up(){
       document.removeEventListener('mousemove', move);
