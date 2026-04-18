@@ -202,6 +202,20 @@ input[type="color"]{display:none;}
 }
 .logo-preview img{max-height:40px;max-width:100%;object-fit:contain;}
 .logo-none{font-size:11px;color:var(--mut);font-style:italic;}
+.drop-zone{
+  margin-top:10px;padding:16px;background:var(--bg3);border:1px dashed var(--bd2);
+  border-radius:3px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;
+}
+.drop-zone:hover{border-color:var(--acc);}
+.drop-zone.drag-over{border-color:var(--acc);background:#141414;}
+.drop-zone.uploading{opacity:.6;cursor:wait;}
+.drop-preview{min-height:40px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
+.drop-preview img{max-height:48px;max-width:160px;object-fit:contain;}
+.drop-preview img.fav-preview{max-height:24px;max-width:24px;image-rendering:-webkit-optimize-contrast;}
+.drop-placeholder{font-size:11px;color:var(--mut);letter-spacing:.04em;}
+.drop-meta{font-size:10px;color:var(--mut);min-height:12px;line-height:1.3;margin-top:4px;}
+.drop-meta.err{color:var(--err);}
+.drop-meta.ok{color:var(--ok);}
 
 /* ── PREVIEW PANEL ── */
 .preview{flex:1;display:flex;flex-direction:column;background:#1A1A1A;overflow:hidden;}
@@ -761,19 +775,41 @@ function buildBranding(){
     +'</div>'
     +'<div class="field">'
     +'<div class="field-label">Nume afisat în pagini</div>'
-    +'<input type="text" class="text-input" id="inpNome" placeholder="'+(_clinicData.clinic_name||'')+'" value="'+(_tema.nome_afisat||'')+'">'
+    +'<input type="text" class="text-input" id="inpNome" placeholder="'+(_clinicData.clinic_name||'')+'" value="'+(_tema.nume_afisat||'')+'">'
     +'</div>'
     +'<div class="field">'
-    +'<div class="field-label">Logo <span class="field-hint">setat de SILLEAU</span></div>'
-    +'<div class="logo-preview">'
-    +(_tema.logo_url
-      ? '<img src="'+_tema.logo_url+'" alt="Logo">'
-      : '<div class="logo-none">Logo nesetat — contactați SILLEAU</div>')
+    +'<div class="field-label">Logo <span class="field-hint">PNG, JPG, SVG sau WebP · max 2 MB</span></div>'
+    +'<div id="logoDrop" class="drop-zone"'
+      +' onclick="document.getElementById(\'logoFile\').click()"'
+      +' ondragover="dropOver(event,this)" ondragleave="dropLeave(event,this)"'
+      +' ondrop="dropHandle(event,this,\'logo\')">'
+      +'<div id="logoPreview" class="drop-preview">'
+      +(_tema.logo_url
+        ? '<img src="'+_tema.logo_url+'" alt="logo">'
+        : '<span class="drop-placeholder">Trage logo-ul aici sau click pentru a selecta</span>')
+      +'</div>'
+      +'<div class="drop-meta" id="logoMeta"></div>'
+      +'<input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none;" onchange="filePicked(this,\'logo\')">'
+    +'</div>'
+    +'</div>'
+    +'<div class="field">'
+    +'<div class="field-label">Favicon <span class="field-hint">ICO sau PNG pătrat · max 128 KB</span></div>'
+    +'<div id="faviconDrop" class="drop-zone"'
+      +' onclick="document.getElementById(\'faviconFile\').click()"'
+      +' ondragover="dropOver(event,this)" ondragleave="dropLeave(event,this)"'
+      +' ondrop="dropHandle(event,this,\'favicon\')">'
+      +'<div id="faviconPreview" class="drop-preview">'
+      +(_tema.favicon_url
+        ? '<img class="fav-preview" src="'+_tema.favicon_url+'" alt="favicon">'
+        : '<span class="drop-placeholder">Trage favicon-ul aici sau click pentru a selecta</span>')
+      +'</div>'
+      +'<div class="drop-meta" id="faviconMeta"></div>'
+      +'<input type="file" id="faviconFile" accept="image/png,image/x-icon,image/vnd.microsoft.icon" style="display:none;" onchange="filePicked(this,\'favicon\')">'
     +'</div>'
     +'</div>'
 
   document.getElementById('inpNome').addEventListener('input', function(){
-    _tema.nome_afisat = this.value || undefined
+    _tema.nume_afisat = this.value || undefined
     sendPreview()
   })
 }
@@ -826,6 +862,110 @@ function switchPage(pageId){
 }
 
 /* ── SUBMIT ── */
+/* ── Upload logo + favicon ── */
+var UPLOAD_LIMITS = {
+  logo:    { max: 2 * 1024 * 1024, accepts: ['image/png','image/jpeg','image/svg+xml','image/webp'] },
+  favicon: { max: 128 * 1024,      accepts: ['image/png','image/x-icon','image/vnd.microsoft.icon'] }
+}
+var UPLOAD_ERR = {
+  token_lipsa:        'Link invalid. Reîncarcă pagina.',
+  token_invalid:      'Link invalid.',
+  token_folosit:      'Link deja folosit.',
+  token_invalidat:    'Link înlocuit.',
+  token_expirat:      'Link expirat.',
+  multipart_invalid:  'Fișier invalid.',
+  kind_invalid:       'Tip fișier necunoscut.',
+  file_lipsa:         'Nu a fost primit niciun fișier.',
+  tip_invalid_logo:   'Logo-ul trebuie să fie PNG, JPG, SVG sau WebP.',
+  tip_invalid_favicon:'Favicon-ul trebuie să fie ICO sau PNG.',
+  fisier_prea_mare:   'Fișier prea mare.',
+  upload_esuat:       'Upload eșuat. Reîncearcă.',
+  persistenta_esuata: 'Salvarea în baza de date a eșuat.'
+}
+function dropOver(ev, zone){ ev.preventDefault(); zone.classList.add('drag-over') }
+function dropLeave(ev, zone){ ev.preventDefault(); zone.classList.remove('drag-over') }
+function dropHandle(ev, zone, kind){
+  ev.preventDefault(); zone.classList.remove('drag-over')
+  if(!ev.dataTransfer || !ev.dataTransfer.files || !ev.dataTransfer.files[0]) return
+  uploadBrandingFile(ev.dataTransfer.files[0], kind)
+}
+function filePicked(input, kind){
+  if(!input.files || !input.files[0]) return
+  uploadBrandingFile(input.files[0], kind)
+  input.value = ''
+}
+function setMeta(kind, msg, cls){
+  var el = document.getElementById(kind + 'Meta')
+  if(!el) return
+  el.textContent = msg || ''
+  el.className = 'drop-meta' + (cls ? ' ' + cls : '')
+}
+function renderLogoPreview(url){
+  document.getElementById('logoPreview').innerHTML = '<img src="'+url+'" alt="logo">'
+}
+function renderFaviconPreview(url){
+  document.getElementById('faviconPreview').innerHTML = '<img class="fav-preview" src="'+url+'" alt="favicon">'
+}
+function uploadBrandingFile(file, kind){
+  var lim = UPLOAD_LIMITS[kind]
+  if(!lim) return
+  if(lim.accepts.indexOf(file.type) === -1){
+    setMeta(kind, UPLOAD_ERR['tip_invalid_' + kind] || 'Tip fișier invalid.', 'err'); return
+  }
+  if(file.size > lim.max){
+    var mb = (lim.max / 1024 / 1024).toFixed(1).replace(/\.0$/, '')
+    var kb = Math.round(lim.max / 1024)
+    setMeta(kind, 'Fișier prea mare (max ' + (lim.max >= 1024*1024 ? mb + ' MB' : kb + ' KB') + ').', 'err'); return
+  }
+  if(kind === 'favicon' && file.type === 'image/png'){
+    var urlObj = URL.createObjectURL(file)
+    var img = new Image()
+    img.onload = function(){
+      URL.revokeObjectURL(urlObj)
+      if(img.naturalWidth !== img.naturalHeight || img.naturalWidth === 0){
+        setMeta('favicon', 'Favicon-ul trebuie să fie pătrat (ex: 32×32).', 'err')
+      } else doUpload(file, kind)
+    }
+    img.onerror = function(){ URL.revokeObjectURL(urlObj); doUpload(file, kind) }
+    img.src = urlObj
+    return
+  }
+  doUpload(file, kind)
+}
+function doUpload(file, kind){
+  var zone = document.getElementById(kind + 'Drop')
+  zone.classList.add('uploading')
+  setMeta(kind, 'Se încarcă…', '')
+
+  var fd = new FormData()
+  fd.append('t', _token)
+  fd.append('kind', kind)
+  fd.append('file', file, file.name)
+
+  fetch(FN_BASE + '/upload-branding', { method:'POST', body: fd })
+    .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d } }) })
+    .then(function(res){
+      zone.classList.remove('uploading')
+      if(!res.ok || res.d.error){
+        var msg = UPLOAD_ERR[res.d.error] || res.d.error || 'Eroare necunoscută.'
+        setMeta(kind, msg, 'err'); return
+      }
+      if(kind === 'logo'){
+        _tema.logo_url = res.d.url
+        renderLogoPreview(res.d.url)
+      } else {
+        _tema.favicon_url = res.d.url
+        renderFaviconPreview(res.d.url)
+      }
+      setMeta(kind, '✓ Încărcat', 'ok')
+      sendPreview()
+    })
+    .catch(function(){
+      zone.classList.remove('uploading')
+      setMeta(kind, 'Eroare conexiune.', 'err')
+    })
+}
+
 function submitTema(){
   var btn = document.getElementById('btnSave')
   btn.disabled    = true

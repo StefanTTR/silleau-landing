@@ -32,7 +32,7 @@ const ALLOWED_RESOURCES = new Set([
   'programare_info',     // GET status+confirmat_reminder+motiv_anulare+a_fost_reprogramat by id
   'slot_oferta',         // GET slot_oferte by id
   'programare_cur',      // GET data_programare, ora_start by id
-  'clinic_theme',        // GET tema + nume_afisat din clinici by clinic_id
+  'clinic_theme',        // GET tema + nume_afisat + logo_url + favicon_url din clinic_branding (status=approved) by clinic_id
 ])
 
 Deno.serve(async (req) => {
@@ -181,18 +181,53 @@ Deno.serve(async (req) => {
           + '&select=data_programare,ora_start'
         break
 
-      case 'clinic_theme':
+      case 'clinic_theme': {
         if (!clinicId) {
           return new Response(JSON.stringify({ error: 'clinic_id lipsa' }), {
             status: 400,
             headers: { ...CORS, 'Content-Type': 'application/json' },
           })
         }
-        restUrl = SUPABASE_URL
+        const brandingUrl = SUPABASE_URL
+          + '/rest/v1/clinic_branding'
+          + '?clinic_id=eq.' + encodeURIComponent(clinicId)
+          + '&status=eq.approved'
+          + '&select=tema,nume_afisat,slogan,logo_url,favicon_url,hide_silleau,silleau_opacity'
+        const clinicUrl = SUPABASE_URL
           + '/rest/v1/clinici'
           + '?id=eq.' + encodeURIComponent(clinicId)
-          + '&select=tema,nume'
-        break
+          + '&select=nume'
+
+        const [bRes, cRes] = await Promise.all([
+          fetch(brandingUrl, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
+          fetch(clinicUrl,   { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }),
+        ])
+        if (!cRes.ok) {
+          const err = await cRes.json().catch(() => ({}))
+          return new Response(JSON.stringify({ error: 'eroare baza de date', details: err }), {
+            status: cRes.status,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          })
+        }
+        const bRows = bRes.ok ? await bRes.json() : []
+        const cRows = await cRes.json()
+        const b = Array.isArray(bRows) ? bRows[0] : null
+        const c = Array.isArray(cRows) ? cRows[0] : null
+        const merged = {
+          tema:            b?.tema || {},
+          nume:            c?.nume || null,
+          nume_afisat:     b?.nume_afisat || null,
+          slogan:          b?.slogan || null,
+          logo_url:        b?.logo_url || null,
+          favicon_url:     b?.favicon_url || null,
+          hide_silleau:    !!b?.hide_silleau,
+          silleau_opacity: b?.silleau_opacity ?? 1,
+        }
+        return new Response(JSON.stringify([merged]), {
+          status: 200,
+          headers: { ...CORS, 'Content-Type': 'application/json' },
+        })
+      }
 
       default:
         return new Response(JSON.stringify({ error: 'resource necunoscut' }), {

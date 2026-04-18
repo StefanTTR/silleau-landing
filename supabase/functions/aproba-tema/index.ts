@@ -20,40 +20,46 @@ Deno.serve(async (req) => {
 
   if (!clinicId || !approvalToken) return json({ error: 'Parametri lipsă' }, 400)
 
+  // Citim clinic_branding
+  const brandingRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/clinic_branding?clinic_id=eq.${encodeURIComponent(clinicId)}&select=*`,
+    { headers: SB }
+  )
+  const brandings = await brandingRes.json()
+  const branding  = Array.isArray(brandings) ? brandings[0] : null
+
+  if (!branding)                                     return json({ error: 'Nicio aprobare în așteptare' }, 404)
+  if (branding.status !== 'pending_approval')        return json({ error: 'Status invalid' }, 400)
+  if (branding.approval_token !== approvalToken)     return json({ error: 'Token aprobare invalid' }, 403)
+
+  // Info clinică
   const clinicRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/clinici?id=eq.${encodeURIComponent(clinicId)}&select=id,nume,email,plan,tema_draft,approval_token,modificari_luna,reset_modificari_date`,
+    `${SUPABASE_URL}/rest/v1/clinici?id=eq.${encodeURIComponent(clinicId)}&select=id,nume,email,plan`,
     { headers: SB }
   )
   const clinics = await clinicRes.json()
   const clinic  = Array.isArray(clinics) ? clinics[0] : null
-
-  if (!clinic)                                         return json({ error: 'Clinica negăsită' }, 404)
-  if (!clinic.approval_token)                          return json({ error: 'Nicio aprobare în așteptare' }, 400)
-  if (clinic.approval_token !== approvalToken)         return json({ error: 'Token aprobare invalid' }, 403)
-  if (!clinic.tema_draft)                              return json({ error: 'Draft lipsă' }, 400)
+  if (!clinic) return json({ error: 'Clinica negăsită' }, 404)
 
   // Reset counter dacă e altă lună
   const thisMonth  = new Date().toISOString().slice(0, 7)
-  const resetMonth = clinic.reset_modificari_date ? clinic.reset_modificari_date.slice(0, 7) : null
-  const modCurent  = resetMonth === thisMonth ? (clinic.modificari_luna || 0) : 0
+  const resetMonth = branding.reset_modificari_date ? branding.reset_modificari_date.slice(0, 7) : null
+  const modCurent  = resetMonth === thisMonth ? (branding.modificari_luna || 0) : 0
 
-  // Aplică draft-ul ca temă activă
-  await fetch(`${SUPABASE_URL}/rest/v1/clinici?id=eq.${encodeURIComponent(clinicId)}`, {
+  // Actualizează clinic_branding — status approved + increment modificări
+  await fetch(`${SUPABASE_URL}/rest/v1/clinic_branding?clinic_id=eq.${encodeURIComponent(clinicId)}`, {
     method:  'PATCH',
     headers: SB_PATCH,
     body:    JSON.stringify({
-      tema:                   clinic.tema_draft,
-      tema_draft:             null,
-      approval_token:         null,
-      modificari_luna:        modCurent + 1,
-      reset_modificari_date:  new Date().toISOString().slice(0, 10),
+      status:                'approved',
+      approval_token:        null,
+      approved_at:           new Date().toISOString(),
+      modificari_luna:       modCurent + 1,
+      reset_modificari_date: new Date().toISOString().slice(0, 10),
     }),
   })
 
-  // Șterge cache localStorage din browser-ul clinicii la următoarea vizită
-  // (se face automat — fetch-ul fresh va returna tema nouă)
-
-  // Email confirmare clinică (dacă are email)
+  // Email confirmare clinică
   if (clinic.email) {
     await fetch('https://api.resend.com/emails', {
       method:  'POST',

@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Configurator — SILLEAU</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#0A0A0A;--bg2:#111;--bd:#2A2A2A;--bd2:#333;--acc:#E8E4DC;--txt:#F0EDE8;--dim:#888;--mut:#555;--wh:#FAFAF8;--ok:#6A9E6A;--err:#C45C5C;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+/* ── SCREENS ─────────────────────────────────────── */
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:100;}
+.screen.gone{display:none;}
+.load-dot{display:flex;gap:6px;margin-top:20px;}
+.load-dot span{width:6px;height:6px;border-radius:50%;background:var(--bd2);animation:ldot 1.2s infinite;}
+.load-dot span:nth-child(2){animation-delay:.2s;}
+.load-dot span:nth-child(3){animation-delay:.4s;}
+@keyframes ldot{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.err-card{text-align:center;max-width:400px;padding:48px 32px;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;}
+.err-icon{font-size:28px;margin-bottom:16px;}
+.err-title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--wh);margin-bottom:8px;}
+.err-sub{font-size:13px;color:var(--mut);line-height:1.6;}
+
+/* ── LAYOUT ─────────────────────────────────────── */
+#app{display:none;height:100vh;overflow:hidden;}
+#app.on{display:flex;}
+
+.sidebar{width:200px;flex-shrink:0;background:#0D0D0D;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden;}
+.controls{width:380px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden;}
+.preview{flex:1;background:#181818;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── SIDEBAR ─────────────────────────────────────── */
+.sb-top{padding:20px 16px 16px;border-bottom:1px solid var(--bd);}
+.sb-brand{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);margin-bottom:12px;}
+.sb-clinic{font-size:14px;font-weight:400;color:var(--wh);line-height:1.3;margin-bottom:8px;word-break:break-word;}
+.plan-badge{display:inline-flex;align-items:center;gap:4px;font-size:8px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:3px 8px;border-radius:2px;border:1px solid var(--bd2);color:var(--dim);}
+.plan-badge.brand{border-color:#5A8C5A44;color:#5A8C5A;background:#5A8C5A11;}
+.plan-badge.premium{border-color:#8C7A5A44;color:#C8A96E;background:#8C7A5A11;}
+.plan-badge.white{border-color:#E8E4DC44;color:#E8E4DC;background:#E8E4DC11;}
+
+.sb-nav{flex:1;padding:12px 8px;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:3px;cursor:pointer;font-size:12px;color:var(--mut);transition:all .15s;position:relative;margin-bottom:2px;}
+.nav-item:hover{background:#1A1A1A;color:var(--dim);}
+.nav-item.active{background:#1E1E1E;color:var(--acc);}
+.nav-item .nav-lock{margin-left:auto;font-size:10px;color:#3A3A3A;}
+.nav-item.locked{cursor:default;}
+.nav-item.locked:hover{background:transparent;color:var(--mut);}
+
+.sb-footer{padding:16px;border-top:1px solid var(--bd);}
+.mod-counter{font-size:10px;color:var(--mut);margin-bottom:12px;display:none;}
+.mod-counter strong{color:var(--acc);}
+.mod-counter.warn strong{color:var(--err);}
+.btn-submit{width:100%;padding:12px;background:var(--acc);color:#111;border:none;border-radius:3px;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:opacity .2s;}
+.btn-submit:hover{opacity:.85;}
+.btn-submit:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── CONTROLS ─────────────────────────────────────── */
+.ctrl-header{padding:20px 24px 16px;border-bottom:1px solid var(--bd);flex-shrink:0;}
+.ctrl-title{font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--acc);margin-bottom:4px;}
+.ctrl-desc{font-size:11px;color:var(--mut);line-height:1.5;}
+.ctrl-body{flex:1;overflow-y:auto;padding:20px 24px;}
+
+/* ── FORM ELEMENTS ─────────────────────────────────── */
+.fgrp{margin-bottom:20px;}
+.fgrp label{display:block;font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:7px;}
+.fgrp input[type=text],.fgrp input[type=url],.fgrp textarea{width:100%;background:#0D0D0D;border:1px solid var(--bd2);border-radius:3px;padding:10px 12px;color:var(--wh);font-family:'Inter',sans-serif;font-size:13px;font-weight:300;outline:none;transition:border-color .2s;}
+.fgrp input:focus,.fgrp textarea:focus{border-color:var(--acc);}
+.fgrp textarea{resize:vertical;min-height:80px;line-height:1.5;}
+.fgrp .hint{font-size:10px;color:var(--mut);margin-top:5px;line-height:1.4;}
+.drop-zone{background:#0D0D0D;border:1px dashed var(--bd2);border-radius:3px;padding:18px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
+.drop-zone:hover{border-color:var(--acc);}
+.drop-zone.drag-over{border-color:var(--acc);background:#141414;}
+.drop-zone.uploading{opacity:.6;cursor:wait;}
+.drop-preview{min-height:48px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
+.drop-preview img{max-height:64px;max-width:180px;object-fit:contain;}
+.drop-preview img.fav-preview{max-height:32px;max-width:32px;image-rendering:-webkit-optimize-contrast;}
+.drop-placeholder{font-size:11px;color:var(--mut);letter-spacing:.04em;}
+.drop-meta{font-size:10px;color:var(--mut);min-height:12px;line-height:1.3;}
+.drop-meta.err{color:var(--err);}
+.drop-meta.ok{color:var(--ok);}
+
+/* Color pickers */
+.color-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.color-item label{display:block;font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin-bottom:6px;}
+.color-pick{display:flex;align-items:center;gap:8px;background:#0D0D0D;border:1px solid var(--bd2);border-radius:3px;padding:6px 10px;cursor:pointer;transition:border-color .2s;}
+.color-pick:hover{border-color:var(--bd2);}
+.color-swatch{width:24px;height:24px;border-radius:2px;flex-shrink:0;border:1px solid rgba(255,255,255,.1);}
+.color-hex{font-size:12px;font-family:monospace;color:var(--dim);flex:1;}
+.color-pick input[type=color]{position:absolute;opacity:0;width:0;height:0;}
+
+/* Font selects */
+.fgrp select{width:100%;background:#0D0D0D;border:1px solid var(--bd2);border-radius:3px;padding:10px 12px;color:var(--wh);font-family:'Inter',sans-serif;font-size:13px;outline:none;appearance:none;cursor:pointer;transition:border-color .2s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+.fgrp select:focus{border-color:var(--acc);}
+
+/* Toggles */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--bd);}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-label{font-size:12px;color:var(--dim);}
+.toggle-sub{font-size:10px;color:var(--mut);margin-top:2px;}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-track{position:absolute;inset:0;background:#1A1A1A;border:1px solid var(--bd2);border-radius:10px;cursor:pointer;transition:all .2s;}
+.toggle input:checked + .toggle-track{background:var(--ok);border-color:var(--ok);}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;background:var(--mut);border-radius:50%;transition:transform .2s,background .2s;}
+.toggle input:checked ~ .toggle-thumb,.toggle input:checked + .toggle-track + .toggle-thumb{background:#fff;}
+.toggle input:checked + .toggle-track ~ .toggle-thumb{background:#fff;}
+
+/* Slider */
+.slider-wrap{margin-top:8px;}
+.slider-wrap input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;background:var(--bd2);border-radius:2px;outline:none;cursor:pointer;}
+.slider-wrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--acc);cursor:pointer;}
+.slider-val{font-size:11px;color:var(--dim);margin-top:6px;text-align:right;}
+
+/* Radio groups */
+.radio-grid{display:flex;gap:8px;flex-wrap:wrap;}
+.radio-opt{padding:8px 14px;border:1px solid var(--bd2);border-radius:3px;font-size:11px;color:var(--mut);cursor:pointer;transition:all .15s;}
+.radio-opt:hover{border-color:var(--dim);color:var(--wh);}
+.radio-opt.active{border-color:var(--acc);color:var(--acc);background:#E8E4DC0A;}
+
+/* Section separator */
+.sec-sep{font-size:9px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#2A2A2A;margin:24px 0 12px;padding-top:24px;border-top:1px solid #1A1A1A;}
+
+/* Mail tabs */
+.mail-tabs{display:flex;gap:4px;margin-bottom:16px;}
+.mail-tab{padding:7px 14px;border:1px solid var(--bd);border-radius:3px;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);cursor:pointer;transition:all .15s;}
+.mail-tab.active{border-color:var(--acc);color:var(--acc);}
+.mail-section{display:none;}
+.mail-section.on{display:block;}
+
+/* Email preview */
+.email-preview{background:#F5F5F5;border-radius:4px;padding:24px;margin-top:16px;font-family:'Inter',sans-serif;font-size:13px;color:#333;line-height:1.6;}
+.email-preview h3{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#999;margin-bottom:12px;}
+.ep-from{font-size:11px;color:#888;margin-bottom:4px;}
+.ep-subject{font-size:14px;font-weight:500;color:#111;margin-bottom:12px;}
+.ep-body{background:#fff;border-radius:3px;padding:20px;border:1px solid #E5E5E5;}
+
+/* Lock overlay */
+.lock-overlay{position:absolute;inset:0;background:rgba(10,10,10,.85);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;z-index:10;border-radius:3px;}
+.lock-icon{font-size:24px;margin-bottom:12px;}
+.lock-title{font-size:14px;color:var(--wh);margin-bottom:8px;font-weight:400;}
+.lock-sub{font-size:12px;color:var(--mut);line-height:1.5;}
+.lock-plan{display:inline-block;margin-top:12px;padding:4px 12px;border:1px solid var(--bd2);border-radius:2px;font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);}
+
+/* ── PREVIEW PANEL ─────────────────────────────────── */
+.prev-bar{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-shrink:0;background:#111;flex-wrap:wrap;}
+.prev-tabs{display:flex;gap:4px;flex:1;}
+.prev-tab{padding:6px 12px;border:1px solid var(--bd);border-radius:3px;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);cursor:pointer;transition:all .15s;background:transparent;}
+.prev-tab.active{border-color:var(--acc);color:var(--acc);}
+.device-btns{display:flex;gap:3px;}
+.dev-btn{width:28px;height:28px;border:1px solid var(--bd);border-radius:3px;background:transparent;color:var(--mut);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s;}
+.dev-btn.active{border-color:var(--acc);color:var(--acc);}
+.prev-wrap{flex:1;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px;background:#181818;}
+.prev-frame{background:#fff;border-radius:4px;overflow:hidden;transition:width .3s,height .3s;box-shadow:0 4px 32px rgba(0,0,0,.5);}
+.prev-frame.desktop{width:100%;max-width:960px;height:calc(100vh - 130px);}
+.prev-frame.mobile{width:390px;height:calc(100vh - 130px);max-height:760px;}
+.prev-frame iframe{width:100%;height:100%;border:none;display:block;}
+
+/* ── SUBMIT MODAL ─────────────────────────────────── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center;}
+.modal-bg.on{display:flex;}
+.modal{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:40px;max-width:480px;width:90%;text-align:center;}
+.modal-icon{font-size:28px;margin-bottom:16px;}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:var(--wh);margin-bottom:8px;}
+.modal-title em{font-style:italic;}
+.modal-sub{font-size:13px;color:var(--mut);line-height:1.6;margin-bottom:28px;}
+.modal-btns{display:flex;gap:12px;justify-content:center;}
+.modal-btn{padding:12px 24px;border-radius:3px;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;border:none;transition:all .2s;}
+.modal-btn.primary{background:var(--acc);color:#111;}
+.modal-btn.primary:hover{opacity:.85;}
+.modal-btn.ghost{background:transparent;border:1px solid var(--bd2);color:var(--mut);}
+.modal-btn.ghost:hover{border-color:var(--dim);}
+.modal-sending{display:none;}
+.modal-sending .load-dot{justify-content:center;}
+
+/* ── SUCCESS MODAL ─────────────────────────────────── */
+.success-screen{position:fixed;inset:0;background:var(--bg);z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;}
+.success-screen.on{display:flex;}
+.success-icon{width:64px;height:64px;border:1px solid var(--ok);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;color:var(--ok);font-size:22px;}
+.success-title{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;color:var(--wh);margin-bottom:8px;}
+.success-title em{font-style:italic;}
+.success-sub{font-size:13px;color:var(--mut);line-height:1.7;max-width:400px;}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="screen" id="loadScreen">
+  <div style="text-align:center;">
+    <div style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--mut);margin-bottom:20px;">SILLEAU Configurator</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;color:var(--wh);">Se încarcă<em style="font-style:italic">…</em></div>
+    <div class="load-dot"><span></span><span></span><span></span></div>
+  </div>
+</div>
+
+<!-- Error -->
+<div class="screen gone" id="errScreen">
+  <div class="err-card">
+    <div class="err-icon" id="errIcon">✕</div>
+    <div class="err-title" id="errTitle">Link invalid</div>
+    <div class="err-sub" id="errSub">Acest link nu mai este valid.</div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-top">
+      <div class="sb-brand">SILLEAU Configurator</div>
+      <div class="sb-clinic" id="sbClinic">—</div>
+      <div class="plan-badge" id="sbPlan">—</div>
+    </div>
+    <nav class="sb-nav" id="sbNav">
+      <div class="nav-item active" data-sec="identitate">
+        <span>Identitate</span>
+      </div>
+      <div class="nav-item" data-sec="culori">
+        <span>Culori</span>
+      </div>
+      <div class="nav-item" data-sec="tipografie" id="navTipografie">
+        <span>Tipografie</span>
+        <span class="nav-lock" id="lockTipografie">🔒</span>
+      </div>
+      <div class="nav-item" data-sec="mailuri" id="navMailuri">
+        <span>Mailuri</span>
+        <span class="nav-lock" id="lockMailuri">🔒</span>
+      </div>
+      <div class="nav-item" data-sec="branding" id="navBranding">
+        <span>Branding</span>
+        <span class="nav-lock" id="lockBranding">🔒</span>
+      </div>
+    </nav>
+    <div class="sb-footer">
+      <div class="mod-counter" id="modCounter"></div>
+      <button class="btn-submit" id="btnSubmit" disabled>Trimite spre aprobare →</button>
+    </div>
+  </aside>
+
+  <!-- Controls -->
+  <section class="controls">
+    <div class="ctrl-header">
+      <div class="ctrl-title" id="ctrlTitle">Identitate</div>
+      <div class="ctrl-desc" id="ctrlDesc">Informații de bază afișate pacienților</div>
+    </div>
+    <div class="ctrl-body">
+
+      <!-- Identitate -->
+      <div id="sec-identitate">
+        <div class="fgrp">
+          <label>Nume afișat</label>
+          <input type="text" id="inp-nome" placeholder="Ex: Clinica Dentară Ionescu" maxlength="60">
+          <div class="hint">Înlocuiește „SILLEAU" în header-ul paginilor</div>
+        </div>
+        <div class="fgrp">
+          <label>Slogan <span style="color:var(--bd2)">(opțional)</span></label>
+          <input type="text" id="inp-slogan" placeholder="Ex: Îngrijire cu suflet" maxlength="80">
+          <div class="hint">Apare sub titlu pe pagina de programare</div>
+        </div>
+        <div class="fgrp">
+          <label>Logo</label>
+          <div id="logoDrop" class="drop-zone" data-kind="logo"
+               onclick="document.getElementById('logoFile').click()"
+               ondragover="dropOver(event,this)"
+               ondragleave="dropLeave(event,this)"
+               ondrop="dropHandle(event,this,'logo')">
+            <div id="logoPreview" class="drop-preview">
+              <span class="drop-placeholder">Trage logo-ul aici sau click pentru a selecta</span>
+            </div>
+            <div class="drop-meta" id="logoMeta"></div>
+            <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none;"
+                   onchange="filePicked(this,'logo')">
+          </div>
+          <div class="hint">PNG, JPG, SVG sau WebP · max 2 MB</div>
+        </div>
+        <div class="fgrp">
+          <label>Favicon <span style="color:var(--bd2)">(opțional)</span></label>
+          <div id="faviconDrop" class="drop-zone" data-kind="favicon"
+               onclick="document.getElementById('faviconFile').click()"
+               ondragover="dropOver(event,this)"
+               ondragleave="dropLeave(event,this)"
+               ondrop="dropHandle(event,this,'favicon')">
+            <div id="faviconPreview" class="drop-preview">
+              <span class="drop-placeholder">Trage favicon-ul aici sau click pentru a selecta</span>
+            </div>
+            <div class="drop-meta" id="faviconMeta"></div>
+            <input type="file" id="faviconFile" accept="image/png,image/x-icon,image/vnd.microsoft.icon" style="display:none;"
+                   onchange="filePicked(this,'favicon')">
+          </div>
+          <div class="hint">ICO sau PNG pătrat (16×16, 32×32 sau 64×64) · max 128 KB</div>
+        </div>
+      </div>
+
+      <!-- Culori -->
+      <div id="sec-culori" style="display:none;">
+        <div class="sec-sep">Culori principale</div>
+        <div class="color-row">
+          <div class="color-item">
+            <label>Accent</label>
+            <div class="color-pick" onclick="openColor('acc')">
+              <div class="color-swatch" id="sw-acc"></div>
+              <span class="color-hex" id="hx-acc">#E8E4DC</span>
+              <input type="color" id="cp-acc" value="#E8E4DC" oninput="colorInput(this,'acc')">
+            </div>
+          </div>
+          <div class="color-item">
+            <label>Fundal</label>
+            <div class="color-pick" onclick="openColor('bg')">
+              <div class="color-swatch" id="sw-bg"></div>
+              <span class="color-hex" id="hx-bg">#0A0A0A</span>
+              <input type="color" id="cp-bg" value="#0A0A0A" oninput="colorInput(this,'bg')">
+            </div>
+          </div>
+        </div>
+
+        <div id="advColors">
+          <div class="sec-sep">Culori avansate</div>
+          <div class="color-row">
+            <div class="color-item">
+              <label>Fundal secundar</label>
+              <div class="color-pick" onclick="openColor('bg2')">
+                <div class="color-swatch" id="sw-bg2"></div>
+                <span class="color-hex" id="hx-bg2">#111111</span>
+                <input type="color" id="cp-bg2" value="#111111" oninput="colorInput(this,'bg2')">
+              </div>
+            </div>
+            <div class="color-item">
+              <label>Borduri</label>
+              <div class="color-pick" onclick="openColor('bd')">
+                <div class="color-swatch" id="sw-bd"></div>
+                <span class="color-hex" id="hx-bd">#2A2A2A</span>
+                <input type="color" id="cp-bd" value="#2A2A2A" oninput="colorInput(this,'bd')">
+              </div>
+            </div>
+          </div>
+          <div class="color-row">
+            <div class="color-item">
+              <label>Text principal</label>
+              <div class="color-pick" onclick="openColor('txt')">
+                <div class="color-swatch" id="sw-txt"></div>
+                <span class="color-hex" id="hx-txt">#F0EDE8</span>
+                <input type="color" id="cp-txt" value="#F0EDE8" oninput="colorInput(this,'txt')">
+              </div>
+            </div>
+            <div class="color-item">
+              <label>Text secundar</label>
+              <div class="color-pick" onclick="openColor('mut')">
+                <div class="color-swatch" id="sw-mut"></div>
+                <span class="color-hex" id="hx-mut">#555555</span>
+                <input type="color" id="cp-mut" value="#555555" oninput="colorInput(this,'mut')">
+              </div>
+            </div>
+          </div>
+          <div class="color-row">
+            <div class="color-item">
+              <label>Text alb</label>
+              <div class="color-pick" onclick="openColor('wh')">
+                <div class="color-swatch" id="sw-wh"></div>
+                <span class="color-hex" id="hx-wh">#FAFAF8</span>
+                <input type="color" id="cp-wh" value="#FAFAF8" oninput="colorInput(this,'wh')">
+              </div>
+            </div>
+            <div class="color-item">
+              <label>Succes</label>
+              <div class="color-pick" onclick="openColor('ok')">
+                <div class="color-swatch" id="sw-ok"></div>
+                <span class="color-hex" id="hx-ok">#6A9E6A</span>
+                <input type="color" id="cp-ok" value="#6A9E6A" oninput="colorInput(this,'ok')">
+              </div>
+            </div>
+          </div>
+          <div id="lockAdvColors" style="display:none;position:relative;"></div>
+        </div>
+        <div id="lockAdvColorsOverlay" style="display:none;margin-top:12px;">
+          <div style="background:#0D0D0D;border:1px solid var(--bd);border-radius:4px;padding:20px;text-align:center;">
+            <div style="font-size:16px;margin-bottom:8px;">🔒</div>
+            <div style="font-size:13px;color:var(--wh);margin-bottom:6px;">Culori avansate</div>
+            <div style="font-size:11px;color:var(--mut);line-height:1.5;">Disponibil din planul</div>
+            <div class="lock-plan">Premium</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tipografie -->
+      <div id="sec-tipografie" style="display:none;position:relative;">
+        <div class="fgrp">
+          <label>Font corp (texte, butoane)</label>
+          <select id="sel-fontBody" onchange="fontChanged()">
+            <option value="Inter">Inter — Modern, clar</option>
+            <option value="Lato">Lato — Prietenos, rotunjit</option>
+            <option value="Montserrat">Montserrat — Geometric, elegant</option>
+            <option value="Open Sans">Open Sans — Neutru, lizibil</option>
+            <option value="Raleway">Raleway — Rafinat, subtil</option>
+            <option value="Nunito">Nunito — Cald, accesibil</option>
+          </select>
+        </div>
+        <div class="fgrp">
+          <label>Font titluri (headings)</label>
+          <select id="sel-fontHeading" onchange="fontChanged()">
+            <option value="Cormorant Garamond">Cormorant Garamond — Clasic, luxos</option>
+            <option value="Playfair Display">Playfair Display — Elegant, editorial</option>
+            <option value="Libre Caslon Display">Libre Caslon — Tradițional, sobru</option>
+            <option value="Cardo">Cardo — Academic, discret</option>
+            <option value="Cinzel">Cinzel — Imperial, monumental</option>
+            <option value="EB Garamond">EB Garamond — Clasic francez</option>
+          </select>
+        </div>
+        <div style="background:#0D0D0D;border:1px solid var(--bd);border-radius:3px;padding:16px;margin-top:8px;">
+          <div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin-bottom:10px;">Preview tipografie</div>
+          <div id="fontPreviewH" style="font-size:22px;font-weight:300;color:var(--wh);margin-bottom:6px;line-height:1.2;">Clinica <em>voastră</em></div>
+          <div id="fontPreviewB" style="font-size:13px;color:var(--mut);">Programare simplă, experiență remarcabilă.</div>
+        </div>
+        <div id="lockTipografieOverlay" class="lock-overlay" style="display:none;">
+          <div class="lock-icon">🔒</div>
+          <div class="lock-title">Tipografie personalizată</div>
+          <div class="lock-sub">Alegeți fonturile care definesc vocea brandului vostru.</div>
+          <div class="lock-plan">Premium</div>
+        </div>
+      </div>
+
+      <!-- Mailuri -->
+      <div id="sec-mailuri" style="display:none;position:relative;">
+        <div class="mail-tabs">
+          <div class="mail-tab active" data-mail="confirmare" onclick="switchMail(this)">Confirmare</div>
+          <div class="mail-tab" data-mail="reminder" onclick="switchMail(this)">Reminder</div>
+          <div class="mail-tab" data-mail="anulare" onclick="switchMail(this)">Anulare</div>
+        </div>
+        <div class="mail-section on" id="mail-confirmare">
+          <div class="fgrp"><label>Subiect email</label><input type="text" id="ms-confirmare-subj" placeholder="✓ Programare confirmată — {clinica}"></div>
+          <div class="fgrp"><label>Text intro</label><textarea id="ms-confirmare-intro" placeholder="Vă mulțumim! Programarea dumneavoastră a fost confirmată."></textarea></div>
+          <div class="fgrp"><label>Semnătură</label><input type="text" id="ms-confirmare-sign" placeholder="Echipa {clinica}"></div>
+        </div>
+        <div class="mail-section" id="mail-reminder">
+          <div class="fgrp"><label>Subiect email</label><input type="text" id="ms-reminder-subj" placeholder="⏰ Reminder programare — {clinica}"></div>
+          <div class="fgrp"><label>Text intro</label><textarea id="ms-reminder-intro" placeholder="Vă reamintim că aveți o programare mâine."></textarea></div>
+          <div class="fgrp"><label>Semnătură</label><input type="text" id="ms-reminder-sign" placeholder="Echipa {clinica}"></div>
+        </div>
+        <div class="mail-section" id="mail-anulare">
+          <div class="fgrp"><label>Subiect email</label><input type="text" id="ms-anulare-subj" placeholder="Programarea dumneavoastră a fost anulată"></div>
+          <div class="fgrp"><label>Text intro</label><textarea id="ms-anulare-intro" placeholder="Ne pare rău că nu ne puteți vizita. Vă așteptăm cu drag!"></textarea></div>
+          <div class="fgrp"><label>Semnătură</label><input type="text" id="ms-anulare-sign" placeholder="Echipa {clinica}"></div>
+        </div>
+        <div id="lockMailuriOverlay" class="lock-overlay" style="display:none;">
+          <div class="lock-icon">🔒</div>
+          <div class="lock-title">Personalizare emailuri</div>
+          <div class="lock-sub">Adaptați textele din emailurile automate la tonul brandului vostru.</div>
+          <div class="lock-plan">Premium</div>
+        </div>
+      </div>
+
+      <!-- Branding -->
+      <div id="sec-branding" style="display:none;position:relative;">
+        <div class="sec-sep">Forme & Raze</div>
+        <div class="fgrp">
+          <label>Butoane</label>
+          <div class="radio-grid" id="rg-rbtn">
+            <div class="radio-opt active" data-val="2px" onclick="radioSelect(this,'rbtn')">Pătrat</div>
+            <div class="radio-opt" data-val="6px" onclick="radioSelect(this,'rbtn')">Rotunjit</div>
+            <div class="radio-opt" data-val="24px" onclick="radioSelect(this,'rbtn')">Rotund</div>
+          </div>
+        </div>
+        <div class="fgrp">
+          <label>Carduri</label>
+          <div class="radio-grid" id="rg-rcard">
+            <div class="radio-opt active" data-val="2px" onclick="radioSelect(this,'rcard')">Pătrat</div>
+            <div class="radio-opt" data-val="6px" onclick="radioSelect(this,'rcard')">Rotunjit</div>
+            <div class="radio-opt" data-val="12px" onclick="radioSelect(this,'rcard')">Rotund</div>
+          </div>
+        </div>
+        <div class="sec-sep">Spațiere</div>
+        <div class="fgrp">
+          <div class="radio-grid" id="rg-spacing">
+            <div class="radio-opt" data-val="compact" onclick="radioSelect(this,'spacing')">Compact</div>
+            <div class="radio-opt active" data-val="normal" onclick="radioSelect(this,'spacing')">Normal</div>
+            <div class="radio-opt" data-val="spacious" onclick="radioSelect(this,'spacing')">Spațios</div>
+          </div>
+        </div>
+        <div class="sec-sep">Branding SILLEAU</div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Ascunde branding</div>
+            <div class="toggle-sub">Elimină „Powered by SILLEAU" din pagini</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="tog-hideBrand" onchange="toggleChanged()">
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="fgrp" id="opacityGroup" style="margin-top:16px;">
+          <label>Opacitate branding</label>
+          <div class="slider-wrap">
+            <input type="range" id="sl-opacity" min="0" max="100" value="100" oninput="opacityChanged()">
+            <div class="slider-val" id="sl-opacity-val">100%</div>
+          </div>
+        </div>
+        <div id="lockBrandingOverlay" class="lock-overlay" style="display:none;">
+          <div class="lock-icon">🔒</div>
+          <div class="lock-title">Branding avansat</div>
+          <div class="lock-sub">White-label complet — forme, spațiere și eliminare branding SILLEAU.</div>
+          <div class="lock-plan">White</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Preview -->
+  <section class="preview">
+    <div class="prev-bar">
+      <div class="prev-tabs">
+        <button class="prev-tab active" data-page="form" onclick="switchPage(this)">Formular</button>
+        <button class="prev-tab" data-page="confirmare" onclick="switchPage(this)">Confirmare</button>
+        <button class="prev-tab" data-page="anulare" onclick="switchPage(this)">Anulare</button>
+        <button class="prev-tab" data-page="mesaj" onclick="switchPage(this)">Mesaj</button>
+      </div>
+      <div class="device-btns">
+        <button class="dev-btn active" title="Desktop" onclick="setDevice('desktop',this)">⬜</button>
+        <button class="dev-btn" title="Mobile" onclick="setDevice('mobile',this)">📱</button>
+      </div>
+    </div>
+    <div class="prev-wrap">
+      <div class="prev-frame desktop" id="prevFrame">
+        <iframe id="prevIframe" title="Preview"></iframe>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Submit Modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div id="modalConfirm">
+      <div class="modal-icon">🎨</div>
+      <div class="modal-title">Trimiteți tema spre <em>aprobare</em>?</div>
+      <div class="modal-sub">Tema va fi revizuită și aplicată pe paginile clinicii în cel mai scurt timp. Tokenul de acces va fi invalidat după trimitere.</div>
+      <div class="modal-btns">
+        <button class="modal-btn ghost" onclick="closeModal()">Anulează</button>
+        <button class="modal-btn primary" onclick="doSubmit()">Trimite →</button>
+      </div>
+    </div>
+    <div class="modal-sending" id="modalSending" style="display:none;">
+      <div class="modal-icon">⏳</div>
+      <div class="modal-title">Se <em>trimite</em>…</div>
+      <div class="load-dot" style="justify-content:center;margin-top:12px;"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Success -->
+<div class="success-screen" id="successScreen">
+  <div class="success-icon">✓</div>
+  <div class="success-title">Temă trimisă spre <em>aprobare</em></div>
+  <div class="success-sub" style="margin-top:10px;">Echipa SILLEAU va revizui propunerea și o va activa în curând. Veți primi un email de confirmare.</div>
+</div>
+
+<script>
+var FN_BASE    = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1'
+var SITE       = 'https://www.silleau.com'
+
+// ── State ──────────────────────────────────────────
+var _token     = ''
+var _clinicId  = ''
+var _plan      = ''
+var _clinicName= ''
+var _modLuna   = 0
+
+var _branding = {
+  nume_afisat:     '',
+  slogan:          '',
+  logo_url:        '',
+  favicon_url:     '',
+  email_templates: {},
+  hide_silleau:    false,
+  silleau_opacity: 1,
+  tema: {
+    bg: '#0A0A0A', bg2: '#111111', bd: '#2A2A2A',
+    acc: '#E8E4DC', txt: '#F0EDE8', mut: '#555555',
+    wh: '#FAFAF8', ok: '#6A9E6A', err: '#C45C5C',
+    r_btn: '2px', r_card: '2px', r_inp: '2px',
+    spacing: 'normal',
+    font_body: 'Inter', font_heading: 'Cormorant Garamond'
+  }
+}
+
+var PLAN_LEVEL  = { core: 0, brand: 1, premium: 2, white: 3 }
+var MOD_LIMITS  = { brand: 3, premium: 5 }
+var PLAN_LABELS = { core: 'Core', brand: 'Brand', premium: 'Premium', white: 'White' }
+var PLAN_MIN    = { tipografie: 'premium', mailuri: 'premium', branding: 'white' }
+
+function planLevel(p) { return PLAN_LEVEL[p] || 0 }
+function canAccess(minPlan) { return planLevel(_plan) >= planLevel(minPlan) }
+
+// ── Init ───────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', function() {
+  var params = new URLSearchParams(location.search)
+  _token     = params.get('t') || ''
+  if (!_token) { showErr('token_lipsa'); return }
+
+  fetch(FN_BASE + '/valideaza-token?t=' + encodeURIComponent(_token))
+    .then(function(r){ return r.json() })
+    .then(function(d){
+      if (!d.valid) { showErr(d.reason || 'token_invalid'); return }
+      initApp(d)
+    })
+    .catch(function(){ showErr('eroare_retea') })
+})
+
+function showErr(reason) {
+  var msgs = {
+    token_lipsa:   { icon:'✕', title:'Link invalid',       sub:'Link-ul nu conține un token valid.' },
+    token_invalid: { icon:'✕', title:'Token invalid',      sub:'Link-ul nu mai este valid.' },
+    token_folosit: { icon:'✓', title:'Token deja folosit', sub:'Ați trimis deja o temă cu acest link. Contactați SILLEAU pentru un nou link.' },
+    token_invalidat:{ icon:'🔒',title:'Link înlocuit',     sub:'A fost generat un link mai nou. Folosiți ultimul link primit.' },
+    token_expirat: { icon:'⏰', title:'Token expirat',     sub:'Link-ul a expirat (7 zile). Contactați SILLEAU pentru un nou link.' },
+    clinica_negasita:{ icon:'✕',title:'Clinică negăsită',  sub:'Nu am găsit clinica asociată acestui token.' },
+    eroare_retea:  { icon:'⚠️',title:'Eroare conexiune',   sub:'Nu s-a putut conecta la server. Verificați conexiunea și reîncercați.' }
+  }
+  var m = msgs[reason] || { icon:'✕', title:'Eroare', sub:'A apărut o problemă. Contactați SILLEAU.' }
+  document.getElementById('errIcon').textContent  = m.icon
+  document.getElementById('errTitle').textContent = m.title
+  document.getElementById('errSub').textContent   = m.sub
+  document.getElementById('loadScreen').classList.add('gone')
+  document.getElementById('errScreen').classList.remove('gone')
+}
+
+function initApp(d) {
+  _clinicId   = d.clinic_id
+  _plan       = d.plan
+  _clinicName = d.clinic_name
+  _modLuna    = d.modificari_luna || 0
+
+  // Populare sidebar
+  document.getElementById('sbClinic').textContent = _clinicName
+  var badge = document.getElementById('sbPlan')
+  badge.textContent  = PLAN_LABELS[_plan] || _plan
+  badge.className    = 'plan-badge ' + _plan
+
+  // Dacă există branding salvat anterior, populăm cu el
+  if (d.branding) {
+    if (d.branding.nume_afisat) _branding.nume_afisat = d.branding.nume_afisat
+    if (d.branding.slogan)      _branding.slogan = d.branding.slogan
+    if (d.branding.logo_url)    _branding.logo_url = d.branding.logo_url
+    if (d.branding.favicon_url) _branding.favicon_url = d.branding.favicon_url
+    if (d.branding.email_templates) _branding.email_templates = d.branding.email_templates
+    _branding.hide_silleau    = d.branding.hide_silleau || false
+    _branding.silleau_opacity = d.branding.silleau_opacity !== undefined ? d.branding.silleau_opacity : 1
+  }
+  if (d.tema && Object.keys(d.tema).length > 0) {
+    _branding.tema = Object.assign({}, _branding.tema, d.tema)
+  }
+
+  // Populare controale cu valorile existente
+  populateControls()
+
+  // Setare lock-uri pe baza planului
+  setupPlanGating()
+
+  // Mod counter
+  updateModCounter()
+
+  // Submit button activ
+  document.getElementById('btnSubmit').disabled = false
+
+  // Pornire preview
+  initPreview()
+
+  // Ascunde loading, arată app
+  document.getElementById('loadScreen').classList.add('gone')
+  document.getElementById('app').classList.add('on')
+
+  // Navigare la prima secțiune disponibilă
+  showSection('identitate')
+}
+
+function populateControls() {
+  var t = _branding.tema
+  var b = _branding
+
+  // Identitate
+  document.getElementById('inp-nome').value   = b.nume_afisat || ''
+  document.getElementById('inp-slogan').value = b.slogan || ''
+  if (b.logo_url)     renderLogoPreview(b.logo_url)
+  if (b.favicon_url)  renderFaviconPreview(b.favicon_url)
+
+  // Culori
+  var colorKeys = ['acc','bg','bg2','bd','txt','mut','wh','ok']
+  colorKeys.forEach(function(k) {
+    var v = t[k] || defaultColor(k)
+    var sw = document.getElementById('sw-'+k)
+    var hx = document.getElementById('hx-'+k)
+    var cp = document.getElementById('cp-'+k)
+    if (sw) sw.style.background = v
+    if (hx) hx.textContent = v
+    if (cp) cp.value = v
+  })
+
+  // Tipografie
+  var fb = document.getElementById('sel-fontBody')
+  var fh = document.getElementById('sel-fontHeading')
+  if (fb) setSelectValue(fb, t.font_body || 'Inter')
+  if (fh) setSelectValue(fh, t.font_heading || 'Cormorant Garamond')
+  updateFontPreview()
+
+  // Mailuri
+  var tpl = b.email_templates || {}
+  var types = ['confirmare','reminder','anulare']
+  types.forEach(function(tp) {
+    var data = tpl[tp] || {}
+    var s = document.getElementById('ms-'+tp+'-subj')
+    var i = document.getElementById('ms-'+tp+'-intro')
+    var g = document.getElementById('ms-'+tp+'-sign')
+    if (s) s.value = data.subiect || ''
+    if (i) i.value = data.intro   || ''
+    if (g) g.value = data.sign    || ''
+  })
+
+  // Branding
+  setRadioGroup('rbtn',    t.r_btn   || '2px')
+  setRadioGroup('rcard',   t.r_card  || '2px')
+  setRadioGroup('spacing', t.spacing || 'normal')
+  document.getElementById('tog-hideBrand').checked = !!b.hide_silleau
+  var op = Math.round((b.silleau_opacity !== undefined ? b.silleau_opacity : 1) * 100)
+  var sl = document.getElementById('sl-opacity')
+  if (sl) { sl.value = op; document.getElementById('sl-opacity-val').textContent = op + '%' }
+}
+
+function defaultColor(k) {
+  var d = { acc:'#E8E4DC', bg:'#0A0A0A', bg2:'#111111', bd:'#2A2A2A', txt:'#F0EDE8', mut:'#555555', wh:'#FAFAF8', ok:'#6A9E6A', err:'#C45C5C' }
+  return d[k] || '#000000'
+}
+
+function setSelectValue(sel, val) {
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === val) { sel.selectedIndex = i; break }
+  }
+}
+
+function setRadioGroup(name, val) {
+  var items = document.querySelectorAll('#rg-'+name+' .radio-opt')
+  items.forEach(function(el) {
+    el.classList.toggle('active', el.dataset.val === val)
+  })
+}
+
+function setupPlanGating() {
+  var sections = ['tipografie','mailuri','branding']
+  sections.forEach(function(sec) {
+    var minPlan = PLAN_MIN[sec]
+    var locked  = !canAccess(minPlan)
+    var navEl   = document.getElementById('nav'+sec.charAt(0).toUpperCase()+sec.slice(1))
+    var lockEl  = document.getElementById('lock'+sec.charAt(0).toUpperCase()+sec.slice(1))
+    if (navEl) navEl.classList.toggle('locked', locked)
+    if (lockEl) lockEl.style.display = locked ? '' : 'none'
+    var overlay = document.getElementById('lock'+sec.charAt(0).toUpperCase()+sec.slice(1)+'Overlay')
+    if (overlay) overlay.style.display = locked ? 'flex' : 'none'
+  })
+
+  // Culori avansate (premium+)
+  var advLocked = !canAccess('premium')
+  document.getElementById('advColors').style.opacity = advLocked ? '0.35' : '1'
+  document.getElementById('advColors').style.pointerEvents = advLocked ? 'none' : ''
+  document.getElementById('lockAdvColorsOverlay').style.display = advLocked ? '' : 'none'
+}
+
+function updateModCounter() {
+  var limit = MOD_LIMITS[_plan]
+  var el    = document.getElementById('modCounter')
+  if (!limit) { el.style.display = 'none'; return }
+  el.style.display = ''
+  var used  = _modLuna
+  el.innerHTML = 'Modificări luna aceasta: <strong>' + used + '/' + limit + '</strong>'
+  el.classList.toggle('warn', used >= limit - 1)
+}
+
+// ── Navigation ─────────────────────────────────────
+var _section = 'identitate'
+var SECTION_META = {
+  identitate:  { title: 'Identitate',   desc: 'Numele și sloganul afișat pacienților' },
+  culori:      { title: 'Culori',        desc: 'Paleta de culori a brandului vostru' },
+  tipografie:  { title: 'Tipografie',    desc: 'Fonturile care definesc stilul brandului' },
+  mailuri:     { title: 'Mailuri',       desc: 'Textele din emailurile automate' },
+  branding:    { title: 'Branding',      desc: 'Forme, spațiere și vizibilitate branding' }
+}
+
+document.querySelectorAll('.nav-item').forEach(function(el) {
+  el.addEventListener('click', function() {
+    var sec = el.dataset.sec
+    if (!sec || el.classList.contains('locked')) return
+    showSection(sec)
+  })
+})
+
+function showSection(sec) {
+  _section = sec
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.sec === sec)
+  })
+  var secs = ['identitate','culori','tipografie','mailuri','branding']
+  secs.forEach(function(s) {
+    var el = document.getElementById('sec-'+s)
+    if (el) el.style.display = s === sec ? '' : 'none'
+  })
+  var meta = SECTION_META[sec] || {}
+  document.getElementById('ctrlTitle').textContent = meta.title || sec
+  document.getElementById('ctrlDesc').textContent  = meta.desc  || ''
+}
+
+// ── Color controls ─────────────────────────────────
+function openColor(key) {
+  var cp = document.getElementById('cp-'+key)
+  if (cp) cp.click()
+}
+
+function colorInput(input, key) {
+  var val = input.value
+  var sw  = document.getElementById('sw-'+key)
+  var hx  = document.getElementById('hx-'+key)
+  if (sw) sw.style.background = val
+  if (hx) hx.textContent      = val
+  _branding.tema[key] = val
+  sendThemeToPreview()
+}
+
+// ── Font controls ───────────────────────────────────
+function fontChanged() {
+  var fb = document.getElementById('sel-fontBody').value
+  var fh = document.getElementById('sel-fontHeading').value
+  _branding.tema.font_body    = fb
+  _branding.tema.font_heading = fh
+  updateFontPreview()
+  sendThemeToPreview()
+}
+
+function updateFontPreview() {
+  var fb = document.getElementById('sel-fontBody').value
+  var fh = document.getElementById('sel-fontHeading').value
+  // Load font if needed
+  loadGoogleFont(fb, '300;400;500')
+  loadGoogleFont(fh, 'ital,wght@0,300;0,400;1,300;1,400')
+  var ph = document.getElementById('fontPreviewH')
+  var pb = document.getElementById('fontPreviewB')
+  if (ph) ph.style.fontFamily = "'" + fh + "', serif"
+  if (pb) pb.style.fontFamily = "'" + fb + "', sans-serif"
+}
+
+var _loadedFonts = {}
+function loadGoogleFont(name, weights) {
+  if (_loadedFonts[name]) return
+  _loadedFonts[name] = true
+  var link = document.createElement('link')
+  link.rel  = 'stylesheet'
+  link.href = 'https://fonts.googleapis.com/css2?family=' + name.replace(/ /g,'+') + ':' + weights + '&display=swap'
+  document.head.appendChild(link)
+}
+
+// ── Mail controls ───────────────────────────────────
+function switchMail(el) {
+  var tp = el.dataset.mail
+  document.querySelectorAll('.mail-tab').forEach(function(t){ t.classList.remove('active') })
+  document.querySelectorAll('.mail-section').forEach(function(s){ s.classList.remove('on') })
+  el.classList.add('active')
+  var sec = document.getElementById('mail-'+tp)
+  if (sec) sec.classList.add('on')
+}
+
+function collectEmailTemplates() {
+  var tpl = {}
+  var types = ['confirmare','reminder','anulare']
+  types.forEach(function(tp) {
+    var s = document.getElementById('ms-'+tp+'-subj')
+    var i = document.getElementById('ms-'+tp+'-intro')
+    var g = document.getElementById('ms-'+tp+'-sign')
+    tpl[tp] = {
+      subiect: s ? s.value.trim() : '',
+      intro:   i ? i.value.trim() : '',
+      sign:    g ? g.value.trim() : ''
+    }
+  })
+  return tpl
+}
+
+// ── Radio controls ──────────────────────────────────
+function radioSelect(el, name) {
+  var parent = el.parentElement
+  parent.querySelectorAll('.radio-opt').forEach(function(r){ r.classList.remove('active') })
+  el.classList.add('active')
+  var val = el.dataset.val
+  if (name === 'rbtn')    { _branding.tema.r_btn  = val }
+  if (name === 'rcard')   { _branding.tema.r_card = val; _branding.tema.r_inp = val }
+  if (name === 'spacing') { _branding.tema.spacing = val }
+  sendThemeToPreview()
+}
+
+// ── Toggle controls ─────────────────────────────────
+function toggleChanged() {
+  _branding.hide_silleau = document.getElementById('tog-hideBrand').checked
+  _branding.tema.hide_brand = _branding.hide_silleau
+  sendThemeToPreview()
+}
+
+function opacityChanged() {
+  var val = parseInt(document.getElementById('sl-opacity').value, 10)
+  document.getElementById('sl-opacity-val').textContent = val + '%'
+  _branding.silleau_opacity = val / 100
+  sendThemeToPreview()
+}
+
+// ── Upload logo + favicon ──────────────────────────
+var UPLOAD_LIMITS = {
+  logo:    { max: 2 * 1024 * 1024, accepts: ['image/png','image/jpeg','image/svg+xml','image/webp'] },
+  favicon: { max: 128 * 1024,      accepts: ['image/png','image/x-icon','image/vnd.microsoft.icon'] }
+}
+var UPLOAD_ERR = {
+  token_lipsa:        'Link invalid. Reîncarcă pagina.',
+  token_invalid:      'Link invalid.',
+  token_folosit:      'Link deja folosit.',
+  token_invalidat:    'Link înlocuit.',
+  token_expirat:      'Link expirat.',
+  multipart_invalid:  'Fișier invalid.',
+  kind_invalid:       'Tip fișier necunoscut.',
+  file_lipsa:         'Nu a fost primit niciun fișier.',
+  tip_invalid_logo:   'Logo-ul trebuie să fie PNG, JPG, SVG sau WebP.',
+  tip_invalid_favicon:'Favicon-ul trebuie să fie ICO sau PNG.',
+  fisier_prea_mare:   'Fișier prea mare.',
+  upload_esuat:       'Upload eșuat. Reîncearcă.'
+}
+
+function renderLogoPreview(url) {
+  var lp = document.getElementById('logoPreview')
+  lp.innerHTML = '<img src="'+url+'" alt="logo" onerror="this.replaceWith(document.createTextNode(\'Previzualizare indisponibilă\'))">'
+}
+
+function renderFaviconPreview(url) {
+  var fp = document.getElementById('faviconPreview')
+  fp.innerHTML = '<img class="fav-preview" src="'+url+'" alt="favicon" onerror="this.replaceWith(document.createTextNode(\'Previzualizare indisponibilă\'))">'
+}
+
+function setMeta(kind, msg, cls) {
+  var el = document.getElementById(kind + 'Meta')
+  if (!el) return
+  el.textContent = msg || ''
+  el.className = 'drop-meta' + (cls ? ' ' + cls : '')
+}
+
+function dropOver(ev, zone) {
+  ev.preventDefault()
+  zone.classList.add('drag-over')
+}
+
+function dropLeave(ev, zone) {
+  ev.preventDefault()
+  zone.classList.remove('drag-over')
+}
+
+function dropHandle(ev, zone, kind) {
+  ev.preventDefault()
+  zone.classList.remove('drag-over')
+  if (!ev.dataTransfer || !ev.dataTransfer.files || !ev.dataTransfer.files[0]) return
+  uploadBrandingFile(ev.dataTransfer.files[0], kind)
+}
+
+function filePicked(input, kind) {
+  if (!input.files || !input.files[0]) return
+  uploadBrandingFile(input.files[0], kind)
+  input.value = ''
+}
+
+function uploadBrandingFile(file, kind) {
+  var lim = UPLOAD_LIMITS[kind]
+  if (!lim) return
+  if (lim.accepts.indexOf(file.type) === -1) {
+    setMeta(kind, UPLOAD_ERR['tip_invalid_' + kind] || 'Tip fișier invalid.', 'err')
+    return
+  }
+  if (file.size > lim.max) {
+    var mb = (lim.max / 1024 / 1024).toFixed(1).replace(/\.0$/, '')
+    var kb = Math.round(lim.max / 1024)
+    setMeta(kind, 'Fișier prea mare (max ' + (lim.max >= 1024*1024 ? mb + ' MB' : kb + ' KB') + ').', 'err')
+    return
+  }
+  if (kind === 'favicon' && file.type === 'image/png') {
+    validateSquare(file).then(function(square) {
+      if (!square) { setMeta('favicon', 'Favicon-ul trebuie să fie pătrat (ex: 32×32).', 'err'); return }
+      doUpload(file, kind)
+    })
+    return
+  }
+  doUpload(file, kind)
+}
+
+function validateSquare(file) {
+  return new Promise(function(resolve) {
+    var url = URL.createObjectURL(file)
+    var img = new Image()
+    img.onload = function() {
+      URL.revokeObjectURL(url)
+      resolve(img.naturalWidth === img.naturalHeight && img.naturalWidth > 0)
+    }
+    img.onerror = function() { URL.revokeObjectURL(url); resolve(true) }
+    img.src = url
+  })
+}
+
+function doUpload(file, kind) {
+  var zone = document.getElementById(kind + 'Drop')
+  zone.classList.add('uploading')
+  setMeta(kind, 'Se încarcă…', '')
+
+  var fd = new FormData()
+  fd.append('t', _token)
+  fd.append('kind', kind)
+  fd.append('file', file, file.name)
+
+  fetch(FN_BASE + '/upload-branding', { method: 'POST', body: fd })
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d } }) })
+    .then(function(res) {
+      zone.classList.remove('uploading')
+      if (!res.ok || res.d.error) {
+        var msg = UPLOAD_ERR[res.d.error] || res.d.error || 'Eroare necunoscută.'
+        setMeta(kind, msg, 'err')
+        return
+      }
+      var url = res.d.url
+      if (kind === 'logo') {
+        _branding.logo_url = url
+        renderLogoPreview(url)
+        sendThemeToPreview()
+      } else {
+        _branding.favicon_url = url
+        renderFaviconPreview(url)
+      }
+      setMeta(kind, '✓ Încărcat', 'ok')
+    })
+    .catch(function() {
+      zone.classList.remove('uploading')
+      setMeta(kind, 'Eroare conexiune.', 'err')
+    })
+}
+
+// ── Preview ─────────────────────────────────────────
+var _prevPage   = 'form'
+var _prevDevice = 'desktop'
+var _iframeReady = false
+var _pendingTheme= null
+
+var PREV_URLS = {
+  form:      '/programareclinica.html?preview=1&clinic_id=',
+  confirmare:'/confirmare.html?preview=1&clinic_id=',
+  anulare:   '/anulare.html?preview=1&clinic_id=',
+  mesaj:     '/mesaj.html?tip=slot_mutat&preview=1&clinic_id='
+}
+
+function initPreview() {
+  var iframe = document.getElementById('prevIframe')
+  iframe.addEventListener('load', function() {
+    _iframeReady = true
+    setTimeout(function(){ sendThemeToPreview() }, 100)
+  })
+  window.addEventListener('message', function(e) {
+    if (!e.data || e.data.type !== 'silleau_ready') return
+    _iframeReady = true
+    if (_pendingTheme) {
+      sendThemeMsg(_pendingTheme)
+      _pendingTheme = null
+    }
+  })
+  loadPreviewPage()
+}
+
+function loadPreviewPage() {
+  _iframeReady = false
+  var iframe = document.getElementById('prevIframe')
+  iframe.src = PREV_URLS[_prevPage] + encodeURIComponent(_clinicId)
+}
+
+function buildThemeMsg() {
+  var t = Object.assign({}, _branding.tema)
+  t.nume_afisat = _branding.nume_afisat || document.getElementById('inp-nome').value.trim() || _clinicName
+  t.hide_brand  = _branding.hide_silleau
+  return { type: 'silleau_theme', tema: t, nome: t.nume_afisat }
+}
+
+function sendThemeToPreview() {
+  var msg = buildThemeMsg()
+  if (_iframeReady) {
+    sendThemeMsg(msg)
+  } else {
+    _pendingTheme = msg
+  }
+}
+
+function sendThemeMsg(msg) {
+  var iframe = document.getElementById('prevIframe')
+  try { iframe.contentWindow.postMessage(msg, '*') } catch(e) {}
+}
+
+function switchPage(el) {
+  document.querySelectorAll('.prev-tab').forEach(function(t){ t.classList.remove('active') })
+  el.classList.add('active')
+  _prevPage    = el.dataset.page
+  _iframeReady = false
+  loadPreviewPage()
+}
+
+function setDevice(dev, btn) {
+  _prevDevice = dev
+  document.querySelectorAll('.dev-btn').forEach(function(b){ b.classList.remove('active') })
+  btn.classList.add('active')
+  var frame = document.getElementById('prevFrame')
+  frame.className = 'prev-frame ' + dev
+}
+
+// ── Input listeners (live preview) ─────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  var inpNome   = document.getElementById('inp-nome')
+  var inpSlogan = document.getElementById('inp-slogan')
+  if (inpNome)   inpNome.addEventListener('input',   function(){ _branding.nume_afisat = this.value; sendThemeToPreview() })
+  if (inpSlogan) inpSlogan.addEventListener('input',  function(){ _branding.slogan = this.value })
+  // Mail inputs: collect on submit
+})
+
+// ── Submit ──────────────────────────────────────────
+document.getElementById('btnSubmit').addEventListener('click', function() {
+  document.getElementById('modalBg').classList.add('on')
+})
+
+function closeModal() {
+  document.getElementById('modalBg').classList.remove('on')
+}
+
+function doSubmit() {
+  // Collect final state
+  _branding.nume_afisat    = document.getElementById('inp-nome').value.trim()
+  _branding.slogan         = document.getElementById('inp-slogan').value.trim()
+  _branding.email_templates = collectEmailTemplates()
+  _branding.tema.nume_afisat = _branding.nume_afisat
+
+  // Show sending state
+  document.getElementById('modalConfirm').style.display = 'none'
+  document.getElementById('modalSending').style.display = ''
+
+  fetch(FN_BASE + '/salveaza-tema', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ token: _token, branding: _branding }),
+  })
+  .then(function(r){ return r.json() })
+  .then(function(d) {
+    if (d.success) {
+      document.getElementById('modalBg').classList.remove('on')
+      document.getElementById('successScreen').classList.add('on')
+    } else {
+      var msg = d.error === 'limita_modificari'
+        ? 'Ați atins limita de ' + d.limita + ' modificări pentru luna aceasta.'
+        : (d.error || 'A apărut o eroare. Reîncercați.')
+      alert('Eroare: ' + msg)
+      document.getElementById('modalConfirm').style.display = ''
+      document.getElementById('modalSending').style.display = 'none'
+    }
+  })
+  .catch(function() {
+    alert('Eroare de rețea. Verificați conexiunea și reîncercați.')
+    document.getElementById('modalConfirm').style.display = ''
+    document.getElementById('modalSending').style.display = 'none'
+  })
+}
+</script>
+</body>
+</html>

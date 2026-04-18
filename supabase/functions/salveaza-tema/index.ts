@@ -4,10 +4,10 @@ const RESEND_KEY       = Deno.env.get('RESEND_KEY')!
 const STEFAN_EMAIL     = Deno.env.get('STEFAN_EMAIL') || 'stefan@silleau.com'
 const ADMIN_SECRET     = Deno.env.get('ADMIN_SECRET') || ''
 const SITE             = 'https://www.silleau.com'
-const FN_BASE          = Deno.env.get('SUPABASE_URL')!.replace('/rest/v1','') + '/functions/v1'
+const FN_BASE          = Deno.env.get('SUPABASE_URL')!.replace('/rest/v1', '') + '/functions/v1'
 
 const SB      = { 'apikey': SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + SERVICE_ROLE_KEY }
-const SB_POST = { ...SB, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
+const SB_MIN  = { ...SB, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
 const CORS    = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 
 function json(body: unknown, status = 200) {
@@ -20,15 +20,17 @@ function genToken(len = 32): string {
   return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('')
 }
 
+const MOD_LIMITS: Record<string, number> = { brand: 3, premium: 5 }
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   const body = await req.json().catch(() => ({}))
-  const { token, tema_draft } = body
+  const { token, branding } = body
 
-  if (!token)      return json({ error: 'token lipsă' }, 400)
-  if (!tema_draft) return json({ error: 'tema_draft lipsă' }, 400)
+  if (!token)    return json({ error: 'token lipsă' }, 400)
+  if (!branding) return json({ error: 'branding lipsă' }, 400)
 
   // Validare token
   const tokRes = await fetch(
@@ -38,50 +40,93 @@ Deno.serve(async (req) => {
   const toks = await tokRes.json()
   const tok  = Array.isArray(toks) ? toks[0] : null
 
-  if (!tok)        return json({ error: 'token_invalid' }, 400)
-  if (tok.used_at) return json({ error: 'token_folosit' }, 400)
+  if (!tok)               return json({ error: 'token_invalid' }, 400)
+  if (tok.used_at)        return json({ error: 'token_folosit' }, 400)
+  if (tok.invalidated_at) return json({ error: 'token_invalidat' }, 400)
   if (new Date(tok.expires_at) < new Date()) return json({ error: 'token_expirat' }, 400)
 
   // Info clinică
   const clinicRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/clinici?id=eq.${encodeURIComponent(tok.clinic_id)}&select=id,nume,plan,email,modificari_luna,reset_modificari_date`,
+    `${SUPABASE_URL}/rest/v1/clinici?id=eq.${encodeURIComponent(tok.clinic_id)}&select=id,nume,plan,email`,
     { headers: SB }
   )
   const clinics = await clinicRes.json()
   const clinic  = Array.isArray(clinics) ? clinics[0] : null
   if (!clinic) return json({ error: 'clinica_negasita' }, 404)
 
+  // Verifică limita de modificări
+  const limit = MOD_LIMITS[clinic.plan]
+  if (limit !== undefined) {
+    const cbRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/clinic_branding?clinic_id=eq.${encodeURIComponent(tok.clinic_id)}&select=modificari_luna,reset_modificari_date`,
+      { headers: SB }
+    )
+    const cbData = await cbRes.json()
+    const cb = Array.isArray(cbData) ? cbData[0] : null
+    if (cb) {
+      const thisMonth  = new Date().toISOString().slice(0, 7)
+      const resetMonth = cb.reset_modificari_date ? cb.reset_modificari_date.slice(0, 7) : null
+      const modLuna    = resetMonth === thisMonth ? (cb.modificari_luna || 0) : 0
+      if (modLuna >= limit) return json({ error: 'limita_modificari', limita: limit }, 429)
+    }
+  }
+
   const approvalToken = genToken()
 
-  // Salvează draft + approval token
-  await fetch(
-    `${SUPABASE_URL}/rest/v1/clinici?id=eq.${encodeURIComponent(tok.clinic_id)}`,
-    { method: 'PATCH', headers: SB_POST, body: JSON.stringify({ tema_draft, approval_token: approvalToken }) }
-  )
+  // Upsert clinic_branding (insert sau update dacă există deja)
+  const { nume_afisat, slogan, logo_url, favicon_url, tema, email_templates, hide_silleau, silleau_opacity } = branding
+  await fetch(`${SUPABASE_URL}/rest/v1/clinic_branding`, {
+    method:  'POST',
+    headers: { ...SB, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({
+      clinic_id:       tok.clinic_id,
+      status:          'pending_approval',
+      nume_afisat:     nume_afisat || null,
+      slogan:          slogan || null,
+      logo_url:        logo_url || null,
+      favicon_url:     favicon_url || null,
+      tema:            tema || {},
+      email_templates: email_templates || {},
+      hide_silleau:    hide_silleau || false,
+      silleau_opacity: silleau_opacity ?? 1,
+      approval_token:  approvalToken,
+      submitted_at:    new Date().toISOString(),
+    }),
+  })
 
   // Marchează tokenul ca folosit
   await fetch(
     `${SUPABASE_URL}/rest/v1/tema_tokens?token=eq.${encodeURIComponent(token)}`,
-    { method: 'PATCH', headers: SB_POST, body: JSON.stringify({ used_at: new Date().toISOString() }) }
+    { method: 'PATCH', headers: SB_MIN, body: JSON.stringify({ used_at: new Date().toISOString() }) }
   )
 
-  // Calcul modificări lună curentă
-  const thisMonth  = new Date().toISOString().slice(0, 7)
-  const resetMonth = clinic.reset_modificari_date ? clinic.reset_modificari_date.slice(0, 7) : null
-  const modLuna    = resetMonth === thisMonth ? (clinic.modificari_luna || 0) : 0
+  // Citim modificări pentru email
+  const cbCheckRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/clinic_branding?clinic_id=eq.${encodeURIComponent(tok.clinic_id)}&select=modificari_luna,reset_modificari_date`,
+    { headers: SB }
+  )
+  const cbCheck = await cbCheckRes.json()
+  const cb2 = Array.isArray(cbCheck) ? cbCheck[0] : null
+  const thisMonth2  = new Date().toISOString().slice(0, 7)
+  const resetMonth2 = cb2?.reset_modificari_date ? cb2.reset_modificari_date.slice(0, 7) : null
+  const modLuna2    = resetMonth2 === thisMonth2 ? (cb2?.modificari_luna || 0) : 0
 
-  // Email notificare Stefan
-  const approvalUrl  = `${SITE}/aproba-tema.html?id=${encodeURIComponent(tok.clinic_id)}&t=${encodeURIComponent(approvalToken)}`
-  const regenUrl     = ADMIN_SECRET
+  // Construiește URL-urile pentru email
+  const approvalUrl = `${FN_BASE}/aproba-tema?id=${encodeURIComponent(tok.clinic_id)}&t=${encodeURIComponent(approvalToken)}`
+  const regenUrl    = ADMIN_SECRET
     ? `${FN_BASE}/regenereaza-token?clinic_id=${encodeURIComponent(tok.clinic_id)}&s=${encodeURIComponent(ADMIN_SECRET)}`
     : null
-  const planLabel    = { starter: 'Starter', pro: 'Pro', white_label: 'White Label' }[clinic.plan as string] || clinic.plan
-  const modText      = clinic.plan === 'white_label' ? `<p style="color:#888;font-size:12px;margin:0 0 20px;">Modificări luna aceasta: <strong style="color:#E8E4DC;">${modLuna + 1}/3</strong></p>` : ''
-  const regenBlock   = regenUrl
+
+  const planLabel = ({ core: 'Core', brand: 'Brand', premium: 'Premium', white: 'White' } as Record<string,string>)[clinic.plan] || clinic.plan
+  const modText   = limit !== undefined
+    ? `<p style="color:#888;font-size:12px;margin:0 0 20px;">Modificări luna aceasta: <strong style="color:#E8E4DC;">${modLuna2 + 1}/${limit}</strong></p>`
+    : ''
+  const regenBlock = regenUrl
     ? `<div style="margin-top:24px;padding-top:20px;border-top:1px solid #2A2A2A;">
         <p style="font-size:11px;color:#555;margin:0 0 10px;">Clinica nu e mulțumită cu rezultatul?</p>
         <a href="${regenUrl}" style="display:inline-block;background:#1A1A1A;color:#888;padding:10px 20px;text-decoration:none;border-radius:4px;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;border:1px solid #333;">🔑 Generează token nou →</a>
-      </div>` : ''
+      </div>`
+    : ''
 
   await fetch('https://api.resend.com/emails', {
     method:  'POST',
@@ -99,8 +144,8 @@ Deno.serve(async (req) => {
           <a href="${approvalUrl}" style="display:inline-block;background:#E8E4DC;color:#111;padding:14px 28px;text-decoration:none;border-radius:4px;font-size:11px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;">Aprobă tema →</a>
           ${regenBlock}
           <details style="margin-top:24px;">
-            <summary style="cursor:pointer;font-size:11px;color:#555;letter-spacing:.1em;">▸ Vezi JSON temă</summary>
-            <pre style="background:#0A0A0A;color:#6A9E6A;padding:16px;border-radius:4px;font-size:11px;overflow:auto;margin-top:12px;">${JSON.stringify(tema_draft, null, 2)}</pre>
+            <summary style="cursor:pointer;font-size:11px;color:#555;letter-spacing:.1em;">▸ Vezi JSON branding</summary>
+            <pre style="background:#0A0A0A;color:#6A9E6A;padding:16px;border-radius:4px;font-size:11px;overflow:auto;margin-top:12px;">${JSON.stringify(branding, null, 2)}</pre>
           </details>
         </div>
       `,

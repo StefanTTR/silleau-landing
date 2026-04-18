@@ -450,3 +450,32 @@ verify_jwt = false
 [functions.public-data]
 enabled = true
 verify_jwt = false
+
+[functions.upload-branding]
+enabled = true
+verify_jwt = false
+
+# ── Configurator temă: apelate din browser cu token/ADMIN_SECRET propriu, fără JWT ──
+[functions.valideaza-token]
+enabled = true
+verify_jwt = false
+
+[functions.salveaza-tema]
+enabled = true
+verify_jwt = false
+
+[functions.aproba-tema]
+enabled = true
+verify_jwt = false
+
+[functions.admin-data]
+enabled = true
+verify_jwt = false
+
+[functions.genera-token]
+enabled = true
+verify_jwt = false
+
+[functions.regenereaza-token]
+enabled = true
+verify_jwt = false

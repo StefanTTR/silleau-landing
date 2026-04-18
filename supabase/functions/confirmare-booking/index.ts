@@ -118,22 +118,23 @@ const THEME_DEFAULT: ClinicTheme = {
 async function fetchClinicTheme(clinicId: string | undefined): Promise<ClinicTheme> {
   if (!clinicId) return THEME_DEFAULT
   try {
-    const res = await fetch(
-      SUPABASE_URL + '/rest/v1/clinici?id=eq.' + encodeURIComponent(clinicId) + '&select=tema,nume,email',
-      { headers: { 'apikey': SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + SERVICE_ROLE_KEY } }
-    )
-    if (!res.ok) return THEME_DEFAULT
-    const rows = await res.json()
-    const row  = Array.isArray(rows) ? rows[0] : null
-    if (!row)  return THEME_DEFAULT
-    const t = row.tema || {}
+    const headers = { 'apikey': SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + SERVICE_ROLE_KEY }
+    const [bRes, cRes] = await Promise.all([
+      fetch(SUPABASE_URL + '/rest/v1/clinic_branding?clinic_id=eq.' + encodeURIComponent(clinicId) + '&status=eq.approved&select=tema,nume_afisat,hide_silleau', { headers }),
+      fetch(SUPABASE_URL + '/rest/v1/clinici?id=eq.' + encodeURIComponent(clinicId) + '&select=nume,email', { headers }),
+    ])
+    const bRows = bRes.ok ? await bRes.json() : []
+    const cRows = cRes.ok ? await cRes.json() : []
+    const b = Array.isArray(bRows) ? bRows[0] : null
+    const c = Array.isArray(cRows) ? cRows[0] : null
+    const t = b?.tema || {}
     return {
-      acc:          t.acc          || THEME_DEFAULT.acc,
-      accLight:     t.acc_light    || THEME_DEFAULT.accLight,
-      btnBg:        t.bg           || THEME_DEFAULT.btnBg,
-      clinicName:   t.nume_afisat  || row.nume  || THEME_DEFAULT.clinicName,
-      emailContact: t.email_contact || row.email || THEME_DEFAULT.emailContact,
-      hideBrand:    !!t.hide_brand,
+      acc:          t.acc           || THEME_DEFAULT.acc,
+      accLight:     t.acc_light     || THEME_DEFAULT.accLight,
+      btnBg:        t.bg            || THEME_DEFAULT.btnBg,
+      clinicName:   b?.nume_afisat  || c?.nume  || THEME_DEFAULT.clinicName,
+      emailContact: t.email_contact || c?.email || THEME_DEFAULT.emailContact,
+      hideBrand:    !!b?.hide_silleau,
     }
   } catch {
     return THEME_DEFAULT

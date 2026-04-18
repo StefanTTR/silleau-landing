@@ -92,7 +92,7 @@
     if(t.hide_brand) {
       document.querySelectorAll('.footer, .hdr').forEach(function(el){ el.style.display='none'; });
     }
-    var name = (t.nome_afisat || nome || '').trim();
+    var name = (t.nume_afisat || nome || '').trim();
     if(name) document.querySelectorAll('.brand-name').forEach(function(el){ el.textContent = name; });
   }
   window.addEventListener('message', function(e){
@@ -105,13 +105,13 @@
     if(!clinicId) { document.body.style.visibility='visible'; return; }
     try {
       var _c = localStorage.getItem('st_'+clinicId);
-      if(_c){ var _r=JSON.parse(_c); applyTheme(_r.tema||{},_r.nume||''); document.body.style.visibility='visible'; }
+      if(_c){ var _r=JSON.parse(_c); applyTheme(_r.tema||{},_r.nume_afisat||_r.nume||''); document.body.style.visibility='visible'; }
     } catch(e){}
     fetch(PUBLIC_DATA_FN + '?resource=clinic_theme&clinic_id=' + encodeURIComponent(clinicId))
     .then(function(r){ return r.json(); })
     .then(function(list){
       var row = Array.isArray(list) ? list[0] : null;
-      if(row){ try{localStorage.setItem('st_'+clinicId,JSON.stringify(row));}catch(e){} applyTheme(row.tema||{},row.nume||''); }
+      if(row){ try{localStorage.setItem('st_'+clinicId,JSON.stringify(row));}catch(e){} applyTheme(row.tema||{},row.nume_afisat||row.nume||''); }
       document.body.style.visibility='visible';
     })
     .catch(function(){ document.body.style.visibility='visible'; });
