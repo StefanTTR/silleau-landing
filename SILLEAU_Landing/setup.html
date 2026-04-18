@@ -371,6 +371,35 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height
               </div>
             </div>
           </div>
+          <div class="color-row">
+            <div class="color-item">
+              <label>Fundal câmpuri</label>
+              <div class="color-pick" onclick="openColor('bg3')">
+                <div class="color-swatch" id="sw-bg3"></div>
+                <span class="color-hex" id="hx-bg3">#181818</span>
+                <input type="color" id="cp-bg3" value="#181818" oninput="colorInput(this,'bg3')">
+              </div>
+            </div>
+            <div class="color-item">
+              <label>Borduri câmpuri</label>
+              <div class="color-pick" onclick="openColor('bd2')">
+                <div class="color-swatch" id="sw-bd2"></div>
+                <span class="color-hex" id="hx-bd2">#333333</span>
+                <input type="color" id="cp-bd2" value="#333333" oninput="colorInput(this,'bd2')">
+              </div>
+            </div>
+          </div>
+          <div class="color-row">
+            <div class="color-item">
+              <label>Eroare</label>
+              <div class="color-pick" onclick="openColor('err')">
+                <div class="color-swatch" id="sw-err"></div>
+                <span class="color-hex" id="hx-err">#C45C5C</span>
+                <input type="color" id="cp-err" value="#C45C5C" oninput="colorInput(this,'err')">
+              </div>
+            </div>
+            <div class="color-item"></div>
+          </div>
           <div id="lockAdvColors" style="display:none;position:relative;"></div>
         </div>
         <div id="lockAdvColorsOverlay" style="display:none;margin-top:12px;">
@@ -687,7 +716,7 @@ function populateControls() {
   if (b.favicon_url)  renderFaviconPreview(b.favicon_url)
 
   // Culori
-  var colorKeys = ['acc','bg','bg2','bd','txt','mut','wh','ok']
+  var colorKeys = ['acc','bg','bg2','bd','txt','mut','wh','ok','bg3','bd2','err']
   colorKeys.forEach(function(k) {
     var v = t[k] || defaultColor(k)
     var sw = document.getElementById('sw-'+k)
@@ -729,7 +758,7 @@ function populateControls() {
 }
 
 function defaultColor(k) {
-  var d = { acc:'#E8E4DC', bg:'#0A0A0A', bg2:'#111111', bd:'#2A2A2A', txt:'#F0EDE8', mut:'#555555', wh:'#FAFAF8', ok:'#6A9E6A', err:'#C45C5C' }
+  var d = { acc:'#E8E4DC', bg:'#0A0A0A', bg2:'#111111', bg3:'#181818', bd:'#2A2A2A', bd2:'#333333', txt:'#F0EDE8', mut:'#555555', wh:'#FAFAF8', ok:'#6A9E6A', err:'#C45C5C' }
   return d[k] || '#000000'
 }
 

@@ -132,15 +132,13 @@ Deno.serve(async (req) => {
       const stale = list
         .filter(o => o?.name?.startsWith(`${kind}.`) && o.name !== `${kind}.${ext}`)
         .map(o => `${tok.clinic_id}/${o.name}`)
-      if (stale.length > 0) {
-        await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
+      for (const p of stale) {
+        await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${p}`, {
           method: 'DELETE',
           headers: {
             'apikey':        SERVICE_ROLE_KEY,
             'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
-            'Content-Type':  'application/json',
           },
-          body: JSON.stringify({ prefixes: stale }),
         })
       }
     }
