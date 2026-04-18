@@ -19,6 +19,13 @@
   --mut:  #555555;
   --wh:   #FAFAF8;
   --err:  #C45C5C;
+  --ok:    #6A9E6A;
+  --r-btn:  2px;
+  --r-card: 4px;
+  --r-inp:  2px;
+  --sp-card: 48px;
+  --sp-row:  13px;
+  --sp-gap:  28px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;display:flex;align-items:center;justify-content:center;visibility:hidden;}
@@ -245,6 +252,12 @@ function applyTheme(t, nome) {
   if(t.txt)  r.style.setProperty('--txt', t.txt);
   if(t.mut)  r.style.setProperty('--mut', t.mut);
   if(t.wh)   r.style.setProperty('--wh',  t.wh);
+  if(t.ok)     r.style.setProperty('--ok',     t.ok);
+  if(t.r_btn)  r.style.setProperty('--r-btn',  t.r_btn);
+  if(t.r_card) r.style.setProperty('--r-card', t.r_card);
+  if(t.r_inp)  r.style.setProperty('--r-inp',  t.r_inp);
+  var _sp={compact:{c:'32px',r:'9px',g:'20px'},normal:{c:'48px',r:'13px',g:'28px'},spacious:{c:'64px',r:'17px',g:'36px'}};
+  if(t.spacing&&_sp[t.spacing]){r.style.setProperty('--sp-card',_sp[t.spacing].c);r.style.setProperty('--sp-row',_sp[t.spacing].r);r.style.setProperty('--sp-gap',_sp[t.spacing].g);}
   if(t.font_body && t.font_body !== 'Inter') {
     var lnk = document.createElement('link');
     lnk.rel  = 'stylesheet';
@@ -252,12 +265,24 @@ function applyTheme(t, nome) {
     document.head.appendChild(lnk);
     document.body.style.fontFamily = "'" + t.font_body + "', sans-serif";
   }
+  if(t.font_heading && t.font_heading !== 'Cormorant Garamond') {
+    var lnkH = document.createElement('link');
+    lnkH.rel  = 'stylesheet';
+    lnkH.href = 'https://fonts.googleapis.com/css2?family=' + t.font_heading.replace(/ /g,'+') + ':ital,wght@0,300;0,400;1,300;1,400&display=swap';
+    document.head.appendChild(lnkH);
+    document.documentElement.style.setProperty('--font-heading', "'" + t.font_heading + "', serif");
+  }
   if(t.hide_brand) {
     document.querySelectorAll('.footer, .hdr').forEach(function(el){ el.style.display='none'; });
   }
   var name = (t.nome_afisat || nome || '').trim();
   if(name) document.querySelectorAll('.brand-name').forEach(function(el){ el.textContent = name; });
 }
+window.addEventListener('message', function(e){
+  if(!e.data||e.data.type!=='silleau_theme') return;
+  applyTheme(e.data.tema||{}, e.data.nome||'');
+  document.body.style.visibility='visible';
+});
 function fetchAndApplyTheme(clinicId) {
   setTimeout(function(){ document.body.style.visibility='visible'; }, 2000);
   if(!clinicId) { document.body.style.visibility='visible'; return; }
@@ -360,6 +385,16 @@ function declineSlot(){
    INIT
    ============================================================ */
 (function(){
+  if(params.get('preview') === '1'){
+    setVal('detSlotData', 'Joi, 24 Apr 2025');
+    setVal('detSlotOra',  '09:00');
+    setVal('detCurData',  'Luni, 28 Apr 2025');
+    setVal('detCurOra',   '14:00');
+    setState('stateForm');
+    window.parent.postMessage({type:'silleau_ready'}, '*');
+    return;
+  }
+
   if(!id || !oferta_id){
     setState('stateError');
     return;
