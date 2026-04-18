@@ -2,16 +2,16 @@ const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 type ClinicTheme = {
-  acc: string; accLight: string; btnBg: string; clinicName: string; emailContact: string; hideBrand: boolean
+  acc: string; accLight: string; btnBg: string; clinicName: string; emailContact: string; hideBrand: boolean; logoUrl: string
 }
 const THEME_DEFAULT: ClinicTheme = {
-  acc: '#E8E4DC', accLight: '#F0EDE8', btnBg: '#111111', clinicName: 'Clinica', emailContact: 'contact@silleau.com', hideBrand: false
+  acc: '#E8E4DC', accLight: '#F0EDE8', btnBg: '#111111', clinicName: 'Clinica', emailContact: 'contact@silleau.com', hideBrand: false, logoUrl: ''
 }
 async function fetchClinicTheme(clinicId: string): Promise<ClinicTheme> {
   try {
     const headers = { 'apikey': SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + SERVICE_ROLE_KEY }
     const [bRes, cRes] = await Promise.all([
-      fetch(SUPABASE_URL + '/rest/v1/clinic_branding?clinic_id=eq.' + encodeURIComponent(clinicId) + '&status=eq.approved&select=tema,nume_afisat,hide_silleau', { headers }),
+      fetch(SUPABASE_URL + '/rest/v1/clinic_branding?clinic_id=eq.' + encodeURIComponent(clinicId) + '&status=eq.approved&select=tema,nume_afisat,hide_silleau,logo_url', { headers }),
       fetch(SUPABASE_URL + '/rest/v1/clinici?id=eq.' + encodeURIComponent(clinicId) + '&select=nume,email', { headers }),
     ])
     const bRows = bRes.ok ? await bRes.json() : []
@@ -26,6 +26,7 @@ async function fetchClinicTheme(clinicId: string): Promise<ClinicTheme> {
       clinicName:   b?.nume_afisat  || c?.nume  || THEME_DEFAULT.clinicName,
       emailContact: t.email_contact || c?.email || THEME_DEFAULT.emailContact,
       hideBrand:    !!b?.hide_silleau,
+      logoUrl:      b?.logo_url || '',
     }
   } catch { return THEME_DEFAULT }
 }
@@ -411,6 +412,9 @@ function buildEmail(d: {
 }): string {
   const th = d.theme || THEME_DEFAULT
   const acc = th.acc, accLight = th.accLight, btnBg = th.btnBg, clinicName = th.clinicName, emailContact = th.emailContact
+  const logoImg = th.logoUrl
+    ? '<img src="' + th.logoUrl + '" alt="" style="max-height:44px;max-width:160px;object-fit:contain;margin:0 auto 14px;display:block;">'
+    : ''
   const serviciuRow = d.serviciu
     ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
       + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.serviciu + '</td></tr>'
@@ -478,6 +482,7 @@ function buildEmail(d: {
     + '<table class="wrapper bg-card" width="560" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:4px;border:1px solid ' + acc + ';">'
     + '<tr><td align="center" style="padding:36px 44px 28px;border-bottom:1px solid ' + accLight + ';">'
     + '<div class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:14px;">Reminder programare</div>'
+    + logoImg
     + '<div class="text-title" style="font-size:23px;color:#111111;font-weight:300;font-family:\'Helvetica Neue\',Arial,sans-serif;letter-spacing:-0.3px;">' + clinicName + '</div>'
     + '</td></tr>'
     + '<tr><td class="inner" style="padding:36px 44px 0;">'

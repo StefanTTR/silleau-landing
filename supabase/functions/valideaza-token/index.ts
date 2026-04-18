@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
           email_templates: branding.email_templates,
           hide_silleau:    branding.hide_silleau,
           silleau_opacity: branding.silleau_opacity,
+          layout:          branding.layout || {},
           status:          branding.status,
         }
       : null,

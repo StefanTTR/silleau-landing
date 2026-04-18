@@ -104,6 +104,7 @@ type ClinicTheme = {
   clinicName:   string   // nume afișat în mail
   emailContact: string   // email contact afișat în footer
   hideBrand:    boolean  // ascunde branding SILLEAU din footer email
+  logoUrl:      string   // URL logo clinică (gol = fără logo)
 }
 
 const THEME_DEFAULT: ClinicTheme = {
@@ -113,6 +114,7 @@ const THEME_DEFAULT: ClinicTheme = {
   clinicName:   'Clinica',
   emailContact: 'contact@silleau.com',
   hideBrand:    false,
+  logoUrl:      '',
 }
 
 async function fetchClinicTheme(clinicId: string | undefined): Promise<ClinicTheme> {
@@ -120,7 +122,7 @@ async function fetchClinicTheme(clinicId: string | undefined): Promise<ClinicThe
   try {
     const headers = { 'apikey': SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + SERVICE_ROLE_KEY }
     const [bRes, cRes] = await Promise.all([
-      fetch(SUPABASE_URL + '/rest/v1/clinic_branding?clinic_id=eq.' + encodeURIComponent(clinicId) + '&status=eq.approved&select=tema,nume_afisat,hide_silleau', { headers }),
+      fetch(SUPABASE_URL + '/rest/v1/clinic_branding?clinic_id=eq.' + encodeURIComponent(clinicId) + '&status=eq.approved&select=tema,nume_afisat,hide_silleau,logo_url', { headers }),
       fetch(SUPABASE_URL + '/rest/v1/clinici?id=eq.' + encodeURIComponent(clinicId) + '&select=nume,email', { headers }),
     ])
     const bRows = bRes.ok ? await bRes.json() : []
@@ -135,6 +137,7 @@ async function fetchClinicTheme(clinicId: string | undefined): Promise<ClinicThe
       clinicName:   b?.nume_afisat  || c?.nume  || THEME_DEFAULT.clinicName,
       emailContact: t.email_contact || c?.email || THEME_DEFAULT.emailContact,
       hideBrand:    !!b?.hide_silleau,
+      logoUrl:      b?.logo_url || '',
     }
   } catch {
     return THEME_DEFAULT
@@ -366,6 +369,9 @@ function buildEmail(d: {
   const btnBg        = th.btnBg
   const clinicName   = th.clinicName
   const emailContact = th.emailContact
+  const logoImg      = th.logoUrl
+    ? '<img src="' + th.logoUrl + '" alt="" style="max-height:44px;max-width:160px;object-fit:contain;margin:0 auto 14px;display:block;">'
+    : ''
   const serviciuRow = d.serviciu
     ? '<tr><td class="text-label border-row" style="padding:12px 0;font-size:10px;color:#BBBBBB;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">Serviciu</td>'
       + '<td class="text-value border-row" style="padding:12px 0;font-size:13px;color:#111111;text-align:right;border-bottom:1px solid ' + accLight + ';font-family:\'Helvetica Neue\',Arial,sans-serif;">' + d.serviciu + '</td></tr>'
@@ -435,6 +441,7 @@ function buildEmail(d: {
     + '<table class="wrapper bg-card" width="560" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:4px;border:1px solid ' + acc + ';">'
     + '<tr><td align="center" style="padding:36px 44px 28px;border-bottom:1px solid ' + accLight + ';">'
     + '<div class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;margin-bottom:14px;">' + (d.isReprogramare ? 'Confirmare reprogramare' : 'Confirmare programare') + '</div>'
+    + logoImg
     + '<div class="text-title" style="font-size:23px;color:#111111;font-weight:300;font-family:\'Helvetica Neue\',Arial,sans-serif;letter-spacing:-0.3px;">' + clinicName + '</div>'
     + '</td></tr>'
     + '<tr><td class="inner" style="padding:36px 44px 0;">'

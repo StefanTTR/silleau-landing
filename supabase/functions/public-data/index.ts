@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
           + '/rest/v1/clinic_branding'
           + '?clinic_id=eq.' + encodeURIComponent(clinicId)
           + '&status=eq.approved'
-          + '&select=tema,nume_afisat,slogan,logo_url,favicon_url,hide_silleau,silleau_opacity'
+          + '&select=tema,nume_afisat,slogan,logo_url,favicon_url,hide_silleau,silleau_opacity,layout'
         const clinicUrl = SUPABASE_URL
           + '/rest/v1/clinici'
           + '?id=eq.' + encodeURIComponent(clinicId)
@@ -222,6 +222,7 @@ Deno.serve(async (req) => {
           favicon_url:     b?.favicon_url || null,
           hide_silleau:    !!b?.hide_silleau,
           silleau_opacity: b?.silleau_opacity ?? 1,
+          layout:          b?.layout || {},
         }
         return new Response(JSON.stringify([merged]), {
           status: 200,

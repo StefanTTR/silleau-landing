@@ -257,7 +257,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
       <span class="bline"></span>
     </div>
     <p class="clinic-slogan" style="display:none;margin-top:6px;margin-bottom:22px;font-size:14px;font-style:italic;color:var(--acc);"></p>
-    <h1>Programează-ți<br><em>consultația</em></h1>
+    <h1 class="main-title">Programează-ți<br><em>consultația</em></h1>
     <p class="sub">Completați formularul pentru programarea unei consultații.<br>Confirmarea va ajunge prin canalul selectat.</p>
   </div>
 
@@ -966,6 +966,10 @@ function fetchConfig(callback){
       var _sl = document.querySelector('.clinic-slogan');
       if(_sl){ _sl.textContent = row.slogan; _sl.style.display = ''; }
     }
+    /* Layout custom (Canva-like) — doar dacă există */
+    if(row && row.layout && Object.keys(row.layout).length > 0){
+      applyLayout(row.layout);
+    }
     document.body.style.visibility='visible';
     if(callback) callback();
   })
@@ -1042,18 +1046,218 @@ function applyThemeLive(row){
   });
 }
 window.addEventListener('message', function(e){
-  if(!e.data || e.data.type !== 'silleau_theme') return;
-  applyThemeLive({
-    tema:         e.data.tema || {},
-    nume:         e.data.nome || '',
-    nume_afisat:  e.data.nome || '',
-    slogan:       e.data.slogan || '',
-    logo_url:     e.data.logo_url,
-    favicon_url:  e.data.favicon_url,
-    hide_silleau: e.data.hide_silleau
-  });
+  if(!e.data) return;
+  if(e.data.type === 'silleau_theme'){
+    applyThemeLive({
+      tema:         e.data.tema || {},
+      nume:         e.data.nome || '',
+      nume_afisat:  e.data.nome || '',
+      slogan:       e.data.slogan || '',
+      logo_url:     e.data.logo_url,
+      favicon_url:  e.data.favicon_url,
+      hide_silleau: e.data.hide_silleau
+    });
+    if(e.data.layout) applyLayout(e.data.layout);
+  }
+  if(e.data.type === 'silleau_layout'){
+    applyLayout(e.data.layout || {});
+  }
+  if(e.data.type === 'silleau_edit_mode'){
+    if(e.data.enabled) enableLayoutEditor();
+    else disableLayoutEditor();
+  }
+  if(e.data.type === 'silleau_layout_reset'){
+    resetLayout();
+  }
 });
 try { window.parent.postMessage({ type: 'silleau_ready' }, '*'); } catch(err) {}
+
+/* ─── LAYOUT EDITOR (Canva-like) ──────────────────────────────────
+   Pozitionează logo + text blocks după layout JSON. Editor activat
+   prin ?edit=1 sau postMessage 'silleau_edit_mode'. Pe mobil (<640px)
+   se ignoră complet — fallback la fluxul default.
+──────────────────────────────────────────────────────────────────*/
+var _layoutTargets = {
+  'logo':          '.logo-img',
+  'clinic-name':   '.clinic-name',
+  'clinic-slogan': '.clinic-slogan',
+  'main-title':    '.main-title',
+  'sub':           '.sub'
+};
+var _layoutEditMode = false;
+var _currentLayout  = {};
+
+function isMobileLayout(){ return window.matchMedia('(max-width: 640px)').matches; }
+
+function applyLayout(layout){
+  _currentLayout = layout || {};
+  if(isMobileLayout()) return; /* Pe mobil folosim layout-ul default */
+  if(!layout || Object.keys(layout).length === 0) return;
+  var hdr = document.querySelector('.hdr');
+  if(!hdr) return;
+  hdr.style.position = 'relative';
+  var maxY = 0;
+  Object.keys(_layoutTargets).forEach(function(key){
+    var el = document.querySelector(_layoutTargets[key]);
+    var pos = layout[key];
+    if(!el || !pos) return;
+    el.style.position = 'absolute';
+    el.style.left = '0';
+    el.style.top = '0';
+    el.style.margin = '0';
+    el.style.transform = 'translate(' + (pos.x || 0) + 'px,' + (pos.y || 0) + 'px)';
+    if(pos.w) el.style.width  = pos.w + 'px';
+    if(pos.h) el.style.height = pos.h + 'px';
+    var h = (pos.h || el.offsetHeight || 40);
+    if((pos.y || 0) + h > maxY) maxY = (pos.y || 0) + h;
+  });
+  if(maxY > 0) hdr.style.minHeight = (maxY + 24) + 'px';
+}
+
+function resetLayout(){
+  _currentLayout = {};
+  var hdr = document.querySelector('.hdr');
+  if(hdr){ hdr.style.position = ''; hdr.style.minHeight = ''; }
+  Object.keys(_layoutTargets).forEach(function(key){
+    var el = document.querySelector(_layoutTargets[key]);
+    if(!el) return;
+    el.style.position = '';
+    el.style.left = '';
+    el.style.top = '';
+    el.style.margin = '';
+    el.style.transform = '';
+    el.style.width = '';
+    el.style.height = '';
+    el.style.outline = '';
+    el.style.cursor = '';
+  });
+  document.querySelectorAll('.layout-resize-handle').forEach(function(h){ h.remove(); });
+  try { window.parent.postMessage({ type: 'silleau_layout_change', layout: {} }, '*'); } catch(e){}
+}
+
+function _readTransform(el){
+  var m = new DOMMatrix(window.getComputedStyle(el).transform || 'none');
+  return { x: m.m41, y: m.m42 };
+}
+
+function _emitLayout(){
+  try { window.parent.postMessage({ type: 'silleau_layout_change', layout: _currentLayout }, '*'); } catch(e){}
+}
+
+function _makeDraggable(el, key, hdr){
+  el.style.cursor = 'move';
+  el.style.outline = '1px dashed rgba(232,228,220,.5)';
+  el.style.outlineOffset = '2px';
+  el.addEventListener('mousedown', function(ev){
+    if(ev.target.classList && ev.target.classList.contains('layout-resize-handle')) return;
+    ev.preventDefault();
+    var start = _readTransform(el);
+    var sx = ev.clientX, sy = ev.clientY;
+    function move(e){
+      var nx = start.x + (e.clientX - sx);
+      var ny = start.y + (e.clientY - sy);
+      el.style.transform = 'translate(' + nx + 'px,' + ny + 'px)';
+    }
+    function up(){
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      var p = _readTransform(el);
+      _currentLayout[key] = Object.assign({}, _currentLayout[key] || {}, { x: Math.round(p.x), y: Math.round(p.y) });
+      _emitLayout();
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+}
+
+function _makeResizable(el, key){
+  /* Colț dreapta-jos pentru resize proporțional */
+  var h = document.createElement('div');
+  h.className = 'layout-resize-handle';
+  h.style.cssText = 'position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;background:var(--acc);border:1px solid #111;border-radius:50%;cursor:nwse-resize;z-index:10;';
+  el.style.position = 'absolute';
+  /* Plasăm handle ca sibling absolut — dar e mai simplu ca child */
+  el.appendChild(h);
+  h.addEventListener('mousedown', function(ev){
+    ev.preventDefault(); ev.stopPropagation();
+    var rect = el.getBoundingClientRect();
+    var startW = rect.width, startH = rect.height;
+    var ratio = startW / Math.max(startH, 1);
+    var sx = ev.clientX, sy = ev.clientY;
+    function move(e){
+      var dw = (e.clientX - sx);
+      var nw = Math.max(24, startW + dw);
+      var nh = nw / ratio;
+      el.style.width  = nw + 'px';
+      el.style.height = nh + 'px';
+    }
+    function up(){
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      _currentLayout[key] = Object.assign({}, _currentLayout[key] || {}, {
+        w: Math.round(parseFloat(el.style.width)),
+        h: Math.round(parseFloat(el.style.height))
+      });
+      _emitLayout();
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  });
+}
+
+function enableLayoutEditor(){
+  if(isMobileLayout()) return;
+  _layoutEditMode = true;
+  var hdr = document.querySelector('.hdr');
+  if(!hdr) return;
+  hdr.style.position = 'relative';
+  hdr.style.minHeight = '320px';
+  /* Forțează poziționare absolută pe toate cele 5 elemente ca să poată fi dragate */
+  Object.keys(_layoutTargets).forEach(function(key){
+    var el = document.querySelector(_layoutTargets[key]);
+    if(!el) return;
+    var cur = _currentLayout[key];
+    el.style.position = 'absolute';
+    el.style.left = '0';
+    el.style.top = '0';
+    el.style.margin = '0';
+    el.style.transform = 'translate(' + ((cur && cur.x) || 0) + 'px,' + ((cur && cur.y) || 0) + 'px)';
+    if(cur && cur.w) el.style.width  = cur.w + 'px';
+    if(cur && cur.h) el.style.height = cur.h + 'px';
+    _makeDraggable(el, key, hdr);
+    if(key === 'logo') _makeResizable(el, key);
+  });
+}
+
+function disableLayoutEditor(){
+  _layoutEditMode = false;
+  Object.keys(_layoutTargets).forEach(function(key){
+    var el = document.querySelector(_layoutTargets[key]);
+    if(!el) return;
+    el.style.outline = '';
+    el.style.cursor = '';
+    /* Înlătură handler-ele prin clonare (tehnica standard pentru reset) */
+    var clone = el.cloneNode(true);
+    el.parentNode.replaceChild(clone, el);
+  });
+  document.querySelectorAll('.layout-resize-handle').forEach(function(h){ h.remove(); });
+}
+
+/* Activează editor dacă URL conține ?edit=1 */
+if(new URLSearchParams(location.search).get('edit') === '1'){
+  window.addEventListener('load', function(){ setTimeout(enableLayoutEditor, 200); });
+}
+/* Ajustează layout la resize (dezactivează pe mobil) */
+window.addEventListener('resize', function(){
+  if(isMobileLayout()){
+    Object.keys(_layoutTargets).forEach(function(key){
+      var el = document.querySelector(_layoutTargets[key]);
+      if(el){ el.style.position = ''; el.style.transform = ''; el.style.width = ''; el.style.height = ''; }
+    });
+  } else {
+    applyLayout(_currentLayout);
+  }
+});
 
 /* ─── FETCH DOCTORI + ORAR DIN SUPABASE ────────────────────────
    Încarcă în paralel:

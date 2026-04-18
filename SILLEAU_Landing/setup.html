@@ -549,6 +549,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);height
         <button class="prev-tab" data-page="mesaj" onclick="switchPage(this)">Mesaj</button>
       </div>
       <div class="device-btns">
+        <button class="dev-btn" id="btnEditLayout" title="Editează aspect (drag & drop)" onclick="toggleLayoutEditor()" style="display:none;">✎ Aspect</button>
+        <button class="dev-btn" id="btnResetLayout" title="Resetează aspect la default" onclick="resetLayoutFromParent()" style="display:none;">↺</button>
         <button class="dev-btn active" title="Desktop" onclick="setDevice('desktop',this)">⬜</button>
         <button class="dev-btn" title="Mobile" onclick="setDevice('mobile',this)">📱</button>
       </div>
@@ -608,6 +610,7 @@ var _branding = {
   email_templates: {},
   hide_silleau:    false,
   silleau_opacity: 1,
+  layout:          {},
   tema: {
     bg: '#0A0A0A', bg2: '#111111', bd: '#2A2A2A',
     acc: '#E8E4DC', txt: '#F0EDE8', mut: '#555555',
@@ -680,6 +683,7 @@ function initApp(d) {
     if (d.branding.email_templates) _branding.email_templates = d.branding.email_templates
     _branding.hide_silleau    = d.branding.hide_silleau || false
     _branding.silleau_opacity = d.branding.silleau_opacity !== undefined ? d.branding.silleau_opacity : 1
+    _branding.layout          = d.branding.layout || {}
   }
   if (d.tema && Object.keys(d.tema).length > 0) {
     _branding.tema = Object.assign({}, _branding.tema, d.tema)
@@ -796,6 +800,13 @@ function setupPlanGating() {
   document.getElementById('advColors').style.opacity = advLocked ? '0.35' : '1'
   document.getElementById('advColors').style.pointerEvents = advLocked ? 'none' : ''
   document.getElementById('lockAdvColorsOverlay').style.display = advLocked ? '' : 'none'
+
+  // Layout editor (premium+) — butoanele din preview toolbar
+  var layoutUnlocked = canAccess('premium')
+  var btnEdit  = document.getElementById('btnEditLayout')
+  var btnReset = document.getElementById('btnResetLayout')
+  if (btnEdit)  btnEdit.style.display  = layoutUnlocked ? '' : 'none'
+  if (btnReset) btnReset.style.display = layoutUnlocked ? '' : 'none'
 }
 
 function updateModCounter() {
@@ -1097,11 +1108,18 @@ function initPreview() {
     setTimeout(function(){ sendThemeToPreview() }, 100)
   })
   window.addEventListener('message', function(e) {
-    if (!e.data || e.data.type !== 'silleau_ready') return
-    _iframeReady = true
-    if (_pendingTheme) {
-      sendThemeMsg(_pendingTheme)
-      _pendingTheme = null
+    if (!e.data) return
+    if (e.data.type === 'silleau_ready'){
+      _iframeReady = true
+      if (_pendingTheme) { sendThemeMsg(_pendingTheme); _pendingTheme = null }
+      /* Dacă suntem în edit mode, pornește editor-ul în iframe */
+      if (_layoutEditing) {
+        var ifr = document.getElementById('prevIframe')
+        try { ifr.contentWindow.postMessage({ type: 'silleau_edit_mode', enabled: true }, '*') } catch(err){}
+      }
+    }
+    if (e.data.type === 'silleau_layout_change'){
+      _branding.layout = e.data.layout || {}
     }
   })
   loadPreviewPage()
@@ -1124,8 +1142,44 @@ function buildThemeMsg() {
     slogan:       _branding.slogan || '',
     logo_url:     _branding.logo_url || null,
     favicon_url:  _branding.favicon_url || null,
-    hide_silleau: _branding.hide_silleau || false
+    hide_silleau: _branding.hide_silleau || false,
+    layout:       _branding.layout || {}
   }
+}
+
+/* ── Layout editor (Canva-like) — doar pe tab-ul Formular ── */
+var _layoutEditing = false
+function toggleLayoutEditor(){
+  if (_prevPage !== 'form') {
+    switchToFormTab()
+  }
+  _layoutEditing = !_layoutEditing
+  var btn = document.getElementById('btnEditLayout')
+  if (_layoutEditing) {
+    btn.classList.add('active')
+    btn.textContent = '✓ Salvează aspect'
+    reloadPreviewWithEdit(true)
+  } else {
+    btn.classList.remove('active')
+    btn.textContent = '✎ Aspect'
+    reloadPreviewWithEdit(false)
+  }
+}
+function resetLayoutFromParent(){
+  if (!confirm('Resetezi aspectul la cel default?')) return
+  _branding.layout = {}
+  var iframe = document.getElementById('prevIframe')
+  try { iframe.contentWindow.postMessage({ type: 'silleau_layout_reset' }, '*') } catch(e){}
+}
+function switchToFormTab(){
+  var formTab = document.querySelector('.prev-tab[data-page="form"]')
+  if (formTab) switchPage(formTab)
+}
+function reloadPreviewWithEdit(enable){
+  _iframeReady = false
+  var iframe = document.getElementById('prevIframe')
+  var base = PREV_URLS[_prevPage] + encodeURIComponent(_clinicId)
+  iframe.src = enable ? base + '&edit=1' : base
 }
 
 function sendThemeToPreview() {

@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
   const approvalToken = genToken()
 
   // Upsert clinic_branding (insert sau update dacă există deja)
-  const { nume_afisat, slogan, logo_url, favicon_url, tema, email_templates, hide_silleau, silleau_opacity } = branding
+  const { nume_afisat, slogan, logo_url, favicon_url, tema, email_templates, hide_silleau, silleau_opacity, layout } = branding
   await fetch(`${SUPABASE_URL}/rest/v1/clinic_branding`, {
     method:  'POST',
     headers: { ...SB, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
       email_templates: email_templates || {},
       hide_silleau:    hide_silleau || false,
       silleau_opacity: silleau_opacity ?? 1,
+      layout:          layout || {},
       approval_token:  approvalToken,
       submitted_at:    new Date().toISOString(),
     }),
