@@ -1181,21 +1181,11 @@ function _makeDraggable(el, key){
   _dragListeners.push({ el: el, fn: onDown });
 }
 
-function _getTightRect(el){
-  /* Range API măsoară doar nodurile de text, excluzând letter-spacing trailing,
-     padding și alte spațieri care nu sunt vizual vizibile. */
-  try {
-    var range = document.createRange();
-    range.selectNodeContents(el);
-    var r = range.getBoundingClientRect();
-    if(r && r.width > 0) return r;
-  } catch(e){}
-  return el.getBoundingClientRect();
-}
-
 function _positionResizeHandle(refEl, handle){
   var hdr = document.querySelector('.hdr');
-  var r = _getTightRect(refEl);
+  /* element.getBoundingClientRect() include toate nodurile-copil (blines incluse).
+     Letter-spacing e normalizat în edit mode, deci rect-ul e fix pe conținutul vizibil. */
+  var r = refEl.getBoundingClientRect();
   var hr = hdr.getBoundingClientRect();
   handle.style.left = (r.right - hr.left - 7) + 'px';
   handle.style.top  = (r.bottom - hr.top  - 7) + 'px';
@@ -1267,9 +1257,9 @@ function _initElementForEdit(el, key){
   if(cs.display === 'none' || el.offsetParent === null) return;
   if(_dragListeners.some(function(L){ return L.el === el; })) return;
 
-  /* Determinăm refEl = elementul pe care se aliniază outline-ul ȘI handle-ul.
-     Pentru .brand (wrapper cu blines), refEl = .clinic-name (doar textul). */
-  var refEl = (key === 'brand') ? (el.querySelector('.clinic-name') || el) : el;
+  /* refEl = elementul pe care se aliniază outline-ul ȘI handle-ul.
+     Întotdeauna întregul element (pentru .brand, wrapper-ul cu blines intră în bloc). */
+  var refEl = el;
   el._handleRef = refEl;
   el._outlineEl = refEl;
 
@@ -1292,13 +1282,11 @@ function _initElementForEdit(el, key){
     }
   }
   /* Letter-spacing trailing face ca rect-ul să fie mai lat decât textul vizibil.
-     În edit mode, setăm letter-spacing normal pe refEl ca outline și handle să fie fix pe text. */
-  if(refEl !== el || key === 'brand'){
-    var ls = getComputedStyle(refEl).letterSpacing;
-    if(ls && ls !== 'normal' && parseFloat(ls) !== 0){
-      refEl._origLetterSpacing = refEl.style.letterSpacing;
-      refEl.style.letterSpacing = 'normal';
-    }
+     Normalizăm pe refEl ca rect-ul să se strângă la conținut real. */
+  var ls = getComputedStyle(refEl).letterSpacing;
+  if(ls && ls !== 'normal' && parseFloat(ls) !== 0){
+    refEl._origLetterSpacing = refEl.style.letterSpacing;
+    refEl.style.letterSpacing = 'normal';
   }
   el.style.transformOrigin = 'top left';
   /* Outline pe refEl — aceeași geometrie folosită pentru handle. */
