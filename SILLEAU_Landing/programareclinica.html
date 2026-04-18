@@ -958,6 +958,73 @@ function fetchConfig(callback){
   });
 }
 
+/* ─── LIVE PREVIEW: aplică temă venită prin postMessage din setup/configurator ── */
+function applyThemeLive(row){
+  if(!row) return;
+  var t = row.tema || {};
+  var root = document.documentElement;
+  if(t.bg)   root.style.setProperty('--bg',  t.bg);
+  if(t.bg2)  root.style.setProperty('--bg2', t.bg2);
+  if(t.bd)   root.style.setProperty('--bd',  t.bd);
+  if(t.acc)  root.style.setProperty('--acc', t.acc);
+  if(t.txt)  root.style.setProperty('--txt', t.txt);
+  if(t.mut)  root.style.setProperty('--mut', t.mut);
+  if(t.wh)   root.style.setProperty('--wh',  t.wh);
+  if(t.ok)   root.style.setProperty('--ok',  t.ok);
+  if(t.err)  root.style.setProperty('--err', t.err);
+  if(t.bd2)  root.style.setProperty('--bd2', t.bd2);
+  if(t.dim)  root.style.setProperty('--dim', t.dim);
+  if(t.r_btn)  root.style.setProperty('--r-btn',  t.r_btn);
+  if(t.r_card) root.style.setProperty('--r-card', t.r_card);
+  if(t.r_inp)  root.style.setProperty('--r-inp',  t.r_inp);
+  if(t.font_heading && t.font_heading !== 'Cormorant Garamond'){
+    var lnkH = document.createElement('link');
+    lnkH.rel = 'stylesheet';
+    lnkH.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(t.font_heading) + ':ital,wght@0,300;0,400;1,300;1,400&display=swap';
+    document.head.appendChild(lnkH);
+    root.style.setProperty('--font-heading', "'" + t.font_heading + "', serif");
+  }
+  if(t.font_body && t.font_body !== 'Inter'){
+    var lnkB = document.createElement('link');
+    lnkB.rel = 'stylesheet';
+    lnkB.href = 'https://fonts.googleapis.com/css2?family=' + t.font_body.replace(/ /g,'+') + ':wght@300;400;500&display=swap';
+    document.head.appendChild(lnkB);
+    document.body.style.fontFamily = "'" + t.font_body + "', sans-serif";
+  }
+  var name = row.nume_afisat || t.nume_afisat || row.nume;
+  if(name){
+    CLINIC_NAME = name;
+    document.title = 'Programare — ' + CLINIC_NAME;
+    document.querySelectorAll('.brand-name, .clinic-name').forEach(function(el){ el.textContent = name; });
+  }
+  var logoUrl = row.logo_url || t.logo_url;
+  if(logoUrl){
+    var logo = document.querySelector('.logo-img');
+    if(logo) logo.src = logoUrl;
+  }
+  if(row.favicon_url){
+    var fav = document.querySelector('link[rel="icon"]') || document.createElement('link');
+    fav.rel = 'icon';
+    fav.href = row.favicon_url;
+    if(!fav.parentNode) document.head.appendChild(fav);
+  }
+  if(t.hide_brand || row.hide_silleau){
+    document.querySelectorAll('.footer, .hdr').forEach(function(el){ el.style.display='none'; });
+  }
+}
+window.addEventListener('message', function(e){
+  if(!e.data || e.data.type !== 'silleau_theme') return;
+  applyThemeLive({
+    tema:        e.data.tema || {},
+    nume:        e.data.nome || '',
+    nume_afisat: e.data.nome || '',
+    logo_url:    e.data.logo_url,
+    favicon_url: e.data.favicon_url,
+    hide_silleau:e.data.hide_silleau
+  });
+});
+try { window.parent.postMessage({ type: 'silleau_ready' }, '*'); } catch(err) {}
+
 /* ─── FETCH DOCTORI + ORAR DIN SUPABASE ────────────────────────
    Încarcă în paralel:
    · `personal`         → lista medicilor activi ai clinicii

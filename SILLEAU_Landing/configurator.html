@@ -508,7 +508,14 @@ window.addEventListener('message', function(e){
 function sendPreview(){
   var ifrm = document.getElementById('previewIframe')
   if(ifrm && ifrm.contentWindow){
-    ifrm.contentWindow.postMessage({ type:'silleau_theme', tema:_tema, nome:_clinicData.clinic_name||'' }, '*')
+    ifrm.contentWindow.postMessage({
+      type:        'silleau_theme',
+      tema:        _tema,
+      nome:        _tema.nume_afisat || _clinicData.clinic_name || '',
+      logo_url:    _tema.logo_url || null,
+      favicon_url: _tema.favicon_url || null,
+      hide_silleau:_tema.hide_brand || false
+    }, '*')
   }
 }
 
