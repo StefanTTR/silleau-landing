@@ -877,7 +877,9 @@ function fetchConfig(callback){
   try {
     var _cc = localStorage.getItem('st_'+CLINIC_ID);
     if(_cc){
-      var _cr = JSON.parse(_cc); var _ct = (_cr&&_cr.tema)||{}; var _root = document.documentElement;
+      var _cr = JSON.parse(_cc);
+      if(_cr && _cr._ts && Date.now()-_cr._ts < 600000){
+      var _ct = _cr.tema||{}; var _root = document.documentElement;
       if(_ct.bg)  _root.style.setProperty('--bg',  _ct.bg);
       if(_ct.bg2) _root.style.setProperty('--bg2', _ct.bg2);
       if(_ct.bg3) _root.style.setProperty('--bg3', _ct.bg3);
@@ -888,13 +890,14 @@ function fetchConfig(callback){
       if(_ct.wh)  _root.style.setProperty('--wh',  _ct.wh);
       if(_ct.bd2) _root.style.setProperty('--bd2', _ct.bd2);
       document.body.style.visibility='visible';
+      }
     }
   } catch(e){}
   fetch(PUBLIC_DATA_FN + '?resource=clinic_theme&clinic_id=' + encodeURIComponent(CLINIC_ID))
   .then(function(r){ return r.json(); })
   .then(function(list){
     var row = Array.isArray(list) ? list[0] : null;
-    if(row){ try{localStorage.setItem('st_'+CLINIC_ID,JSON.stringify(row));}catch(e){} }
+    if(row){ try{localStorage.setItem('st_'+CLINIC_ID,JSON.stringify(Object.assign({_ts:Date.now()},row)));}catch(e){} }
     var t   = (row && row.tema) ? row.tema : {};
     var root = document.documentElement;
     if(t.bg)  root.style.setProperty('--bg',  t.bg);
@@ -978,6 +981,12 @@ function applyThemeLive(row){
   if(t.r_btn)  root.style.setProperty('--r-btn',  t.r_btn);
   if(t.r_card) root.style.setProperty('--r-card', t.r_card);
   if(t.r_inp)  root.style.setProperty('--r-inp',  t.r_inp);
+  var _sp = { compact:{c:'32px',r:'9px',g:'20px'}, normal:{c:'48px',r:'13px',g:'28px'}, spacious:{c:'64px',r:'17px',g:'36px'} };
+  if(t.spacing && _sp[t.spacing]){
+    root.style.setProperty('--sp-card', _sp[t.spacing].c);
+    root.style.setProperty('--sp-row',  _sp[t.spacing].r);
+    root.style.setProperty('--sp-gap',  _sp[t.spacing].g);
+  }
   if(t.font_heading && t.font_heading !== 'Cormorant Garamond'){
     var lnkH = document.createElement('link');
     lnkH.rel = 'stylesheet';
