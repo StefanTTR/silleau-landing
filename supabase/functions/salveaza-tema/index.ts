@@ -2,7 +2,9 @@ const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_KEY       = Deno.env.get('RESEND_KEY')!
 const STEFAN_EMAIL     = Deno.env.get('STEFAN_EMAIL') || 'stefan@silleau.com'
+const ADMIN_SECRET     = Deno.env.get('ADMIN_SECRET') || ''
 const SITE             = 'https://www.silleau.com'
+const FN_BASE          = Deno.env.get('SUPABASE_URL')!.replace('/rest/v1','') + '/functions/v1'
 
 const SB      = { 'apikey': SERVICE_ROLE_KEY, 'Authorization': 'Bearer ' + SERVICE_ROLE_KEY }
 const SB_POST = { ...SB, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }
@@ -70,8 +72,16 @@ Deno.serve(async (req) => {
 
   // Email notificare Stefan
   const approvalUrl  = `${SITE}/aproba-tema.html?id=${encodeURIComponent(tok.clinic_id)}&t=${encodeURIComponent(approvalToken)}`
+  const regenUrl     = ADMIN_SECRET
+    ? `${FN_BASE}/regenereaza-token?clinic_id=${encodeURIComponent(tok.clinic_id)}&s=${encodeURIComponent(ADMIN_SECRET)}`
+    : null
   const planLabel    = { starter: 'Starter', pro: 'Pro', white_label: 'White Label' }[clinic.plan as string] || clinic.plan
-  const modText      = clinic.plan === 'white_label' ? `<p style="color:#888;font-size:12px;">Modificări luna aceasta: <strong>${modLuna + 1}/3</strong></p>` : ''
+  const modText      = clinic.plan === 'white_label' ? `<p style="color:#888;font-size:12px;margin:0 0 20px;">Modificări luna aceasta: <strong style="color:#E8E4DC;">${modLuna + 1}/3</strong></p>` : ''
+  const regenBlock   = regenUrl
+    ? `<div style="margin-top:24px;padding-top:20px;border-top:1px solid #2A2A2A;">
+        <p style="font-size:11px;color:#555;margin:0 0 10px;">Clinica nu e mulțumită cu rezultatul?</p>
+        <a href="${regenUrl}" style="display:inline-block;background:#1A1A1A;color:#888;padding:10px 20px;text-decoration:none;border-radius:4px;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;border:1px solid #333;">🔑 Generează token nou →</a>
+      </div>` : ''
 
   await fetch('https://api.resend.com/emails', {
     method:  'POST',
@@ -84,14 +94,14 @@ Deno.serve(async (req) => {
         <div style="font-family:Inter,sans-serif;max-width:560px;margin:0 auto;background:#111;color:#E8E4DC;padding:32px;border-radius:8px;">
           <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#666;margin-bottom:8px;">SILLEAU Configurator</div>
           <h2 style="font-size:24px;font-weight:300;margin:0 0 8px;">${clinic.nume}</h2>
-          <p style="color:#888;font-size:13px;margin:0 0 24px;">Plan: <strong style="color:#E8E4DC;">${planLabel}</strong></p>
+          <p style="color:#888;font-size:13px;margin:0 0 20px;">Plan: <strong style="color:#E8E4DC;">${planLabel}</strong></p>
           ${modText}
-          <a href="${approvalUrl}" style="display:inline-block;background:#E8E4DC;color:#111;padding:14px 28px;text-decoration:none;border-radius:4px;font-size:11px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;margin-bottom:24px;">Aprobă tema →</a>
-          <details style="margin-top:16px;">
-            <summary style="cursor:pointer;font-size:11px;color:#666;letter-spacing:.1em;">Vezi JSON temă</summary>
+          <a href="${approvalUrl}" style="display:inline-block;background:#E8E4DC;color:#111;padding:14px 28px;text-decoration:none;border-radius:4px;font-size:11px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;">Aprobă tema →</a>
+          ${regenBlock}
+          <details style="margin-top:24px;">
+            <summary style="cursor:pointer;font-size:11px;color:#555;letter-spacing:.1em;">▸ Vezi JSON temă</summary>
             <pre style="background:#0A0A0A;color:#6A9E6A;padding:16px;border-radius:4px;font-size:11px;overflow:auto;margin-top:12px;">${JSON.stringify(tema_draft, null, 2)}</pre>
           </details>
-          <p style="font-size:11px;color:#444;margin-top:24px;">Link direct: ${approvalUrl}</p>
         </div>
       `,
     }),
