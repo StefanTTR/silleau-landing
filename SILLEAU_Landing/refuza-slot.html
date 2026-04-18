@@ -39,7 +39,7 @@
 <body>
 <div class="wrap">
   <div class="hdr">
-    <div class="brand"><span class="bline"></span><span class="brand-name">SILLEAU</span><span class="bline"></span></div>
+    <div class="brand"><span class="bline"></span><img class="logo-img" alt="" style="display:none;max-height:28px;max-width:120px;object-fit:contain;margin:0 6px;"><span class="brand-name">SILLEAU</span><span class="bline"></span></div>
   </div>
   <div id="content"><div class="loading">Se verifică...</div></div>
   <div class="footer">Powered by <span>SILLEAU</span> — Revenue Optimisation Systems</div>
@@ -91,15 +91,16 @@
       document.head.appendChild(lnkH);
       document.documentElement.style.setProperty('--font-heading', "'" + t.font_heading + "', serif");
     }
-    if(t.hide_brand) {
-      document.querySelectorAll('.footer, .hdr').forEach(function(el){ el.style.display='none'; });
-    }
+    var _hb = !!t.hide_brand;
+    document.querySelectorAll('.footer').forEach(function(el){ el.style.display = _hb ? 'none' : ''; });
     var name = (t.nume_afisat || nome || '').trim();
     if(name) document.querySelectorAll('.brand-name').forEach(function(el){ el.textContent = name; });
+    var _lg = r.querySelector('.logo-img');
+    if(_lg){ if(t.logo_url){ _lg.src = t.logo_url; _lg.style.display = ''; } else _lg.style.display = 'none'; }
   }
   window.addEventListener('message', function(e){
     if(!e.data||e.data.type!=='silleau_theme') return;
-    applyTheme(e.data.tema||{}, e.data.nome||'');
+    applyTheme(Object.assign({logo_url:e.data.logo_url},e.data.tema||{}), e.data.nome||'');
     document.body.style.visibility='visible';
   });
   function fetchAndApplyTheme(clinicId) {
@@ -107,13 +108,13 @@
     if(!clinicId) { document.body.style.visibility='visible'; return; }
     try {
       var _c = localStorage.getItem('st_'+clinicId);
-      if(_c){ var _r=JSON.parse(_c); if(_r && _r._ts && Date.now()-_r._ts < 600000){ applyTheme(_r.tema||{},_r.nume_afisat||_r.nume||''); document.body.style.visibility='visible'; } }
+      if(_c){ var _r=JSON.parse(_c); if(_r && _r._ts && Date.now()-_r._ts < 600000){ applyTheme(Object.assign({logo_url:_r.logo_url},_r.tema||{}),_r.nume_afisat||_r.nume||''); document.body.style.visibility='visible'; } }
     } catch(e){}
     fetch(PUBLIC_DATA_FN + '?resource=clinic_theme&clinic_id=' + encodeURIComponent(clinicId))
     .then(function(r){ return r.json(); })
     .then(function(list){
       var row = Array.isArray(list) ? list[0] : null;
-      if(row){ try{localStorage.setItem('st_'+clinicId,JSON.stringify(Object.assign({_ts:Date.now()},row)));}catch(e){} applyTheme(row.tema||{},row.nume_afisat||row.nume||''); }
+      if(row){ try{localStorage.setItem('st_'+clinicId,JSON.stringify(Object.assign({_ts:Date.now()},row)));}catch(e){} applyTheme(Object.assign({logo_url:row.logo_url},row.tema||{}),row.nume_afisat||row.nume||''); }
       document.body.style.visibility='visible';
     })
     .catch(function(){ document.body.style.visibility='visible'; });
