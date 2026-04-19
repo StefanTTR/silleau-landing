@@ -89,9 +89,10 @@ Deno.serve(async (req) => {
         return redirect(cancelPageUrl('', '', 'invalid'))
       }
 
-      if (action === 'confirm')    return await handleConfirm(token, clinic)
-      if (action === 'reschedule') return await handleReschedule(token, clinic)
-      if (action === 'cancel')     return await handleCancelView(token, clinic)
+      if (action === 'confirm')            return await handleConfirm(token, clinic)
+      if (action === 'reschedule')         return await handleReschedule(token, clinic)
+      if (action === 'cancel')             return await handleCancelView(token, clinic)
+      if (action === 'reschedule-context') return await handleRescheduleContext(req, token, clinic)
 
       return redirect(cancelPageUrl('', '', 'invalid'))
     }
@@ -101,12 +102,20 @@ Deno.serve(async (req) => {
       const action = body?.action
       const token  = body?.token as string | undefined
       const clinic = body?.clinic_id as string | undefined
-      const motiv  = (body?.motiv as string | undefined) ?? 'anulat_de_pacient'
 
-      if (action !== 'cancel-confirm' || !token || !clinic || !TOKEN_RE.test(token) || !UUID_RE.test(clinic)) {
+      if (!token || !clinic || !TOKEN_RE.test(token) || !UUID_RE.test(clinic)) {
         return jsonResponse(req, 400, { error: 'invalid_request' })
       }
-      return await handleCancelConfirm(req, token, clinic, motiv)
+
+      if (action === 'cancel-confirm') {
+        const motiv = (body?.motiv as string | undefined) ?? 'anulat_de_pacient'
+        return await handleCancelConfirm(req, token, clinic, motiv)
+      }
+      if (action === 'pivot-reschedule') {
+        return await handlePivotReschedule(req, token, clinic)
+      }
+
+      return jsonResponse(req, 400, { error: 'invalid_action' })
     }
 
     return jsonResponse(req, 405, { error: 'method_not_allowed' })
@@ -163,7 +172,92 @@ async function handleReschedule(token: string, clinicId: string): Promise<Respon
   const target = new URL(SITE + '/programareclinica.html')
   target.searchParams.set('reprogramare_id',        prog.programare_id)
   target.searchParams.set('reprogramare_clinic_id', clinicId)
+  target.searchParams.set('rt',                     token) // reschedule token pentru context fetch
   return redirect(target.toString())
+}
+
+/**
+ * GET context pentru pre-fill formular reschedule — validează token și întoarce
+ * datele pacientului + programării. Apelat de programareclinica.html după ce
+ * utilizatorul a aterizat pe pagină via redirect-ul handleReschedule.
+ */
+async function handleRescheduleContext(req: Request, token: string, clinicId: string): Promise<Response> {
+  const hash = await hashToken(token)
+  const url  = SUPABASE_URL + '/rest/v1/programari'
+    + '?reschedule_token_hash=eq.' + encodeURIComponent(hash)
+    + '&clinic_id=eq.' + encodeURIComponent(clinicId)
+    + '&select=programare_id,personal_id,serviciu_id,pacient_id,status,tokens_expire_at'
+
+  const res = await fetch(url, { headers: SB_HEADERS })
+  if (!res.ok) return jsonResponse(req, 500, { error: 'db_error' })
+  const rows = await res.json()
+  const prog = Array.isArray(rows) ? rows[0] : null
+
+  if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
+  if (isTokenExpired(prog.tokens_expire_at)) return jsonResponse(req, 410, { error: 'token_expired' })
+  if (prog.status === 'anulat')              return jsonResponse(req, 410, { error: 'already_cancelled' })
+
+  // Fetch pacient pentru pre-fill formular
+  const pacRes = await fetch(
+    SUPABASE_URL + '/rest/v1/pacienti?id=eq.' + encodeURIComponent(prog.pacient_id) + '&select=prenume,nume,email,telefon',
+    { headers: SB_HEADERS }
+  )
+  const pacRows = pacRes.ok ? await pacRes.json() : []
+  const pac     = Array.isArray(pacRows) ? pacRows[0] : null
+
+  return jsonResponse(req, 200, {
+    programare_id: prog.programare_id,
+    personal_id:   prog.personal_id,
+    serviciu_id:   prog.serviciu_id,
+    prenume:       pac?.prenume ?? '',
+    nume:          pac?.nume ?? '',
+    email:         pac?.email ?? '',
+    telefon:       pac?.telefon ?? '',
+  })
+}
+
+/**
+ * POST pivot de la cancel → reschedule. Apelat din anulare-reminder.html când
+ * utilizatorul alege „Reprogramează" în loc să anuleze. Validează cancel token
+ * (nu îl consumă — poate reveni la cancel mai târziu), regenerează reschedule
+ * token și întoarce URL-ul de redirect către resolve-action.
+ */
+async function handlePivotReschedule(req: Request, cancelToken: string, clinicId: string): Promise<Response> {
+  const cancelHash = await hashToken(cancelToken)
+  const rows       = await fetchByTokenHash('cancel_token_hash', cancelHash, clinicId)
+  const prog       = rows[0]
+
+  if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
+  if (prog.cancel_token_used_at)             return jsonResponse(req, 410, { error: 'token_used' })
+  if (isTokenExpired(prog.tokens_expire_at)) return jsonResponse(req, 410, { error: 'token_expired' })
+  if (prog.status === 'anulat')              return jsonResponse(req, 410, { error: 'already_cancelled' })
+
+  const newToken = genRandomToken()
+  const newHash  = await hashToken(newToken)
+
+  const patchRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/programari?programare_id=eq.${encodeURIComponent(prog.programare_id)}&clinic_id=eq.${encodeURIComponent(clinicId)}`,
+    {
+      method:  'PATCH',
+      headers: { ...SB_JSON, 'Prefer': 'return=minimal' },
+      body:    JSON.stringify({ reschedule_token_hash: newHash }),
+    }
+  )
+  if (!patchRes.ok) return jsonResponse(req, 500, { error: 'pivot_failed' })
+
+  const redirectUrl = SUPABASE_URL
+    + '/functions/v1/resolve-action?action=reschedule'
+    + '&token='     + encodeURIComponent(newToken)
+    + '&clinic_id=' + encodeURIComponent(clinicId)
+
+  return jsonResponse(req, 200, { redirect_url: redirectUrl })
+}
+
+function genRandomToken(): string {
+  const bytes = new Uint8Array(18)
+  crypto.getRandomValues(bytes)
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
 async function handleCancelView(token: string, clinicId: string): Promise<Response> {

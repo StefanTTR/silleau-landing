@@ -53,6 +53,24 @@
   .btn-secondary { background: #fff; color: #555; border: 1px solid #C8C4BC; }
   .status { margin-top: 18px; font-size: 12px; color: #999; min-height: 18px; }
   #loading { color: #888; font-size: 14px; text-align: center; padding: 20px 0; }
+  .motiv-list { margin: 22px 0 4px; display: flex; flex-direction: column; gap: 2px; }
+  .motiv-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid #E8E4DC; border-radius: 3px;
+    cursor: pointer;
+    font-size: 13px; color: #333;
+    transition: background .15s, border-color .15s;
+  }
+  .motiv-row:hover { background: #FAF8F4; }
+  .motiv-row input[type="radio"] { margin: 0; accent-color: #111; }
+  .motiv-row input[type="radio"]:checked + span { color: #111; font-weight: 500; }
+  @media (prefers-color-scheme: dark) {
+    .motiv-row { border-color: #2A2A2A; color: #AAA; }
+    .motiv-row:hover { background: #1A1A1A; }
+    .motiv-row input[type="radio"] { accent-color: #E8E4DC; }
+    .motiv-row input[type="radio"]:checked + span { color: #E8E4DC; }
+  }
   @media (prefers-color-scheme: dark) {
     body { background: #0b0b0b; color: #E8E4DC; }
     .card { background: #141414; border-color: #1E1E1E; box-shadow: none; }
@@ -131,58 +149,128 @@
     return;
   }
 
-  // Status ok — afișăm UI de confirmare double opt-in
-  render(
-    '<div class="tag">Anulare programare</div>' +
-    '<h1>Confirmați anularea?</h1>' +
-    '<p>Sunteți pe cale să anulați programarea de mai jos. Această acțiune nu poate fi inversată — slotul va fi eliberat imediat.</p>' +
-    (when ? ('<div class="meta"><strong>Programare:</strong><br>' + escapeHtml(when) + '</div>') : '') +
-    '<div class="actions">' +
-    '  <button class="btn btn-primary" id="btnConfirm">Confirmă anularea</button>' +
-    '  <a class="btn btn-secondary" href="https://www.silleau.com">Înapoi</a>' +
-    '</div>' +
-    '<p class="status" id="st"></p>'
-  );
+  var MOTIVE = [
+    'Nu mai am nevoie de consultație',
+    'Conflict de program',
+    'Problemă de sănătate neprevăzută',
+    'Urgență personală',
+    'Altul'
+  ];
 
-  document.getElementById('btnConfirm').addEventListener('click', function () {
-    var btn = this;
-    var st  = document.getElementById('st');
-    btn.disabled = true; btn.textContent = 'Se anulează…';
-    st.textContent = '';
+  /* ── Ecranul 1: sugestie reprogramare ─────────────────────────── */
+  function renderUpsell() {
+    render(
+      '<div class="tag">Anulare programare</div>' +
+      '<h1>Nu puteți ajunge?</h1>' +
+      '<p>Haideți să reprogramăm — păstrați consultația la o oră mai potrivită pentru dumneavoastră, fără să pierdeți locul.</p>' +
+      (when ? ('<div class="meta"><strong>Programare curentă:</strong><br>' + escapeHtml(when) + '</div>') : '') +
+      '<div class="actions">' +
+      '  <button class="btn btn-primary"   id="btnReschedule">Reprogramează</button>' +
+      '  <button class="btn btn-secondary" id="btnCancelAnyway">Totuși anulează</button>' +
+      '</div>' +
+      '<p class="status" id="st"></p>'
+    );
 
-    fetch(RESOLVE_FN, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action:    'cancel-confirm',
-        token:     token,
-        clinic_id: clinicId
+    document.getElementById('btnReschedule').addEventListener('click', function () {
+      var btn = this;
+      var st  = document.getElementById('st');
+      btn.disabled = true; btn.textContent = 'Se pregătește…';
+      st.textContent = '';
+
+      fetch(RESOLVE_FN, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pivot-reschedule', token: token, clinic_id: clinicId })
       })
-    })
-    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-    .then(function (res) {
-      if (res.ok) {
-        render(
-          '<div class="tag">SILLEAU</div>' +
-          '<h1>Programare anulată</h1>' +
-          '<p>Programarea a fost anulată cu succes. Vă mulțumim că ne-ați anunțat din timp.</p>'
-        );
-      } else {
-        var err = res.j && res.j.error ? res.j.error : 'eroare';
-        var msg = err === 'cutoff_3h'
-          ? 'Anularea cu mai puțin de 3 ore înainte nu este posibilă. Vă rugăm sunați la clinică.'
-          : err === 'token_expired' ? 'Link-ul a expirat.'
-          : err === 'token_used'    ? 'Acest link a fost deja folosit.'
-          : 'Nu am putut anula programarea. Vă rugăm sunați la clinică.';
-        st.textContent = msg;
-        btn.disabled = false; btn.textContent = 'Confirmă anularea';
-      }
-    })
-    .catch(function () {
-      st.textContent = 'Eroare de rețea. Vă rugăm reîncercați.';
-      btn.disabled = false; btn.textContent = 'Confirmă anularea';
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok && res.j && res.j.redirect_url) {
+          window.location.href = res.j.redirect_url;
+        } else {
+          st.textContent = 'Nu am putut porni reprogramarea. Vă rugăm sunați la clinică.';
+          btn.disabled = false; btn.textContent = 'Reprogramează';
+        }
+      })
+      .catch(function () {
+        st.textContent = 'Eroare de rețea. Vă rugăm reîncercați.';
+        btn.disabled = false; btn.textContent = 'Reprogramează';
+      });
     });
-  });
+
+    document.getElementById('btnCancelAnyway').addEventListener('click', renderMotivSelector);
+  }
+
+  /* ── Ecranul 2: selector motiv + confirm final ────────────────── */
+  function renderMotivSelector() {
+    var opts = MOTIVE.map(function (m, idx) {
+      return '<label class="motiv-row">' +
+        '<input type="radio" name="motiv" value="' + escapeHtml(m) + '"' + (idx === 0 ? ' checked' : '') + '>' +
+        '<span>' + escapeHtml(m) + '</span>' +
+        '</label>';
+    }).join('');
+
+    render(
+      '<div class="tag">Anulare programare</div>' +
+      '<h1>Motivul anulării</h1>' +
+      '<p>Ne ajută să îmbunătățim experiența. Selectați motivul care descrie cel mai bine situația.</p>' +
+      '<div class="motiv-list">' + opts + '</div>' +
+      '<div class="actions">' +
+      '  <button class="btn btn-primary"   id="btnConfirmCancel">Confirmă anularea</button>' +
+      '  <button class="btn btn-secondary" id="btnBack">← Înapoi</button>' +
+      '</div>' +
+      '<p class="status" id="st"></p>'
+    );
+
+    document.getElementById('btnBack').addEventListener('click', renderUpsell);
+
+    document.getElementById('btnConfirmCancel').addEventListener('click', function () {
+      var btn = this;
+      var st  = document.getElementById('st');
+      var radios = document.querySelectorAll('input[name="motiv"]');
+      var motiv = '';
+      for (var i = 0; i < radios.length; i++) { if (radios[i].checked) { motiv = radios[i].value; break; } }
+      if (!motiv) { st.textContent = 'Selectați un motiv.'; return; }
+
+      btn.disabled = true; btn.textContent = 'Se anulează…';
+      st.textContent = '';
+
+      fetch(RESOLVE_FN, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action:    'cancel-confirm',
+          token:     token,
+          clinic_id: clinicId,
+          motiv:     motiv
+        })
+      })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.ok) {
+          render(
+            '<div class="tag">SILLEAU</div>' +
+            '<h1>Programare anulată</h1>' +
+            '<p>Programarea a fost anulată cu succes. Vă mulțumim că ne-ați anunțat din timp.</p>'
+          );
+        } else {
+          var err = res.j && res.j.error ? res.j.error : 'eroare';
+          var msg = err === 'cutoff_3h'
+            ? 'Anularea cu mai puțin de 3 ore înainte nu este posibilă. Vă rugăm sunați la clinică.'
+            : err === 'token_expired' ? 'Link-ul a expirat.'
+            : err === 'token_used'    ? 'Acest link a fost deja folosit.'
+            : 'Nu am putut anula programarea. Vă rugăm sunați la clinică.';
+          st.textContent = msg;
+          btn.disabled = false; btn.textContent = 'Confirmă anularea';
+        }
+      })
+      .catch(function () {
+        st.textContent = 'Eroare de rețea. Vă rugăm reîncercați.';
+        btn.disabled = false; btn.textContent = 'Confirmă anularea';
+      });
+    });
+  }
+
+  renderUpsell();
 })();
 </script>
 </body>

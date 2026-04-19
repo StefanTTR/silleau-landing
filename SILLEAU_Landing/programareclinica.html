@@ -430,6 +430,7 @@ var PREF_EMAIL       = _urlp.get('email_pref') || '';
 var PREF_TEL         = _urlp.get('telefon_pref') || '';
 var REPROGRAMARE_ID      = _urlp.get('reprogramare_id') || '';
 var REPROGRAMARE_CID     = _urlp.get('reprogramare_clinic_id') || '';
+var RESCHEDULE_TOKEN     = _urlp.get('rt') || '';
 var PREF_SERVICIU        = _urlp.get('serviciu_pref') || '';
 var SLOT_NOTIFICARE_ID   = _urlp.get('slot_notificare_id') || '';
 var SLOT_PROGRAMARE_ID   = _urlp.get('slot_programare_id') || '';
@@ -1971,8 +1972,44 @@ document.addEventListener('DOMContentLoaded',function(){
         if (phEl && !phEl.value) phEl.value = PREF_TEL;
       }
 
-      /* ── Reprogramare: skip Step 1, auto-select serviciu, go direct la calendar ── */
-      if (REPROGRAMARE_ID && picDoc) {
+      /* ── Reprogramare: skip Step 1, auto-select medic+serviciu, go direct la calendar ──
+         Flow nou (token-gated): URL conține ?rt=<token>. Fetch-uim contextul
+         server-side din resolve-action, pre-populăm datele pacientului (invisibile),
+         selectăm medicul prin personal_id, match serviciu prin serviciu_id, apoi goTo(3).
+         Flow vechi (PREF_MEDIC în URL): rămâne funcțional pentru backward compat. */
+      if (REPROGRAMARE_ID && RESCHEDULE_TOKEN && REPROGRAMARE_CID) {
+        var rctxUrl = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/resolve-action'
+          + '?action=reschedule-context'
+          + '&token='     + encodeURIComponent(RESCHEDULE_TOKEN)
+          + '&clinic_id=' + encodeURIComponent(REPROGRAMARE_CID);
+        fetch(rctxUrl)
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(ctx){
+            if (!ctx || !ctx.personal_id) return;
+            var fnEl = document.getElementById('i-fn'); if (fnEl && ctx.prenume) fnEl.value = ctx.prenume;
+            var lnEl = document.getElementById('i-ln'); if (lnEl && ctx.nume)    lnEl.value = ctx.nume;
+            var emEl = document.getElementById('i-em'); if (emEl && ctx.email)   emEl.value = ctx.email;
+            var phEl = document.getElementById('i-ph'); if (phEl && ctx.telefon) phEl.value = ctx.telefon;
+            var docIdx = -1;
+            for (var i = 0; i < DOCS.length; i++) {
+              if (DOCS[i].id === ctx.personal_id) { docIdx = i; break; }
+            }
+            var cards = document.querySelectorAll('.dcard');
+            if (docIdx >= 0 && cards[docIdx]) cards[docIdx].click();
+            if (!picDoc) { goTo(3); return; }
+            fetchServicii(picDoc.spec, function(opts) {
+              if (opts.length) {
+                var matched = null;
+                if (ctx.serviciu_id) {
+                  opts.forEach(function(s) { if (!matched && s.supabaseId === ctx.serviciu_id) matched = s; });
+                }
+                picMotiv = matched || opts[0];
+              }
+              goTo(3);
+            });
+          })
+          .catch(function(){ /* fallback — userul vede s1 normal */ });
+      } else if (REPROGRAMARE_ID && picDoc) {
         fetchServicii(picDoc.spec, function(opts) {
           if (opts.length) {
             var prefServLow = PREF_SERVICIU.toLowerCase();
