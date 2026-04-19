@@ -2,26 +2,15 @@
  * resolve-action — procesează link-urile de confirm / reschedule / cancel din
  * email-urile de reminder (signed tokens).
  *
- * NOTĂ IMPORTANTĂ: Supabase Edge Functions servesc orice răspuns cu
- * `content-type: text/plain` + `CSP: sandbox`, deci nu putem servi HTML direct.
- * Toate flow-urile GET fac redirect (302) către pagini frontend pe silleau.com.
- * Doar POST răspunde JSON (consumat de JS-ul din pagină).
+ * Regula unic-răspuns: prima acțiune (confirm / reprogramare / anulare) câștigă.
+ * Tentativele ulterioare pe orice link primesc „Deja X" în funcție de ce s-a
+ * întâmplat primul:
+ *   - status='anulat'             → Deja anulată
+ *   - confirmat_reminder=true     → Deja confirmată
+ *   - a_fost_reprogramat=true     → Deja reprogramată
  *
- * GET  /functions/v1/resolve-action?action=confirm&token=<T>&clinic_id=<CID>
- *      → PATCH status=confirmat, redirect la /confirmare.html
- *
- * GET  /functions/v1/resolve-action?action=reschedule&token=<T>&clinic_id=<CID>
- *      → redirect la /programareclinica.html cu reprogramare_id
- *
- * GET  /functions/v1/resolve-action?action=cancel&token=<T>&clinic_id=<CID>
- *      → redirect la /anulare-reminder.html?token=…&clinic_id=…&status=…&when=…
- *
- * POST /functions/v1/resolve-action
- *      body: { action: 'cancel-confirm', token, clinic_id, motiv? }
- *      → apelează intern anuleaza-slot, răspuns JSON
- *
- * Token: 24 caractere alfanumerice (base64url din 18 bytes random).
- * În DB stocăm doar SHA-256(token + TOKEN_HASH_SALT).
+ * Paginile UI se servesc de pe frontend (Supabase forțează text/plain pe HTML),
+ * deci resolve-action doar face redirect (GET) sau răspunde JSON (POST / context).
  */
 
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
@@ -41,6 +30,32 @@ const UUID_RE  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,48}$/
 
 const CUTOFF_MS = 3 * 60 * 60 * 1000 // 3h
+
+type ProgareRow = {
+  programare_id:          string
+  clinic_id:              string
+  personal_id:            string
+  pacient_id:             string
+  serviciu_id:            string | null
+  status:                 string
+  data_programare:        string
+  ora_start:              string
+  ora_sfarsit:            string
+  tokens_expire_at:       string | null
+  confirm_token_used_at:  string | null
+  cancel_token_used_at:   string | null
+  confirmat_reminder:     boolean
+  a_fost_reprogramat:     boolean
+  numar_reprogramari:     number
+}
+
+type ProgDetails = {
+  data:         string   // "2026-04-20"
+  ora:          string   // "10:00"
+  medic:        string   // "Dr. Ionescu Alexandru"
+  specialitate: string
+  serviciu:     string
+}
 
 function corsHeaders(req: Request): Record<string, string> {
   const origin  = req.headers.get('Origin') ?? ''
@@ -64,12 +79,34 @@ function redirect(url: string): Response {
   return new Response(null, { status: 302, headers: { 'Location': url, 'Cache-Control': 'no-store' } })
 }
 
-function cancelPageUrl(token: string, clinicId: string, status: string, when?: string): string {
+/** URL către /anulare-reminder.html cu state explicit (fără token când e already-X). */
+function cancelPageUrl(opts: {
+  token?: string; clinicId?: string; status: string;
+  data?: string; ora?: string; medic?: string;
+}): string {
   const u = new URL(SITE + '/anulare-reminder.html')
-  if (token)    u.searchParams.set('token',     token)
-  if (clinicId) u.searchParams.set('clinic_id', clinicId)
-  if (status)   u.searchParams.set('status',    status)
-  if (when)     u.searchParams.set('when',      when)
+  u.searchParams.set('status', opts.status)
+  if (opts.token)    u.searchParams.set('token',     opts.token)
+  if (opts.clinicId) u.searchParams.set('clinic_id', opts.clinicId)
+  if (opts.data)     u.searchParams.set('data',      opts.data)
+  if (opts.ora)      u.searchParams.set('ora',       opts.ora)
+  if (opts.medic)    u.searchParams.set('medic',     opts.medic)
+  return u.toString()
+}
+
+/** URL către /confirmare.html cu detalii programare + flag opțional already/error. */
+function confirmPageUrl(opts: {
+  id?: string; clinicId?: string; status: string;
+  data?: string; ora?: string; medic?: string;
+}): string {
+  const u = new URL(SITE + '/confirmare.html')
+  u.searchParams.set('source', 'reminder')
+  u.searchParams.set('status', opts.status)
+  if (opts.id)       u.searchParams.set('id',        opts.id)
+  if (opts.clinicId) u.searchParams.set('clinic_id', opts.clinicId)
+  if (opts.data)     u.searchParams.set('data',      opts.data)
+  if (opts.ora)      u.searchParams.set('ora',       opts.ora)
+  if (opts.medic)    u.searchParams.set('medic',     opts.medic)
   return u.toString()
 }
 
@@ -80,21 +117,22 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method === 'GET') {
-      const u       = new URL(req.url)
-      const action  = u.searchParams.get('action') ?? ''
-      const token   = u.searchParams.get('token')  ?? ''
-      const clinic  = u.searchParams.get('clinic_id') ?? ''
+      const u      = new URL(req.url)
+      const action = u.searchParams.get('action') ?? ''
+      const token  = u.searchParams.get('token')  ?? ''
+      const clinic = u.searchParams.get('clinic_id') ?? ''
 
       if (!TOKEN_RE.test(token) || !UUID_RE.test(clinic)) {
-        return redirect(cancelPageUrl('', '', 'invalid'))
+        return redirect(cancelPageUrl({ status: 'invalid' }))
       }
 
       if (action === 'confirm')            return await handleConfirm(token, clinic)
       if (action === 'reschedule')         return await handleReschedule(token, clinic)
       if (action === 'cancel')             return await handleCancelView(token, clinic)
       if (action === 'reschedule-context') return await handleRescheduleContext(req, token, clinic)
+      if (action === 'cancel-context')     return await handleCancelContext(req, token, clinic)
 
-      return redirect(cancelPageUrl('', '', 'invalid'))
+      return redirect(cancelPageUrl({ status: 'invalid' }))
     }
 
     if (req.method === 'POST') {
@@ -121,7 +159,7 @@ Deno.serve(async (req) => {
     return jsonResponse(req, 405, { error: 'method_not_allowed' })
   } catch (e) {
     console.error('[resolve-action] fatal', e)
-    return redirect(cancelPageUrl('', '', 'invalid'))
+    return redirect(cancelPageUrl({ status: 'invalid' }))
   }
 })
 
@@ -132,10 +170,26 @@ async function handleConfirm(token: string, clinicId: string): Promise<Response>
   const rows = await fetchByTokenHash('confirm_token_hash', hash, clinicId)
   const prog = rows[0]
 
-  if (!prog) return redirectConfirmErr(clinicId, 'expired')
-  if (prog.confirm_token_used_at)            return redirectConfirmSuccess(prog, clinicId, /*already*/ true)
-  if (isTokenExpired(prog.tokens_expire_at)) return redirectConfirmErr(clinicId, 'expired')
-  if (prog.status === 'anulat')              return redirectConfirmErr(clinicId, 'cancelled')
+  if (!prog) {
+    return redirect(confirmPageUrl({ status: 'expired' }))
+  }
+
+  const details = await fetchProgDetails(prog)
+
+  // Regula unic-răspuns
+  if (prog.status === 'anulat') {
+    return redirect(confirmPageUrl({ status: 'already-cancelled', ...details, id: prog.programare_id, clinicId }))
+  }
+  if (prog.a_fost_reprogramat) {
+    return redirect(confirmPageUrl({ status: 'already-rescheduled', ...details, id: prog.programare_id, clinicId }))
+  }
+  if (isTokenExpired(prog.tokens_expire_at) && !prog.confirm_token_used_at) {
+    return redirect(confirmPageUrl({ status: 'expired' }))
+  }
+  if (prog.confirm_token_used_at) {
+    // Deja confirmat prin acest link — idempotent, arătăm success cu flag
+    return redirect(confirmPageUrl({ status: 'already-confirmed', ...details, id: prog.programare_id, clinicId }))
+  }
 
   const now = new Date().toISOString()
   const patchRes = await fetch(
@@ -154,10 +208,10 @@ async function handleConfirm(token: string, clinicId: string): Promise<Response>
   )
   if (!patchRes.ok) {
     console.error('[resolve-action] confirm PATCH failed', patchRes.status, await patchRes.text().catch(() => ''))
-    return redirectConfirmErr(clinicId, 'error')
+    return redirect(confirmPageUrl({ status: 'error' }))
   }
 
-  return redirectConfirmSuccess(prog, clinicId, /*already*/ false)
+  return redirect(confirmPageUrl({ status: 'success', ...details, id: prog.programare_id, clinicId }))
 }
 
 async function handleReschedule(token: string, clinicId: string): Promise<Response> {
@@ -165,39 +219,78 @@ async function handleReschedule(token: string, clinicId: string): Promise<Respon
   const rows = await fetchByTokenHash('reschedule_token_hash', hash, clinicId)
   const prog = rows[0]
 
-  if (!prog)                                 return redirect(cancelPageUrl('', '', 'expired'))
-  if (isTokenExpired(prog.tokens_expire_at)) return redirect(cancelPageUrl('', '', 'expired'))
-  if (prog.status === 'anulat')              return redirect(cancelPageUrl('', '', 'already-cancelled'))
+  if (!prog) {
+    return redirect(cancelPageUrl({ status: 'expired' }))
+  }
+
+  const details = await fetchProgDetails(prog)
+
+  if (prog.status === 'anulat') {
+    return redirect(cancelPageUrl({ status: 'already-cancelled', ...details }))
+  }
+  if (prog.confirmat_reminder) {
+    return redirect(cancelPageUrl({ status: 'already-confirmed', ...details }))
+  }
+  if (prog.a_fost_reprogramat) {
+    return redirect(cancelPageUrl({ status: 'already-rescheduled', ...details }))
+  }
+  if (isTokenExpired(prog.tokens_expire_at)) {
+    return redirect(cancelPageUrl({ status: 'expired' }))
+  }
 
   const target = new URL(SITE + '/programareclinica.html')
   target.searchParams.set('reprogramare_id',        prog.programare_id)
   target.searchParams.set('reprogramare_clinic_id', clinicId)
-  target.searchParams.set('rt',                     token) // reschedule token pentru context fetch
+  target.searchParams.set('rt',                     token)
   return redirect(target.toString())
 }
 
-/**
- * GET context pentru pre-fill formular reschedule — validează token și întoarce
- * datele pacientului + programării. Apelat de programareclinica.html după ce
- * utilizatorul a aterizat pe pagină via redirect-ul handleReschedule.
- */
+/** Redirect la /anulare-reminder. Decizia de state e luată client-side pe baza cancel-context. */
+async function handleCancelView(token: string, clinicId: string): Promise<Response> {
+  return redirect(cancelPageUrl({ token, clinicId, status: 'loading' }))
+}
+
+async function handleCancelContext(req: Request, token: string, clinicId: string): Promise<Response> {
+  const hash = await hashToken(token)
+  const rows = await fetchByTokenHash('cancel_token_hash', hash, clinicId)
+  const prog = rows[0]
+
+  if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
+  if (isTokenExpired(prog.tokens_expire_at) && !prog.cancel_token_used_at) {
+    return jsonResponse(req, 410, { error: 'token_expired' })
+  }
+
+  const details = await fetchProgDetails(prog)
+
+  // Regula unic-răspuns
+  if (prog.status === 'anulat')    return jsonResponse(req, 200, { state: 'already-cancelled',  ...details })
+  if (prog.confirmat_reminder)     return jsonResponse(req, 200, { state: 'already-confirmed',  ...details })
+  if (prog.a_fost_reprogramat)     return jsonResponse(req, 200, { state: 'already-rescheduled', ...details })
+  if (prog.cancel_token_used_at)   return jsonResponse(req, 200, { state: 'already-cancelled',  ...details })
+
+  const slotMs = roSlotToUtcMs(prog.data_programare, prog.ora_start)
+  if (slotMs == null) return jsonResponse(req, 500, { error: 'invalid_slot' })
+  if (slotMs - Date.now() < CUTOFF_MS) {
+    return jsonResponse(req, 200, { state: 'cutoff', ...details })
+  }
+
+  return jsonResponse(req, 200, {
+    state: 'pending',
+    numar_reprogramari: prog.numar_reprogramari || 0,
+    ...details,
+  })
+}
+
 async function handleRescheduleContext(req: Request, token: string, clinicId: string): Promise<Response> {
   const hash = await hashToken(token)
-  const url  = SUPABASE_URL + '/rest/v1/programari'
-    + '?reschedule_token_hash=eq.' + encodeURIComponent(hash)
-    + '&clinic_id=eq.' + encodeURIComponent(clinicId)
-    + '&select=programare_id,personal_id,serviciu_id,pacient_id,status,tokens_expire_at'
-
-  const res = await fetch(url, { headers: SB_HEADERS })
-  if (!res.ok) return jsonResponse(req, 500, { error: 'db_error' })
-  const rows = await res.json()
-  const prog = Array.isArray(rows) ? rows[0] : null
+  const rows = await fetchByTokenHash('reschedule_token_hash', hash, clinicId)
+  const prog = rows[0]
 
   if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
   if (isTokenExpired(prog.tokens_expire_at)) return jsonResponse(req, 410, { error: 'token_expired' })
   if (prog.status === 'anulat')              return jsonResponse(req, 410, { error: 'already_cancelled' })
+  if (prog.confirmat_reminder)               return jsonResponse(req, 410, { error: 'already_confirmed' })
 
-  // Fetch pacient pentru pre-fill formular
   const pacRes = await fetch(
     SUPABASE_URL + '/rest/v1/pacienti?id=eq.' + encodeURIComponent(prog.pacient_id) + '&select=prenume,nume,email,telefon',
     { headers: SB_HEADERS }
@@ -216,72 +309,6 @@ async function handleRescheduleContext(req: Request, token: string, clinicId: st
   })
 }
 
-/**
- * POST pivot de la cancel → reschedule. Apelat din anulare-reminder.html când
- * utilizatorul alege „Reprogramează" în loc să anuleze. Validează cancel token
- * (nu îl consumă — poate reveni la cancel mai târziu), regenerează reschedule
- * token și întoarce URL-ul de redirect către resolve-action.
- */
-async function handlePivotReschedule(req: Request, cancelToken: string, clinicId: string): Promise<Response> {
-  const cancelHash = await hashToken(cancelToken)
-  const rows       = await fetchByTokenHash('cancel_token_hash', cancelHash, clinicId)
-  const prog       = rows[0]
-
-  if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
-  if (prog.cancel_token_used_at)             return jsonResponse(req, 410, { error: 'token_used' })
-  if (isTokenExpired(prog.tokens_expire_at)) return jsonResponse(req, 410, { error: 'token_expired' })
-  if (prog.status === 'anulat')              return jsonResponse(req, 410, { error: 'already_cancelled' })
-
-  const newToken = genRandomToken()
-  const newHash  = await hashToken(newToken)
-
-  const patchRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/programari?programare_id=eq.${encodeURIComponent(prog.programare_id)}&clinic_id=eq.${encodeURIComponent(clinicId)}`,
-    {
-      method:  'PATCH',
-      headers: { ...SB_JSON, 'Prefer': 'return=minimal' },
-      body:    JSON.stringify({ reschedule_token_hash: newHash }),
-    }
-  )
-  if (!patchRes.ok) return jsonResponse(req, 500, { error: 'pivot_failed' })
-
-  const redirectUrl = SUPABASE_URL
-    + '/functions/v1/resolve-action?action=reschedule'
-    + '&token='     + encodeURIComponent(newToken)
-    + '&clinic_id=' + encodeURIComponent(clinicId)
-
-  return jsonResponse(req, 200, { redirect_url: redirectUrl })
-}
-
-function genRandomToken(): string {
-  const bytes = new Uint8Array(18)
-  crypto.getRandomValues(bytes)
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-}
-
-async function handleCancelView(token: string, clinicId: string): Promise<Response> {
-  const hash = await hashToken(token)
-  const rows = await fetchByTokenHash('cancel_token_hash', hash, clinicId)
-  const prog = rows[0]
-
-  if (!prog)                                 return redirect(cancelPageUrl('', '', 'expired'))
-  if (prog.cancel_token_used_at)             return redirect(cancelPageUrl('', '', 'used'))
-  if (isTokenExpired(prog.tokens_expire_at)) return redirect(cancelPageUrl('', '', 'expired'))
-  if (prog.status === 'anulat')              return redirect(cancelPageUrl('', '', 'already-cancelled'))
-
-  const slotMs = roSlotToUtcMs(prog.data_programare, prog.ora_start)
-  if (slotMs == null) return redirect(cancelPageUrl('', '', 'invalid'))
-
-  const when = fmtDataRo(prog.data_programare, prog.ora_start)
-
-  if (slotMs - Date.now() < CUTOFF_MS) {
-    return redirect(cancelPageUrl('', '', 'cutoff', when))
-  }
-
-  return redirect(cancelPageUrl(token, clinicId, 'ok', when))
-}
-
 async function handleCancelConfirm(req: Request, token: string, clinicId: string, motiv: string): Promise<Response> {
   const hash = await hashToken(token)
   const rows = await fetchByTokenHash('cancel_token_hash', hash, clinicId)
@@ -291,13 +318,15 @@ async function handleCancelConfirm(req: Request, token: string, clinicId: string
   if (prog.cancel_token_used_at)             return jsonResponse(req, 410, { error: 'token_used' })
   if (isTokenExpired(prog.tokens_expire_at)) return jsonResponse(req, 410, { error: 'token_expired' })
   if (prog.status === 'anulat')              return jsonResponse(req, 200, { ok: true, already: true })
+  if (prog.confirmat_reminder)               return jsonResponse(req, 409, { error: 'already_confirmed' })
+  if (prog.a_fost_reprogramat)               return jsonResponse(req, 409, { error: 'already_rescheduled' })
 
   const slotMs = roSlotToUtcMs(prog.data_programare, prog.ora_start)
   if (slotMs == null || slotMs - Date.now() < CUTOFF_MS) {
     return jsonResponse(req, 403, { error: 'cutoff_3h' })
   }
 
-  // Marchează tokenul folosit ÎNAINTE de apelul anuleaza-slot (anti-replay idempotent)
+  // Mark-as-used atomic (WHERE used_at IS NULL) pentru anti-replay
   const markRes = await fetch(
     `${SUPABASE_URL}/rest/v1/programari?programare_id=eq.${encodeURIComponent(prog.programare_id)}&clinic_id=eq.${encodeURIComponent(clinicId)}&cancel_token_used_at=is.null`,
     {
@@ -306,9 +335,7 @@ async function handleCancelConfirm(req: Request, token: string, clinicId: string
       body: JSON.stringify({ cancel_token_used_at: new Date().toISOString() }),
     }
   )
-  if (!markRes.ok) {
-    return jsonResponse(req, 500, { error: 'mark_used_failed' })
-  }
+  if (!markRes.ok) return jsonResponse(req, 500, { error: 'mark_used_failed' })
   const markRows = await markRes.json().catch(() => [])
   if (!Array.isArray(markRows) || markRows.length === 0) {
     return jsonResponse(req, 200, { ok: true, already: true })
@@ -331,22 +358,37 @@ async function handleCancelConfirm(req: Request, token: string, clinicId: string
   return jsonResponse(req, 200, { ok: true })
 }
 
-/* ────────────────────────── Redirect helpers ──────────────────────────── */
+async function handlePivotReschedule(req: Request, cancelToken: string, clinicId: string): Promise<Response> {
+  const cancelHash = await hashToken(cancelToken)
+  const rows       = await fetchByTokenHash('cancel_token_hash', cancelHash, clinicId)
+  const prog       = rows[0]
 
-function redirectConfirmSuccess(prog: any, clinicId: string, already: boolean): Response {
-  const target = new URL(SITE + '/confirmare.html')
-  target.searchParams.set('id',        prog.programare_id)
-  target.searchParams.set('clinic_id', clinicId)
-  target.searchParams.set('source',    'reminder')
-  if (already) target.searchParams.set('already', '1')
-  return redirect(target.toString())
-}
+  if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
+  if (prog.cancel_token_used_at)             return jsonResponse(req, 410, { error: 'token_used' })
+  if (isTokenExpired(prog.tokens_expire_at)) return jsonResponse(req, 410, { error: 'token_expired' })
+  if (prog.status === 'anulat')              return jsonResponse(req, 409, { error: 'already_cancelled' })
+  if (prog.confirmat_reminder)               return jsonResponse(req, 409, { error: 'already_confirmed' })
+  if (prog.a_fost_reprogramat)               return jsonResponse(req, 409, { error: 'already_rescheduled' })
 
-function redirectConfirmErr(_clinicId: string, reason: string): Response {
-  const target = new URL(SITE + '/confirmare.html')
-  target.searchParams.set('source', 'reminder')
-  target.searchParams.set('error',  reason)
-  return redirect(target.toString())
+  const newToken = genRandomToken()
+  const newHash  = await hashToken(newToken)
+
+  const patchRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/programari?programare_id=eq.${encodeURIComponent(prog.programare_id)}&clinic_id=eq.${encodeURIComponent(clinicId)}`,
+    {
+      method:  'PATCH',
+      headers: { ...SB_JSON, 'Prefer': 'return=minimal' },
+      body:    JSON.stringify({ reschedule_token_hash: newHash }),
+    }
+  )
+  if (!patchRes.ok) return jsonResponse(req, 500, { error: 'pivot_failed' })
+
+  const redirectUrl = SUPABASE_URL
+    + '/functions/v1/resolve-action?action=reschedule'
+    + '&token='     + encodeURIComponent(newToken)
+    + '&clinic_id=' + encodeURIComponent(clinicId)
+
+  return jsonResponse(req, 200, { redirect_url: redirectUrl })
 }
 
 /* ────────────────────────── DB helpers ────────────────────────────────── */
@@ -357,16 +399,50 @@ async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-async function fetchByTokenHash(column: string, hash: string, clinicId: string): Promise<any[]> {
+async function fetchByTokenHash(column: string, hash: string, clinicId: string): Promise<ProgareRow[]> {
   const url = SUPABASE_URL + '/rest/v1/programari'
     + '?' + column + '=eq.' + encodeURIComponent(hash)
     + '&clinic_id=eq.' + encodeURIComponent(clinicId)
-    + '&select=programare_id,clinic_id,personal_id,pacient_id,status,data_programare,ora_start,ora_sfarsit,tokens_expire_at,confirm_token_used_at,cancel_token_used_at'
+    + '&select=programare_id,clinic_id,personal_id,pacient_id,serviciu_id,status,data_programare,ora_start,ora_sfarsit,'
+    + 'tokens_expire_at,confirm_token_used_at,cancel_token_used_at,confirmat_reminder,a_fost_reprogramat,numar_reprogramari'
 
   const res = await fetch(url, { headers: SB_HEADERS })
   if (!res.ok) return []
   const rows = await res.json()
   return Array.isArray(rows) ? rows : []
+}
+
+async function fetchProgDetails(prog: ProgareRow): Promise<ProgDetails> {
+  const [persRes, servRes] = await Promise.all([
+    fetch(
+      SUPABASE_URL + '/rest/v1/personal?id=eq.' + encodeURIComponent(prog.personal_id) + '&select=prenume,nume,specialitate',
+      { headers: SB_HEADERS }
+    ),
+    prog.serviciu_id
+      ? fetch(
+          SUPABASE_URL + '/rest/v1/servicii?id=eq.' + encodeURIComponent(prog.serviciu_id) + '&select=denumire',
+          { headers: SB_HEADERS }
+        )
+      : Promise.resolve(null as Response | null),
+  ])
+
+  const persRows = persRes.ok ? await persRes.json() : []
+  const servRows = servRes && servRes.ok ? await servRes.json() : []
+  const pers     = Array.isArray(persRows) ? persRows[0] : null
+  const serv     = Array.isArray(servRows) ? servRows[0] : null
+
+  const medicParts: string[] = []
+  if (pers?.prenume) medicParts.push(String(pers.prenume))
+  if (pers?.nume)    medicParts.push(String(pers.nume))
+  const medic = medicParts.length ? 'Dr. ' + medicParts.join(' ') : ''
+
+  return {
+    data:         fmtDataRo(prog.data_programare),
+    ora:          String(prog.ora_start || '').slice(0, 5),
+    medic,
+    specialitate: pers?.specialitate ?? '',
+    serviciu:     serv?.denumire ?? '',
+  }
 }
 
 function isTokenExpired(iso: unknown): boolean {
@@ -391,10 +467,16 @@ function roSlotToUtcMs(dateIso: unknown, oraStart: unknown): number | null {
   return Date.UTC(y, m - 1, d, hh, mm) - offsetMs
 }
 
-function fmtDataRo(dateIso: string, oraStart: string): string {
+function fmtDataRo(dateIso: string): string {
   try {
-    const d = new Date(dateIso + 'T' + oraStart.slice(0, 5) + ':00')
-    const datePart = d.toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-    return datePart + ' la ' + oraStart.slice(0, 5)
-  } catch { return dateIso + ' ' + oraStart }
+    const d = new Date(dateIso + 'T12:00:00')
+    return d.toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  } catch { return dateIso }
+}
+
+function genRandomToken(): string {
+  const bytes = new Uint8Array(18)
+  crypto.getRandomValues(bytes)
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }

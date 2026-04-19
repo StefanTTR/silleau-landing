@@ -199,13 +199,10 @@ async function handleReprogramare(req: Request, body: Record<string, unknown>): 
         confirmat_reminder: false,
         a_fost_reprogramat: true,
         numar_reprogramari: curNr + 1,
-        // Invalidează token-urile reminder-ului precedent
-        confirm_token_hash:      null,
-        reschedule_token_hash:   null,
-        cancel_token_hash:       null,
-        tokens_expire_at:        null,
-        confirm_token_used_at:   null,
-        cancel_token_used_at:    null,
+        // Notă: NU nullify-uim token-urile — a_fost_reprogramat=true e folosit
+        // de resolve-action să afișeze „Deja reprogramată" la vechile link-uri.
+        // Următorul send-reminders va regenera tokens (suprascrie hash-urile)
+        // pentru noua programare.
       }),
     }
   )

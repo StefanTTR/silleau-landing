@@ -221,17 +221,24 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-he
       </div>
     </div>
 
-    <!-- ALREADY CONFIRMED -->
+    <!-- ALREADY CONFIRMED / CANCELLED / RESCHEDULED (state reutilizat) -->
     <div id="stateAlready" class="state" style="text-align:center;">
-      <div class="amark">
-        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      <div class="amark" id="alreadyMark">
+        <svg viewBox="0 0 24 24" id="alreadyIcon"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
       <div class="sh" style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;color:var(--wh);margin-bottom:10px;">
-        Deja <em style="font-style:italic;color:var(--acc);">confirmată</em>
+        Deja <em id="alreadyLabel" style="font-style:italic;color:var(--acc);">confirmată</em>
       </div>
-      <div class="ssub">
+      <div class="ssub" id="alreadySub">
         Această programare a fost deja confirmată anterior.<br>
         Ne vedem la consultație.
+      </div>
+
+      <div class="sumblock" id="alreadySum" style="text-align:left;display:none;">
+        <div class="stitle" data-n="✦">Detalii programare</div>
+        <div class="sumrow"><span class="sumkey">Data</span>  <span class="sumval" id="alreadyData">—</span></div>
+        <div class="sumrow"><span class="sumkey">Ora</span>   <span class="sumval" id="alreadyOra">—</span></div>
+        <div class="sumrow"><span class="sumkey">Medic</span> <span class="sumval" id="alreadyMedic">—</span></div>
       </div>
     </div>
 
@@ -365,6 +372,7 @@ function fetchAndApplyTheme(clinicId) {
   var ora       = params.get('ora');
   var medic     = params.get('medic');
   var source    = params.get('source');
+  var status    = params.get('status');
   var clinic_id = params.get('clinic_id');
   fetchAndApplyTheme(clinic_id);
 
@@ -377,19 +385,57 @@ function fetchAndApplyTheme(clinicId) {
     return;
   }
 
-  if(!id){ showError('Parametrul "id" lipsește din URL.'); return; }
-
   /* Populează detaliile din URL imediat (fără să aștepte DB) */
   if(data)  setVal('detData',  decodeURIComponent(data));
   if(ora)   setVal('detOra',   decodeURIComponent(ora));
   if(medic) setVal('detMedic', decodeURIComponent(medic));
 
-  /* Dacă vine din reminder, confirmarea a fost deja procesată în edge function */
+  /* Helper: afișează stateAlready cu conținut per-variantă */
+  function showAlreadyState(label, labelColor, iconSvg, iconStroke, subHtml) {
+    document.getElementById('alreadyIcon').outerHTML = iconSvg;
+    var mark = document.getElementById('alreadyMark');
+    mark.style.borderColor = iconStroke;
+    var lbl = document.getElementById('alreadyLabel');
+    lbl.textContent = label; lbl.style.color = labelColor;
+    document.getElementById('alreadySub').innerHTML = subHtml;
+    if (data || ora || medic) {
+      if (data)  setVal('alreadyData',  decodeURIComponent(data));
+      if (ora)   setVal('alreadyOra',   decodeURIComponent(ora));
+      if (medic) setVal('alreadyMedic', decodeURIComponent(medic));
+      document.getElementById('alreadySum').style.display = '';
+    }
+    setState('stateAlready');
+  }
+
+  var ICON_CHECK_SVG = '<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--acc);stroke-width:1.5;fill:none;" id="alreadyIcon"><polyline points="20 6 9 17 4 12"/></svg>';
+  var ICON_X_SVG     = '<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--err);stroke-width:1.5;fill:none;" id="alreadyIcon"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  var ICON_REPRO_SVG = '<span style="font-size:22px;line-height:1;color:var(--dim);" id="alreadyIcon">↺</span>';
+
+  /* Dacă vine din reminder, tratăm status-ul explicit returnat de resolve-action */
   if(source === 'reminder'){
+    if (status === 'already-confirmed') {
+      showAlreadyState('confirmată', 'var(--acc)', ICON_CHECK_SVG, 'var(--acc)',
+        'Ați confirmat deja această programare.<br>Ne vedem la consultație.');
+      return;
+    }
+    if (status === 'already-cancelled') {
+      showAlreadyState('anulată', 'var(--err)', ICON_X_SVG, 'var(--err)',
+        'Această programare a fost deja anulată.<br>Nu mai poate fi confirmată.');
+      return;
+    }
+    if (status === 'already-rescheduled') {
+      showAlreadyState('reprogramată', 'var(--dim)', ICON_REPRO_SVG, 'var(--dim)',
+        'Ați solicitat deja reprogramarea acestei consultații.<br>Verificați e-mailul pentru confirmarea noii programări.');
+      return;
+    }
+    if (status === 'expired') { showError('Link-ul a expirat sau nu mai este valid.'); return; }
+    if (status === 'error')   { showError('Nu am putut procesa confirmarea.'); return; }
+    /* status === 'success' sau undefined → afișăm success cu detalii */
     setState('stateSuccess');
-    document.querySelector('#stateSuccess .ssub').textContent = 'Mulțumim pentru confirmare. Vă așteptăm la consultație!';
     return;
   }
+
+  if(!id){ showError('Parametrul "id" lipsește din URL.'); return; }
 
   /* Verifică statusul și confirmă prin edge function */
   fetch(SUPABASE_FUNCTIONS_URL + '/confirma-programare', {
