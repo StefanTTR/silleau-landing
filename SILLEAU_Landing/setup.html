@@ -1147,14 +1147,15 @@ function buildThemeMsg() {
   t.nume_afisat = _branding.nume_afisat || document.getElementById('inp-nome').value.trim() || _clinicName
   t.hide_brand  = _branding.hide_silleau
   return {
-    type:         'silleau_theme',
-    tema:         t,
-    nome:         t.nume_afisat,
-    slogan:       _branding.slogan || '',
-    logo_url:     _branding.logo_url || null,
-    favicon_url:  _branding.favicon_url || null,
-    hide_silleau: _branding.hide_silleau || false,
-    layout:       _branding.layout || {}
+    type:            'silleau_theme',
+    tema:            t,
+    nome:            t.nume_afisat,
+    slogan:          _branding.slogan || '',
+    logo_url:        _branding.logo_url || null,
+    favicon_url:     _branding.favicon_url || null,
+    hide_silleau:    _branding.hide_silleau || false,
+    silleau_opacity: _branding.silleau_opacity !== undefined ? _branding.silleau_opacity : 1,
+    layout:          _branding.layout || {}
   }
 }
 

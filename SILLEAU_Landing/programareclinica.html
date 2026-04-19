@@ -87,7 +87,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .dlist{display:flex;flex-direction:column;gap:7px;margin-bottom:20px;}
 .dcard{display:flex;align-items:center;gap:16px;border:1px solid var(--bd2);border-radius:var(--r-inp);padding:15px 20px;cursor:pointer;background:var(--bg3);transition:all .2s;position:relative;}
 .dcard:hover{background:var(--bg);transform:translateX(3px);}
-.dcard.picked{border-color:var(--acc);background:#161616;}
+.dcard.picked{border-color:var(--acc);background:var(--bg2);}
 .dcard.picked::after{content:'✓';position:absolute;right:18px;font-size:12px;color:var(--acc);}
 .dav{width:38px;height:38px;flex-shrink:0;border-radius:50%;background:var(--bd2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:14px;color:var(--acc);}
 .dname{font-size:14px;font-weight:400;color:var(--wh);margin-bottom:3px;}
@@ -104,9 +104,9 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .calwk span:nth-child(6),.calwk span:nth-child(7){color:#333;}
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
 .cday{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:300;color:var(--txt);border-radius:2px;cursor:pointer;transition:background .12s,color .12s;position:relative;}
-.cday:hover:not(.coff):not(.cempty){background:#1E1E1E;color:var(--wh);}
+.cday:hover:not(.coff):not(.cempty){background:var(--bg3);color:var(--wh);}
 .cempty{cursor:default;}
-.coff{color:#282828 !important;cursor:not-allowed;background:none !important;}
+.coff{color:var(--mut) !important;opacity:.35;cursor:not-allowed;background:none !important;}
 .ctoday{border:1px solid #333;}
 .cpicked{background:var(--acc) !important;color:#111 !important;font-weight:500;}
 .cholday::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:3px;height:3px;border-radius:50%;background:#333;}
@@ -115,7 +115,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .calleg-i{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--mut);letter-spacing:.05em;}
 .calleg-dot{width:7px;height:7px;border-radius:50%;}
 /* unavailable day in calendar — same style as weekend */
-.cunavail{background:#1E1E1E !important;color:#3A3A3A !important;cursor:not-allowed !important;}
+.cunavail{background:var(--bg3) !important;color:var(--mut) !important;opacity:.5 !important;cursor:not-allowed !important;}
 
 /* SLOTS */
 .slotlbl{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:10px;display:block;}
@@ -194,8 +194,8 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
   padding:14px 18px;border:1px solid var(--bd2);border-radius:3px;
   background:var(--bg3);cursor:pointer;transition:all .2s;
 }
-.mopt:hover{border-color:var(--acc);background:#161616;transform:translateX(3px);}
-.mopt.picked{border-color:var(--acc);background:#161616;}
+.mopt:hover{border-color:var(--acc);background:var(--bg2);transform:translateX(3px);}
+.mopt.picked{border-color:var(--acc);background:var(--bg2);}
 .mopt.picked .mradio{background:var(--acc);border-color:var(--acc);}
 .mopt.picked .mradio::after{opacity:1;}
 .mradio{
@@ -230,7 +230,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .canal-lbl{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:8px;display:block;}
 .canal-row{display:flex;gap:8px;margin-bottom:20px;}
 .canal-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 12px;border:1px solid var(--bd2);border-radius:2px;background:var(--bg3);cursor:pointer;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);transition:border-color .2s,color .2s,background .2s;}
-.canal-btn.active{border-color:var(--acc);color:var(--acc);background:#161616;}
+.canal-btn.active{border-color:var(--acc);color:var(--acc);background:var(--bg2);}
 .canal-btn svg{width:13px;height:13px;flex-shrink:0;}
 
 /* FOOTER */
@@ -386,7 +386,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
   <div class="foot">
     SILLEAU Medical · Str. Medicilor nr. 14, București<br>
     <a href="tel:0213004000">021 300 4000</a> · <a href="/cdn-cgi/l/email-protection#f1929e9f85909285b182989d9d949084df929e9c"><span class="__cf_email__" data-cfemail="55363a3b2134362115263c39393034207b363a38">[email&#160;protected]</span></a><br>
-    <span style="font-size:10px;color:#2A2A2A;letter-spacing:.1em;">SILLEAU FRAMEWORK — REVENUE OPTIMIZATION SYSTEMS</span>
+    <span class="silleau-brand" style="font-size:10px;color:#2A2A2A;letter-spacing:.1em;">SILLEAU FRAMEWORK — REVENUE OPTIMIZATION SYSTEMS</span>
   </div>
 </div>
 
@@ -958,9 +958,12 @@ function fetchConfig(callback){
       document.head.appendChild(lnkB);
       document.body.style.fontFamily = "'" + t.font_body + "', sans-serif";
     }
-    /* Branding SILLEAU — doar .footer (Powered by SILLEAU), NU header-ul */
+    /* Branding SILLEAU — doar .silleau-brand (textul SILLEAU FRAMEWORK din footer), NU datele clinicii */
     var _hide = !!(t.hide_brand || (row && row.hide_silleau));
-    document.querySelectorAll('.footer').forEach(function(el){ el.style.display = _hide ? 'none' : ''; });
+    document.querySelectorAll('.silleau-brand, .footer').forEach(function(el){ el.style.display = _hide ? 'none' : ''; });
+    /* Opacitate branding SILLEAU */
+    var _op = (row && row.silleau_opacity !== undefined) ? row.silleau_opacity : 1;
+    document.querySelectorAll('.silleau-brand').forEach(function(el){ el.style.opacity = _hide ? '' : _op; });
     /* Slogan pe initial load */
     if(row && row.slogan){
       var _sl = document.querySelector('.clinic-slogan');
@@ -1043,23 +1046,29 @@ function applyThemeLive(row){
     fav.href = row.favicon_url;
     if(!fav.parentNode) document.head.appendChild(fav);
   }
-  /* Hide SILLEAU branding — afectează doar .footer (Powered by SILLEAU). Clinica păstrează numele, liniile decorative, instrucțiunile și slogan-ul */
+  /* Hide SILLEAU branding — afectează doar textul SILLEAU FRAMEWORK din footer + .footer landing. Clinica păstrează header + date proprii */
   var hideSilleau = !!(t.hide_brand || row.hide_silleau);
-  document.querySelectorAll('.footer').forEach(function(el){
+  document.querySelectorAll('.silleau-brand, .footer').forEach(function(el){
     el.style.display = hideSilleau ? 'none' : '';
+  });
+  /* Opacitate brand SILLEAU */
+  var opVal = (row.silleau_opacity !== undefined) ? row.silleau_opacity : 1;
+  document.querySelectorAll('.silleau-brand').forEach(function(el){
+    el.style.opacity = hideSilleau ? '' : opVal;
   });
 }
 window.addEventListener('message', function(e){
   if(!e.data) return;
   if(e.data.type === 'silleau_theme'){
     applyThemeLive({
-      tema:         e.data.tema || {},
-      nume:         e.data.nome || '',
-      nume_afisat:  e.data.nome || '',
-      slogan:       e.data.slogan || '',
-      logo_url:     e.data.logo_url,
-      favicon_url:  e.data.favicon_url,
-      hide_silleau: e.data.hide_silleau
+      tema:            e.data.tema || {},
+      nume:            e.data.nome || '',
+      nume_afisat:     e.data.nome || '',
+      slogan:          e.data.slogan || '',
+      logo_url:        e.data.logo_url,
+      favicon_url:     e.data.favicon_url,
+      hide_silleau:    e.data.hide_silleau,
+      silleau_opacity: e.data.silleau_opacity
     });
     if(e.data.layout) applyLayout(e.data.layout);
   }
