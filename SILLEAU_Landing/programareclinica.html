@@ -87,7 +87,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .dlist{display:flex;flex-direction:column;gap:7px;margin-bottom:20px;}
 .dcard{display:flex;align-items:center;gap:16px;border:1px solid var(--bd2);border-radius:var(--r-inp);padding:15px 20px;cursor:pointer;background:var(--bg3);transition:all .2s;position:relative;}
 .dcard:hover{background:var(--bg);transform:translateX(3px);}
-.dcard.picked{border-color:var(--acc);background:var(--bg2);}
+.dcard.picked{border-color:var(--acc);background:rgba(232,228,220,.1);background:color-mix(in srgb,var(--acc) 12%,transparent);}
 .dcard.picked::after{content:'✓';position:absolute;right:18px;font-size:12px;color:var(--acc);}
 .dav{width:38px;height:38px;flex-shrink:0;border-radius:50%;background:var(--bd2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:14px;color:var(--acc);}
 .dname{font-size:14px;font-weight:400;color:var(--wh);margin-bottom:3px;}
@@ -104,7 +104,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .calwk span:nth-child(6),.calwk span:nth-child(7){color:#333;}
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
 .cday{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:300;color:var(--txt);border-radius:2px;cursor:pointer;transition:background .12s,color .12s;position:relative;}
-.cday:hover:not(.coff):not(.cempty){background:var(--bg3);color:var(--wh);}
+.cday:hover:not(.coff):not(.cempty){background:rgba(232,228,220,.1);background:color-mix(in srgb,var(--acc) 10%,transparent);color:var(--wh);}
 .cempty{cursor:default;}
 .coff{color:var(--mut) !important;opacity:.35;cursor:not-allowed;background:none !important;}
 .ctoday{border:1px solid #333;}
@@ -115,7 +115,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .calleg-i{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--mut);letter-spacing:.05em;}
 .calleg-dot{width:7px;height:7px;border-radius:50%;}
 /* unavailable day in calendar — same style as weekend */
-.cunavail{background:var(--bg3) !important;color:var(--mut) !important;opacity:.5 !important;cursor:not-allowed !important;}
+.cunavail{background:transparent !important;color:var(--mut) !important;opacity:.35 !important;cursor:not-allowed !important;}
 
 /* SLOTS */
 .slotlbl{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:10px;display:block;}
@@ -194,8 +194,8 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
   padding:14px 18px;border:1px solid var(--bd2);border-radius:3px;
   background:var(--bg3);cursor:pointer;transition:all .2s;
 }
-.mopt:hover{border-color:var(--acc);background:var(--bg2);transform:translateX(3px);}
-.mopt.picked{border-color:var(--acc);background:var(--bg2);}
+.mopt:hover{border-color:var(--acc);background:rgba(232,228,220,.08);background:color-mix(in srgb,var(--acc) 8%,transparent);transform:translateX(3px);}
+.mopt.picked{border-color:var(--acc);background:rgba(232,228,220,.12);background:color-mix(in srgb,var(--acc) 12%,transparent);}
 .mopt.picked .mradio{background:var(--acc);border-color:var(--acc);}
 .mopt.picked .mradio::after{opacity:1;}
 .mradio{
@@ -230,7 +230,7 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
 .canal-lbl{font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);margin-bottom:8px;display:block;}
 .canal-row{display:flex;gap:8px;margin-bottom:20px;}
 .canal-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 12px;border:1px solid var(--bd2);border-radius:2px;background:var(--bg3);cursor:pointer;font-family:'Inter',sans-serif;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);transition:border-color .2s,color .2s,background .2s;}
-.canal-btn.active{border-color:var(--acc);color:var(--acc);background:var(--bg2);}
+.canal-btn.active{border-color:var(--acc);color:var(--acc);background:rgba(232,228,220,.12);background:color-mix(in srgb,var(--acc) 12%,transparent);}
 .canal-btn svg{width:13px;height:13px;flex-shrink:0;}
 
 /* FOOTER */
@@ -322,9 +322,9 @@ input:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(232
           <div class="calgrid" id="cGrid"></div>
           <div class="calleg">
             <span class="calleg-i"><span class="calleg-dot" style="background:var(--acc)"></span>Selectat</span>
-            <span class="calleg-i"><span class="calleg-dot" style="background:#333"></span>Sărbătoare legală</span>
-            <span class="calleg-i"><span class="calleg-dot" style="background:#1E1E1E;border:1px solid #333"></span>Weekend</span>
-            <span class="calleg-i"><span class="calleg-dot" style="background:#1E1E1E;border:1px solid #333"></span>Zile indisponibile</span>
+            <span class="calleg-i"><span class="calleg-dot" style="background:var(--mut);opacity:.6;"></span>Sărbătoare legală</span>
+            <span class="calleg-i"><span class="calleg-dot" style="background:transparent;border:1px solid var(--bd2);opacity:.6;"></span>Weekend</span>
+            <span class="calleg-i"><span class="calleg-dot" style="background:transparent;border:1px solid var(--bd2);opacity:.35;"></span>Zile indisponibile</span>
           </div>
         </div>
         <input type="hidden" id="i-dt">
