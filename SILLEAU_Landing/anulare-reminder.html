@@ -296,14 +296,17 @@ function fetchAndApplyTheme(clinicId) {
    ============================================================ */
 var params       = new URLSearchParams(window.location.search);
 var token        = params.get('token')     || '';
-var clinicId     = params.get('clinic_id') || '';
+var clinicId     = params.get('clinic_id') || '';  /* backward compat — link vechi */
 var urlStatus    = params.get('status')    || '';
 var urlData      = params.get('data')      || '';
 var urlOra       = params.get('ora')       || '';
 var urlMedic     = params.get('medic')     || '';
 var motivSelectat = null;
 
-fetchAndApplyTheme(clinicId);
+/* Dacă avem clinic_id în URL (link vechi), aplicăm tema imediat.
+   Altfel o aplicăm după ce cancel-context ne întoarce clinic_id-ul. */
+if (clinicId) { fetchAndApplyTheme(clinicId); }
+else          { document.body.style.visibility = 'visible'; setTimeout(function(){ document.body.style.visibility='visible'; }, 1); }
 
 function setState(id){
   document.querySelectorAll('.state').forEach(function(el){ el.classList.remove('on'); });
@@ -452,13 +455,23 @@ function bindForm() {
     return;
   }
 
-  /* Happy path: token + clinicId prezent → fetch context din resolve-action. */
-  if (!token || !clinicId) { setState('stateError'); return; }
+  /* Happy path: doar token necesar (link nou). clinic_id vine prin răspuns pentru
+     branding și pentru apelul POST cancel-confirm / pivot-reschedule. */
+  if (!token) { setState('stateError'); return; }
 
-  fetch(RESOLVE_FN + '?action=cancel-context&token=' + encodeURIComponent(token) + '&clinic_id=' + encodeURIComponent(clinicId))
+  var ctxUrl = RESOLVE_FN + '?action=cancel-context&token=' + encodeURIComponent(token);
+  if (clinicId) ctxUrl += '&clinic_id=' + encodeURIComponent(clinicId); /* backward compat */
+
+  fetch(ctxUrl)
     .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
     .then(function(res){
       if (!res.ok) { setState('stateError'); return; }
+      /* Preia clinic_id din răspuns dacă nu l-am avut în URL — necesar pentru branding
+         și pentru body-ul POST cancel-confirm / pivot-reschedule. */
+      if (!clinicId && res.j && res.j.clinic_id) {
+        clinicId = res.j.clinic_id;
+        fetchAndApplyTheme(clinicId);
+      }
       handleContext(res.j);
     })
     .catch(function(){ setState('stateError'); });

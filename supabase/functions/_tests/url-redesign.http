@@ -1,0 +1,107 @@
+### URL Redesign — test scenarios
+###
+### Usage: VSCode REST Client / JetBrains HTTP client
+### Înlocuiește {{token_confirm}} / {{token_reschedule}} / {{token_cancel}}
+### cu token-uri raw extrase din logging-ul `send-reminders` pentru o programare
+### de test.
+
+@site = https://www.silleau.com
+@supabase = https://wpxflbwohowigaulhxhk.supabase.co
+
+### ───────────────────────────────────────────────────────────────────
+### 1. Email reminder folosește URL-urile scurte /r/c/* /r/r/* /r/x/*
+### (verificare manuală: invocă send-reminders și inspectează HTML-ul trimis)
+### Expect: href-urile butoanelor Confirmă/Reprogramează/Anulează să fie
+### {{site}}/r/c/TOKEN, {{site}}/r/r/TOKEN, {{site}}/r/x/TOKEN
+### NU trebuie să apară: clinic_id=..., id=..., email=..., telefon=...,
+### SUPABASE_URL direct, sau acțiunea scrisă în clar (confirm/reschedule/cancel)
+### ───────────────────────────────────────────────────────────────────
+
+
+### 2. Email From: folosește branding-ul clinicii, nu "Clinica Alfa"
+### (verificare manuală: antet Resend al email-ului trimis)
+### Expect: `From: {clinicName} <{emailContact}>` (din clinic_branding.nume_afisat
+### și clinici.email); fallback „Clinica" / „contact@silleau.com" dacă nu există.
+
+### 3. Feedback URL e de forma /f/TOKEN.SIG, fără UUID
+### (verificare manuală: href-ul fiecărei stele din rating widget din email)
+### Expect: {{site}}/f/<payload_b64>.<sig_hex24>?rating=N
+### NU trebuie să apară `id=` sau `clinic_id=` în URL.
+
+
+### ───────────────────────────────────────────────────────────────────
+### 4. GET resolve-action?t=TOKEN_CONFIRM → 302 către /confirmare.html
+###    FĂRĂ clinic_id în query
+### ───────────────────────────────────────────────────────────────────
+GET {{supabase}}/functions/v1/resolve-action?t={{token_confirm}}
+
+### Expect: 302 Location https://www.silleau.com/confirmare.html?source=reminder&status=success&data=...&ora=...&medic=...
+### NU trebuie să conțină `clinic_id=` sau `id=` în Location
+
+
+### ───────────────────────────────────────────────────────────────────
+### 5. GET resolve-action?t=TOKEN_INVALID → 302 invalid
+### ───────────────────────────────────────────────────────────────────
+GET {{supabase}}/functions/v1/resolve-action?t=invalid_token_xxxxxxxxx
+
+### Expect: 302 Location {{site}}/anulare-reminder.html?status=invalid
+
+
+### ───────────────────────────────────────────────────────────────────
+### 6. Backward compat — vechea ramură ?action=...&token=...&clinic_id=...
+###    continuă să funcționeze
+### ───────────────────────────────────────────────────────────────────
+GET {{supabase}}/functions/v1/resolve-action?action=confirm&token={{token_confirm}}&clinic_id={{clinic_id_test}}
+
+### Expect: 302 (same as test #4) — funcționează pentru 14 zile după deploy
+
+
+### ───────────────────────────────────────────────────────────────────
+### 7. handleCancelContext returnează clinic_id în JSON
+### ───────────────────────────────────────────────────────────────────
+GET {{supabase}}/functions/v1/resolve-action?action=cancel-context&token={{token_cancel}}&clinic_id={{clinic_id_test}}
+
+### Expect: 200 JSON
+### {
+###   "state": "pending" | "already-*" | "cutoff",
+###   "clinic_id": "<uuid>",   ← NOU, prezent pe toate răspunsurile success
+###   "data": "joi, 16 aprilie 2026",
+###   "ora": "10:00",
+###   "medic": "Dr. Popescu",
+###   ...
+### }
+
+
+### ───────────────────────────────────────────────────────────────────
+### 8. Email pentru a doua clinică (Beta) → From: reflectă Beta
+### (verificare manuală:
+###   1. creează o programare la clinic_id = Beta cu email valid
+###   2. invocă send-reminders
+###   3. verifică antetul email-ului: `From: Clinica Beta <contact@beta...>`
+###      (sau fallback-ul tematic al clinicii respective)
+### NU trebuie să fie „Clinica Alfa" — asta era hardcodat în varianta veche.
+
+
+### ───────────────────────────────────────────────────────────────────
+### 9. handleUnifiedAction — token găsit în coloana reschedule_token_hash
+###    → comportament echivalent cu ?action=reschedule
+### ───────────────────────────────────────────────────────────────────
+GET {{supabase}}/functions/v1/resolve-action?t={{token_reschedule}}
+
+### Expect: 302 Location {{site}}/programareclinica.html?reprogramare_id=X&reprogramare_clinic_id=Y&rt=TOKEN
+
+
+### ───────────────────────────────────────────────────────────────────
+### 10. handlePivotReschedule — redirect_url folosește SITE, nu SUPABASE_URL
+### ───────────────────────────────────────────────────────────────────
+POST {{supabase}}/functions/v1/resolve-action
+Content-Type: application/json
+
+{
+  "action": "pivot-reschedule",
+  "token": "{{token_cancel}}",
+  "clinic_id": "{{clinic_id_test}}"
+}
+
+### Expect: 200 JSON { "redirect_url": "https://www.silleau.com/r/r/NEW_TOKEN" }
+### NU trebuie să conțină wpxflbwohowigaulhxhk.supabase.co sau action=

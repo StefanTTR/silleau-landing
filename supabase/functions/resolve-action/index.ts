@@ -79,34 +79,33 @@ function redirect(url: string): Response {
   return new Response(null, { status: 302, headers: { 'Location': url, 'Cache-Control': 'no-store' } })
 }
 
-/** URL către /anulare-reminder.html cu state explicit (fără token când e already-X). */
+/** URL către /anulare-reminder.html. clinic_id NU mai e în URL — frontend-ul îl obține
+ *  din răspunsul cancel-context (branding). */
 function cancelPageUrl(opts: {
-  token?: string; clinicId?: string; status: string;
+  token?: string; status: string;
   data?: string; ora?: string; medic?: string;
 }): string {
   const u = new URL(SITE + '/anulare-reminder.html')
   u.searchParams.set('status', opts.status)
-  if (opts.token)    u.searchParams.set('token',     opts.token)
-  if (opts.clinicId) u.searchParams.set('clinic_id', opts.clinicId)
-  if (opts.data)     u.searchParams.set('data',      opts.data)
-  if (opts.ora)      u.searchParams.set('ora',       opts.ora)
-  if (opts.medic)    u.searchParams.set('medic',     opts.medic)
+  if (opts.token) u.searchParams.set('token', opts.token)
+  if (opts.data)  u.searchParams.set('data',  opts.data)
+  if (opts.ora)   u.searchParams.set('ora',   opts.ora)
+  if (opts.medic) u.searchParams.set('medic', opts.medic)
   return u.toString()
 }
 
-/** URL către /confirmare.html cu detalii programare + flag opțional already/error. */
+/** URL către /confirmare.html. id + clinic_id nu mai sunt în URL — frontend-ul
+ *  afișează detaliile primite explicit (data/ora/medic) fără lookup-uri. */
 function confirmPageUrl(opts: {
-  id?: string; clinicId?: string; status: string;
+  status: string;
   data?: string; ora?: string; medic?: string;
 }): string {
   const u = new URL(SITE + '/confirmare.html')
   u.searchParams.set('source', 'reminder')
   u.searchParams.set('status', opts.status)
-  if (opts.id)       u.searchParams.set('id',        opts.id)
-  if (opts.clinicId) u.searchParams.set('clinic_id', opts.clinicId)
-  if (opts.data)     u.searchParams.set('data',      opts.data)
-  if (opts.ora)      u.searchParams.set('ora',       opts.ora)
-  if (opts.medic)    u.searchParams.set('medic',     opts.medic)
+  if (opts.data)  u.searchParams.set('data',  opts.data)
+  if (opts.ora)   u.searchParams.set('ora',   opts.ora)
+  if (opts.medic) u.searchParams.set('medic', opts.medic)
   return u.toString()
 }
 
@@ -119,10 +118,22 @@ Deno.serve(async (req) => {
     if (req.method === 'GET') {
       const u      = new URL(req.url)
       const action = u.searchParams.get('action') ?? ''
-      const token  = u.searchParams.get('token')  ?? ''
+      // Noul path: /resolve-action?t=TOKEN (din reverse proxy /r/{c|r|x}/TOKEN).
+      // Vechiul path: /resolve-action?action=…&token=…&clinic_id=… (backward compat).
+      const token  = u.searchParams.get('t') ?? u.searchParams.get('token') ?? ''
       const clinic = u.searchParams.get('clinic_id') ?? ''
 
-      if (!TOKEN_RE.test(token) || !UUID_RE.test(clinic)) {
+      if (!TOKEN_RE.test(token)) {
+        return redirect(cancelPageUrl({ status: 'invalid' }))
+      }
+
+      // Ramură nouă: doar token — derivăm acțiunea din coloana în care match-uiește hash-ul
+      if (!action && !clinic) {
+        return await handleUnifiedAction(token)
+      }
+
+      // Ramuri vechi: action + clinic_id obligatorii pentru backward compat
+      if (!UUID_RE.test(clinic)) {
         return redirect(cancelPageUrl({ status: 'invalid' }))
       }
 
@@ -167,7 +178,7 @@ Deno.serve(async (req) => {
 
 async function handleConfirm(token: string, clinicId: string): Promise<Response> {
   const hash = await hashToken(token)
-  const rows = await fetchByTokenHash('confirm_token_hash', hash, clinicId)
+  const rows = await fetchByTokenHash('confirm_token_hash', hash)
   const prog = rows[0]
 
   if (!prog) {
@@ -178,17 +189,17 @@ async function handleConfirm(token: string, clinicId: string): Promise<Response>
 
   // Regula unic-răspuns
   if (prog.status === 'anulat') {
-    return redirect(confirmPageUrl({ status: 'already-cancelled', ...details, id: prog.programare_id, clinicId }))
+    return redirect(confirmPageUrl({ status: 'already-cancelled', ...details }))
   }
   if (prog.a_fost_reprogramat) {
-    return redirect(confirmPageUrl({ status: 'already-rescheduled', ...details, id: prog.programare_id, clinicId }))
+    return redirect(confirmPageUrl({ status: 'already-rescheduled', ...details }))
   }
   if (isTokenExpired(prog.tokens_expire_at) && !prog.confirm_token_used_at) {
     return redirect(confirmPageUrl({ status: 'expired' }))
   }
   if (prog.confirm_token_used_at) {
     // Deja confirmat prin acest link — idempotent, arătăm success cu flag
-    return redirect(confirmPageUrl({ status: 'already-confirmed', ...details, id: prog.programare_id, clinicId }))
+    return redirect(confirmPageUrl({ status: 'already-confirmed', ...details }))
   }
 
   const now = new Date().toISOString()
@@ -211,12 +222,12 @@ async function handleConfirm(token: string, clinicId: string): Promise<Response>
     return redirect(confirmPageUrl({ status: 'error' }))
   }
 
-  return redirect(confirmPageUrl({ status: 'success', ...details, id: prog.programare_id, clinicId }))
+  return redirect(confirmPageUrl({ status: 'success', ...details }))
 }
 
 async function handleReschedule(token: string, clinicId: string): Promise<Response> {
   const hash = await hashToken(token)
-  const rows = await fetchByTokenHash('reschedule_token_hash', hash, clinicId)
+  const rows = await fetchByTokenHash('reschedule_token_hash', hash)
   const prog = rows[0]
 
   if (!prog) {
@@ -245,14 +256,15 @@ async function handleReschedule(token: string, clinicId: string): Promise<Respon
   return redirect(target.toString())
 }
 
-/** Redirect la /anulare-reminder. Decizia de state e luată client-side pe baza cancel-context. */
-async function handleCancelView(token: string, clinicId: string): Promise<Response> {
-  return redirect(cancelPageUrl({ token, clinicId, status: 'loading' }))
+/** Redirect la /anulare-reminder. Decizia de state e luată client-side pe baza cancel-context.
+ *  clinicId primit e neutilizat azi — rămâne în signature pentru backward compat ramurei vechi. */
+async function handleCancelView(token: string, _clinicId: string): Promise<Response> {
+  return redirect(cancelPageUrl({ token, status: 'loading' }))
 }
 
-async function handleCancelContext(req: Request, token: string, clinicId: string): Promise<Response> {
+async function handleCancelContext(req: Request, token: string, _clinicId: string): Promise<Response> {
   const hash = await hashToken(token)
-  const rows = await fetchByTokenHash('cancel_token_hash', hash, clinicId)
+  const rows = await fetchByTokenHash('cancel_token_hash', hash)
   const prog = rows[0]
 
   if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
@@ -261,29 +273,31 @@ async function handleCancelContext(req: Request, token: string, clinicId: string
   }
 
   const details = await fetchProgDetails(prog)
+  const cid     = prog.clinic_id
 
   // Regula unic-răspuns
-  if (prog.status === 'anulat')    return jsonResponse(req, 200, { state: 'already-cancelled',  ...details })
-  if (prog.confirmat_reminder)     return jsonResponse(req, 200, { state: 'already-confirmed',  ...details })
-  if (prog.a_fost_reprogramat)     return jsonResponse(req, 200, { state: 'already-rescheduled', ...details })
-  if (prog.cancel_token_used_at)   return jsonResponse(req, 200, { state: 'already-cancelled',  ...details })
+  if (prog.status === 'anulat')    return jsonResponse(req, 200, { state: 'already-cancelled',   clinic_id: cid, ...details })
+  if (prog.confirmat_reminder)     return jsonResponse(req, 200, { state: 'already-confirmed',   clinic_id: cid, ...details })
+  if (prog.a_fost_reprogramat)     return jsonResponse(req, 200, { state: 'already-rescheduled', clinic_id: cid, ...details })
+  if (prog.cancel_token_used_at)   return jsonResponse(req, 200, { state: 'already-cancelled',   clinic_id: cid, ...details })
 
   const slotMs = roSlotToUtcMs(prog.data_programare, prog.ora_start)
   if (slotMs == null) return jsonResponse(req, 500, { error: 'invalid_slot' })
   if (slotMs - Date.now() < CUTOFF_MS) {
-    return jsonResponse(req, 200, { state: 'cutoff', ...details })
+    return jsonResponse(req, 200, { state: 'cutoff', clinic_id: cid, ...details })
   }
 
   return jsonResponse(req, 200, {
     state: 'pending',
+    clinic_id: cid,
     numar_reprogramari: prog.numar_reprogramari || 0,
     ...details,
   })
 }
 
-async function handleRescheduleContext(req: Request, token: string, clinicId: string): Promise<Response> {
+async function handleRescheduleContext(req: Request, token: string, _clinicId: string): Promise<Response> {
   const hash = await hashToken(token)
-  const rows = await fetchByTokenHash('reschedule_token_hash', hash, clinicId)
+  const rows = await fetchByTokenHash('reschedule_token_hash', hash)
   const prog = rows[0]
 
   if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
@@ -300,6 +314,7 @@ async function handleRescheduleContext(req: Request, token: string, clinicId: st
 
   return jsonResponse(req, 200, {
     programare_id: prog.programare_id,
+    clinic_id:     prog.clinic_id,
     personal_id:   prog.personal_id,
     serviciu_id:   prog.serviciu_id,
     prenume:       pac?.prenume ?? '',
@@ -311,7 +326,7 @@ async function handleRescheduleContext(req: Request, token: string, clinicId: st
 
 async function handleCancelConfirm(req: Request, token: string, clinicId: string, motiv: string): Promise<Response> {
   const hash = await hashToken(token)
-  const rows = await fetchByTokenHash('cancel_token_hash', hash, clinicId)
+  const rows = await fetchByTokenHash('cancel_token_hash', hash)
   const prog = rows[0]
 
   if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
@@ -360,7 +375,7 @@ async function handleCancelConfirm(req: Request, token: string, clinicId: string
 
 async function handlePivotReschedule(req: Request, cancelToken: string, clinicId: string): Promise<Response> {
   const cancelHash = await hashToken(cancelToken)
-  const rows       = await fetchByTokenHash('cancel_token_hash', cancelHash, clinicId)
+  const rows       = await fetchByTokenHash('cancel_token_hash', cancelHash)
   const prog       = rows[0]
 
   if (!prog)                                 return jsonResponse(req, 404, { error: 'token_invalid' })
@@ -383,12 +398,30 @@ async function handlePivotReschedule(req: Request, cancelToken: string, clinicId
   )
   if (!patchRes.ok) return jsonResponse(req, 500, { error: 'pivot_failed' })
 
-  const redirectUrl = SUPABASE_URL
-    + '/functions/v1/resolve-action?action=reschedule'
-    + '&token='     + encodeURIComponent(newToken)
-    + '&clinic_id=' + encodeURIComponent(clinicId)
-
+  // Redirect public la /r/r/TOKEN — reverse proxy rezolvă la Supabase.
+  const redirectUrl = SITE + '/r/r/' + encodeURIComponent(newToken)
   return jsonResponse(req, 200, { redirect_url: redirectUrl })
+}
+
+/**
+ * handleUnifiedAction — primește doar token-ul, derivă acțiunea din coloana în care
+ * match-uiește hash-ul. Chemat din ramura GET ?t=TOKEN (reverse proxy /r/{c|r|x}/TOKEN).
+ * Priority: confirm > reschedule > cancel (deterministă în caz teoretic de coliziune).
+ */
+async function handleUnifiedAction(token: string): Promise<Response> {
+  const hash = await hashToken(token)
+
+  const [confirmRows, rescheduleRows, cancelRows] = await Promise.all([
+    fetchByTokenHash('confirm_token_hash',    hash),
+    fetchByTokenHash('reschedule_token_hash', hash),
+    fetchByTokenHash('cancel_token_hash',     hash),
+  ])
+
+  if (confirmRows[0])    return await handleConfirm(token,    confirmRows[0].clinic_id)
+  if (rescheduleRows[0]) return await handleReschedule(token, rescheduleRows[0].clinic_id)
+  if (cancelRows[0])     return await handleCancelView(token, cancelRows[0].clinic_id)
+
+  return redirect(cancelPageUrl({ status: 'invalid' }))
 }
 
 /* ────────────────────────── DB helpers ────────────────────────────────── */
@@ -399,10 +432,11 @@ async function hashToken(token: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-async function fetchByTokenHash(column: string, hash: string, clinicId: string): Promise<ProgareRow[]> {
+async function fetchByTokenHash(column: string, hash: string): Promise<ProgareRow[]> {
+  // SHA-256(token + salt) cu 18-byte random → ~2^144 entropie; filtrul pe clinic_id e
+  // redundant (zero coliziuni cross-tenant). clinic_id se derivă din rows[0].clinic_id.
   const url = SUPABASE_URL + '/rest/v1/programari'
     + '?' + column + '=eq.' + encodeURIComponent(hash)
-    + '&clinic_id=eq.' + encodeURIComponent(clinicId)
     + '&select=programare_id,clinic_id,personal_id,pacient_id,serviciu_id,status,data_programare,ora_start,ora_sfarsit,'
     + 'tokens_expire_at,confirm_token_used_at,cancel_token_used_at,confirmat_reminder,a_fost_reprogramat,numar_reprogramari'
 
