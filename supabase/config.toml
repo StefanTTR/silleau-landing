@@ -479,3 +479,7 @@ verify_jwt = false
 [functions.regenereaza-token]
 enabled = true
 verify_jwt = false
+
+[functions.resolve-action]
+enabled = true
+verify_jwt = false

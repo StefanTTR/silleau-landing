@@ -1,5 +1,51 @@
-const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
-const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
+const SERVICE_ROLE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const TOKEN_HASH_SALT   = Deno.env.get('TOKEN_HASH_SALT') ?? ''
+const RESOLVE_ACTION_FN = SUPABASE_URL + '/functions/v1/resolve-action'
+const ALLOWED_ORIGINS   = (Deno.env.get('ALLOWED_ORIGINS') ?? 'https://www.silleau.com,https://silleau.com')
+  .split(',').map((s) => s.trim()).filter(Boolean)
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin  = req.headers.get('Origin') ?? ''
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+  return {
+    'Access-Control-Allow-Origin':  allowed,
+    'Access-Control-Allow-Headers': 'content-type, authorization, apikey',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary':                         'Origin',
+  }
+}
+
+function genRandomToken(): string {
+  const bytes = new Uint8Array(18)
+  crypto.getRandomValues(bytes)
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function hashToken(token: string): Promise<string> {
+  return sha256Hex(token + TOKEN_HASH_SALT)
+}
+
+function slotUtcMs(dataIso: string, oraStart: string): number | null {
+  const data = String(dataIso || '').slice(0, 10)
+  const ora  = String(oraStart || '').slice(0, 5)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(ora)) return null
+  const [y, m, d] = data.split('-').map(Number)
+  const [hh, mm]  = ora.split(':').map(Number)
+  const noonUtc   = new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
+  const noonRoStr = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(noonUtc)
+  const [noonH, noonM] = noonRoStr.split(':').map(Number)
+  const offsetMs = (noonH * 60 + noonM - 720) * 60_000
+  return Date.UTC(y, m - 1, d, hh, mm) - offsetMs
+}
 
 type ClinicTheme = {
   acc: string; accLight: string; btnBg: string; clinicName: string; emailContact: string; hideBrand: boolean; logoUrl: string
@@ -54,7 +100,10 @@ function fmtData(iso: string): string {
   return new Date(iso).toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-Deno.serve(async (_req) => {
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders(req) })
+  }
   try {
     const now = new Date()
     const windowStart = new Date(now.getTime() + 24 * 60 * 60 * 1000)
@@ -198,30 +247,33 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
   }
 
   let ok = false
+  let tokenHashes: { confirm: string; reschedule: string; cancel: string } | null = null
+  let tokensExpireIso: string | null = null
 
   if (meta.canal_comunicare === 'whatsapp') {
     ok = await sendWhatsAppReminder(row, meta)
   } else {
-    const dataEncoded         = encodeURIComponent(row.data_programare || '')
-    const oraEncoded          = encodeURIComponent(String(row.ora_start || '').slice(0, 5))
-    const medicEncoded        = encodeURIComponent(row.medic || '')
-    const specialitateEncoded = encodeURIComponent(row.specialitate || '')
-    const serviciuEncoded     = encodeURIComponent(row.serviciu || '')
-    const prenumeEncoded      = encodeURIComponent(row.prenume || '')
-    const emailEncoded        = encodeURIComponent(row.email || '')
-    const telefonEncoded      = encodeURIComponent(row.telefon || '')
-    const baseUrl             = 'https://www.silleau.com'
-    const confirmUrl          = SUPABASE_URL + '/functions/v1/confirmare-reminder?id=' + row.id + '&clinic_id=' + meta.clinic_id
-    const reprogramareUrl     = baseUrl + '/anulare?id=' + row.id
-      + '&clinic_id=' + encodeURIComponent(meta.clinic_id)
-      + '&action=reprogrameaza&medic=' + medicEncoded
-      + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
-      + '&prenume=' + prenumeEncoded + '&email=' + emailEncoded + '&telefon=' + telefonEncoded
-    const anulareUrl          = baseUrl + '/anulare?id=' + row.id
-      + '&clinic_id=' + encodeURIComponent(meta.clinic_id)
-      + '&data=' + dataEncoded + '&ora=' + oraEncoded + '&medic=' + medicEncoded
-      + '&specialitate=' + specialitateEncoded + '&serviciu=' + serviciuEncoded
-      + '&prenume=' + prenumeEncoded + '&email=' + emailEncoded + '&telefon=' + telefonEncoded
+    // 1) Generăm 3 tokens raw + hash + expire_at = ora_start - 3h
+    const confirmTok    = genRandomToken()
+    const rescheduleTok = genRandomToken()
+    const cancelTok     = genRandomToken()
+    const [confirmH, rescheduleH, cancelH] = await Promise.all([
+      hashToken(confirmTok),
+      hashToken(rescheduleTok),
+      hashToken(cancelTok),
+    ])
+    const slotMs = slotUtcMs(row.data_programare || '', row.ora_start || '')
+    if (slotMs == null) {
+      console.warn('[send-reminders] slot invalid pentru', row.id)
+      return false
+    }
+    tokensExpireIso = new Date(slotMs - 3 * 60 * 60 * 1000).toISOString()
+    tokenHashes = { confirm: confirmH, reschedule: rescheduleH, cancel: cancelH }
+
+    const cidParam        = encodeURIComponent(meta.clinic_id)
+    const confirmUrl      = RESOLVE_ACTION_FN + '?action=confirm&token='    + encodeURIComponent(confirmTok)    + '&clinic_id=' + cidParam
+    const reprogramareUrl = RESOLVE_ACTION_FN + '?action=reschedule&token=' + encodeURIComponent(rescheduleTok) + '&clinic_id=' + cidParam
+    const anulareUrl      = RESOLVE_ACTION_FN + '?action=cancel&token='     + encodeURIComponent(cancelTok)     + '&clinic_id=' + cidParam
 
     const theme = await fetchClinicTheme(meta.clinic_id)
     const emailRes = await fetch('https://api.resend.com/emails', {
@@ -258,15 +310,26 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
 
   if (!ok) return false
 
+  const patchBody: Record<string, unknown> = {
+    reminder_trimis:    true,
+    reminder_trimis_la: new Date().toISOString(),
+  }
+  // Tokens doar pe path-ul de email. WhatsApp folosește payload buttons, nu URLs.
+  if (tokenHashes && tokensExpireIso) {
+    patchBody.confirm_token_hash     = tokenHashes.confirm
+    patchBody.reschedule_token_hash  = tokenHashes.reschedule
+    patchBody.cancel_token_hash      = tokenHashes.cancel
+    patchBody.tokens_expire_at       = tokensExpireIso
+    patchBody.confirm_token_used_at  = null
+    patchBody.cancel_token_used_at   = null
+  }
+
   const patchRes = await fetch(
     SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + row.id + '&clinic_id=eq.' + meta.clinic_id,
     {
       method: 'PATCH',
       headers: SB_PATCH_HEADERS,
-      body: JSON.stringify({
-        reminder_trimis:    true,
-        reminder_trimis_la: new Date().toISOString(),
-      }),
+      body:   JSON.stringify(patchBody),
     }
   )
 

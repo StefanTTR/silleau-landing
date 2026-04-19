@@ -417,7 +417,12 @@ var CONFIRMARE_BOOKING_FN = SUPABASE_FUNCTIONS_URL + '/confirmare-booking';
 ──────────────────────────────────────────────────────────────*/
 var DEFAULT_CLINIC_ID = '00000000-0000-0000-0000-000000000001';
 var _urlp       = new URLSearchParams(window.location.search);
-var CLINIC_ID   = _urlp.get('clinic') || DEFAULT_CLINIC_ID;
+/* Acceptăm fie ?slug=<slug>, fie ?clinic=<UUID>. Dacă ?clinic= conține valoare
+   non-UUID, o tratăm tot ca slug (migrare gentilă). */
+var _uuidRe     = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var _clinicRaw  = _urlp.get('clinic') || '';
+var CLINIC_SLUG = _urlp.get('slug') || (_clinicRaw && !_uuidRe.test(_clinicRaw) ? _clinicRaw : '');
+var CLINIC_ID   = (_clinicRaw && _uuidRe.test(_clinicRaw)) ? _clinicRaw : DEFAULT_CLINIC_ID;
 var PREF_MEDIC       = _urlp.get('medic_pref') || '';
 var PREF_SPEC        = _urlp.get('specialitate_pref') || '';
 var PREF_PRENUME     = _urlp.get('prenume_pref') || '';
@@ -1746,8 +1751,7 @@ function doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload)
         serviciu_id:      picMotiv ? picMotiv.supabaseId : null,
         data_programare:  ds,
         ora_start:        picSlot,
-        ora_sfarsit:      ora_sfarsit,
-        pret_ron:         picMotiv ? picMotiv.price : null
+        ora_sfarsit:      ora_sfarsit
       })
     })
     .then(function(r){ if(!r.ok) throw new Error('save-booking HTTP ' + r.status); return r.json(); })
@@ -1794,13 +1798,13 @@ function doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload)
       prenume:                 fn,
       nume:                    ln,
       telefon:                 tel,
-      clinic_id:               CLINIC_ID,
+      slug:                    CLINIC_SLUG || undefined,
+      clinic_id:               CLINIC_SLUG ? undefined : CLINIC_ID,
       personal_id:             picDoc.id,
       serviciu_id:             picMotiv ? picMotiv.supabaseId : null,
       data_programare:         ds,
       ora_start:               picSlot,
       ora_sfarsit:             ora_sfarsit,
-      pret_ron:                picMotiv ? picMotiv.price : null,
       doreste_loc_mai_devreme: document.getElementById('chkLoc').checked
     })
   })

@@ -3,8 +3,16 @@
 --   2) elimină coloanele de branding duplicate din clinici
 --   3) creează bucketul Storage `clinic-logos` + policies pentru logo/favicon
 
--- 1) Rename coloană displayed name
-ALTER TABLE clinic_branding RENAME COLUMN nome_afisat TO nume_afisat;
+-- 1) Rename coloană displayed name (idempotent — skip dacă a fost deja redenumită)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'clinic_branding' AND column_name = 'nome_afisat'
+  ) THEN
+    ALTER TABLE clinic_branding RENAME COLUMN nome_afisat TO nume_afisat;
+  END IF;
+END$$;
 
 -- 2) Drop coloane duplicate din clinici (există deja în clinic_branding)
 ALTER TABLE clinici

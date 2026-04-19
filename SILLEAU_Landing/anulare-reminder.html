@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anulare programare — SILLEAU</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    background: #fafafa;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #222;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    max-width: 480px; width: calc(100% - 32px);
+    background: #fff;
+    border: 1px solid #E8E4DC;
+    border-radius: 4px;
+    padding: 40px 36px;
+    box-shadow: 0 2px 24px rgba(0,0,0,.04);
+  }
+  .tag {
+    font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+    color: #BBB; margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 22px; font-weight: 300; margin: 0 0 18px;
+    letter-spacing: -.3px;
+  }
+  p { font-size: 14px; line-height: 1.7; color: #666; margin: 0 0 16px; }
+  .meta {
+    background: #F7F5F1; border-left: 2px solid #C8C4BC;
+    padding: 14px 16px; margin: 22px 0;
+    font-size: 13px; color: #444;
+  }
+  .meta strong { color: #111; font-weight: 600; }
+  .actions { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+  .btn {
+    flex: 1; min-width: 140px;
+    display: inline-block; padding: 14px 28px;
+    border-radius: 3px;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    font-weight: 600; text-decoration: none; cursor: pointer;
+    border: 0; text-align: center;
+    font-family: inherit;
+  }
+  .btn-primary { background: #111; color: #fff; }
+  .btn-primary:disabled { background: #888; cursor: not-allowed; }
+  .btn-secondary { background: #fff; color: #555; border: 1px solid #C8C4BC; }
+  .status { margin-top: 18px; font-size: 12px; color: #999; min-height: 18px; }
+  #loading { color: #888; font-size: 14px; text-align: center; padding: 20px 0; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0b0b0b; color: #E8E4DC; }
+    .card { background: #141414; border-color: #1E1E1E; box-shadow: none; }
+    h1 { color: #E8E4DC; } p { color: #888; }
+    .meta { background: #1A1A1A; border-left-color: #333; color: #AAA; }
+    .meta strong { color: #E8E4DC; }
+    .btn-primary { background: #E8E4DC; color: #111; }
+    .btn-secondary { background: transparent; color: #888; border-color: #333; }
+  }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div id="loading">Se încarcă…</div>
+</div>
+<script>
+(function () {
+  var RESOLVE_FN = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/resolve-action';
+  var q         = new URLSearchParams(location.search);
+  var token     = q.get('token')     || '';
+  var clinicId  = q.get('clinic_id') || '';
+  var status    = q.get('status')    || '';
+  var when      = q.get('when')      || '';
+  var card      = document.getElementById('card');
+
+  function render(html) { card.innerHTML = html; }
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  if (status === 'invalid' || !token || !clinicId) {
+    render(
+      '<div class="tag">SILLEAU</div>' +
+      '<h1>Link invalid</h1>' +
+      '<p>Link-ul pe care l-ați accesat nu este valid sau este corupt. Vă rugăm contactați clinica pentru asistență.</p>'
+    );
+    return;
+  }
+
+  if (status === 'expired') {
+    render(
+      '<div class="tag">SILLEAU</div>' +
+      '<h1>Link expirat</h1>' +
+      '<p>Acest link nu mai este valid. Este posibil ca programarea să fi fost deja anulată sau reprogramată.</p>'
+    );
+    return;
+  }
+
+  if (status === 'used') {
+    render(
+      '<div class="tag">SILLEAU</div>' +
+      '<h1>Link folosit</h1>' +
+      '<p>Acest link a fost deja folosit pentru anulare.</p>'
+    );
+    return;
+  }
+
+  if (status === 'already-cancelled') {
+    render(
+      '<div class="tag">SILLEAU</div>' +
+      '<h1>Programare deja anulată</h1>' +
+      '<p>Această programare este deja anulată.</p>'
+    );
+    return;
+  }
+
+  if (status === 'cutoff') {
+    render(
+      '<div class="tag">Anulare programare</div>' +
+      '<h1>Anulare indisponibilă online</h1>' +
+      '<p>Anularea cu mai puțin de 3 ore înainte de programare nu este posibilă online. Vă rugăm să sunați la clinică pentru a anula programarea.</p>' +
+      (when ? ('<div class="meta"><strong>Programarea dumneavoastră:</strong><br>' + escapeHtml(when) + '</div>') : '')
+    );
+    return;
+  }
+
+  // Status ok — afișăm UI de confirmare double opt-in
+  render(
+    '<div class="tag">Anulare programare</div>' +
+    '<h1>Confirmați anularea?</h1>' +
+    '<p>Sunteți pe cale să anulați programarea de mai jos. Această acțiune nu poate fi inversată — slotul va fi eliberat imediat.</p>' +
+    (when ? ('<div class="meta"><strong>Programare:</strong><br>' + escapeHtml(when) + '</div>') : '') +
+    '<div class="actions">' +
+    '  <button class="btn btn-primary" id="btnConfirm">Confirmă anularea</button>' +
+    '  <a class="btn btn-secondary" href="https://www.silleau.com">Înapoi</a>' +
+    '</div>' +
+    '<p class="status" id="st"></p>'
+  );
+
+  document.getElementById('btnConfirm').addEventListener('click', function () {
+    var btn = this;
+    var st  = document.getElementById('st');
+    btn.disabled = true; btn.textContent = 'Se anulează…';
+    st.textContent = '';
+
+    fetch(RESOLVE_FN, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action:    'cancel-confirm',
+        token:     token,
+        clinic_id: clinicId
+      })
+    })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (res) {
+      if (res.ok) {
+        render(
+          '<div class="tag">SILLEAU</div>' +
+          '<h1>Programare anulată</h1>' +
+          '<p>Programarea a fost anulată cu succes. Vă mulțumim că ne-ați anunțat din timp.</p>'
+        );
+      } else {
+        var err = res.j && res.j.error ? res.j.error : 'eroare';
+        var msg = err === 'cutoff_3h'
+          ? 'Anularea cu mai puțin de 3 ore înainte nu este posibilă. Vă rugăm sunați la clinică.'
+          : err === 'token_expired' ? 'Link-ul a expirat.'
+          : err === 'token_used'    ? 'Acest link a fost deja folosit.'
+          : 'Nu am putut anula programarea. Vă rugăm sunați la clinică.';
+        st.textContent = msg;
+        btn.disabled = false; btn.textContent = 'Confirmă anularea';
+      }
+    })
+    .catch(function () {
+      st.textContent = 'Eroare de rețea. Vă rugăm reîncercați.';
+      btn.disabled = false; btn.textContent = 'Confirmă anularea';
+    });
+  });
+})();
+</script>
+</body>
+</html>
