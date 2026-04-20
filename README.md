@@ -26,29 +26,24 @@ URL-urile din email-urile SILLEAU folosesc `SITE_URL` (ex: `https://www.silleau.
 pentru a nu expune `SUPABASE_URL` clienților și pentru a elimina `clinic_id` din URL-uri.
 Reverse proxy-ul traduce cererile către endpoint-urile Supabase corespunzătoare.
 
-### Cloudflare Pages — Pages Functions (deja incluse în `SILLEAU_Landing/functions/`)
+### Cloudflare Workers + Assets (modul modern, activat via `wrangler.jsonc`)
 
 `_redirects` cu status 200 **nu** suportă rewrite cross-origin la URL extern.
-Pentru proxy silent (URL-ul din browser rămâne `www.silleau.com`) folosim
-Pages Functions — file-based Workers care rulează server-side pe CF edge:
+Proiectul rulează în modul **Workers + Assets** (file-based routing via
+`_worker.js` + static assets servite din `SILLEAU_Landing/`):
 
 ```
-functions/r/[action]/[token].js   → /r/c/*, /r/r/*, /r/x/*
-functions/f/[token].js            → /f/*
+wrangler.jsonc   → config (main, assets.directory, compatibility_date)
+_worker.js       → entry point: routează /r/* și /f/*, fallback la ASSETS
 ```
 
-**Locația `functions/`**: la rădăcina repo-ului (în același folder cu `SILLEAU_Landing/`),
-NU în interiorul lui. CF Pages caută `functions/` relativ la „Root directory" din
-dashboard-ul proiectului. Dacă Root Directory e `/` (default) și Build Output e
-`SILLEAU_Landing`, atunci `functions/` trebuie la repo root.
+`_worker.js` la repo root face:
+- `/r/{c|r|x}/TOKEN` → proxy la `resolve-action?t=TOKEN`
+- `/f/TOKEN.SIG` → proxy la `save-feedback?t=TOKEN.SIG`
+- orice altceva → `env.ASSETS.fetch(request)` (static HTMLs din `SILLEAU_Landing/`)
 
-Fiecare fișier exportează `onRequestGet(context)` care fetch-uiește Supabase,
-curăță `content-security-policy` + `x-content-type-options` din răspuns și
-returnează body-ul către browser. 302 redirects de la `resolve-action` sunt
-propagate transparent.
-
-**Nu e nevoie de configurare suplimentară în dashboard** — CF Pages detectează
-automat folderul `functions/` la deploy.
+Notă: folderul `functions/` (convenție Pages Functions clasică) nu e suportat
+în modul Workers + Assets. Routing-ul se face exclusiv din `_worker.js`.
 
 ### Vercel — `vercel.json`
 
