@@ -2,11 +2,13 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "silleau-landing",
   "compatibility_date": "2026-04-20",
+  "main": "_worker.js",
   "observability": {
     "enabled": true
   },
   "assets": {
-    "directory": "SILLEAU_Landing"
+    "directory": "SILLEAU_Landing",
+    "binding": "ASSETS"
   },
   "compatibility_flags": [
     "nodejs_compat"
