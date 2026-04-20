@@ -26,16 +26,24 @@ URL-urile din email-urile SILLEAU folosesc `SITE_URL` (ex: `https://www.silleau.
 pentru a nu expune `SUPABASE_URL` clienților și pentru a elimina `clinic_id` din URL-uri.
 Reverse proxy-ul traduce cererile către endpoint-urile Supabase corespunzătoare.
 
-### Cloudflare Pages — `_redirects` (deja inclus în `SILLEAU_Landing/_redirects`)
+### Cloudflare Pages — Pages Functions (deja incluse în `SILLEAU_Landing/functions/`)
+
+`_redirects` cu status 200 **nu** suportă rewrite cross-origin la URL extern.
+Pentru proxy silent (URL-ul din browser rămâne `www.silleau.com`) folosim
+Pages Functions — file-based Workers care rulează server-side pe CF edge:
 
 ```
-/r/c/:token  https://YOUR_PROJECT.supabase.co/functions/v1/resolve-action?t=:token  200
-/r/r/:token  https://YOUR_PROJECT.supabase.co/functions/v1/resolve-action?t=:token  200
-/r/x/:token  https://YOUR_PROJECT.supabase.co/functions/v1/resolve-action?t=:token  200
-/f/:token    https://YOUR_PROJECT.supabase.co/functions/v1/save-feedback?t=:token    200
+SILLEAU_Landing/functions/r/[action]/[token].js   → /r/c/*, /r/r/*, /r/x/*
+SILLEAU_Landing/functions/f/[token].js            → /f/*
 ```
 
-Status `200` = rewrite (nu vizibil browser-ului). Dacă folosești `301/302` devine redirect public.
+Fiecare fișier exportează `onRequestGet(context)` care fetch-uiește Supabase,
+curăță `content-security-policy` + `x-content-type-options` din răspuns și
+returnează body-ul către browser. 302 redirects de la `resolve-action` sunt
+propagate transparent.
+
+**Nu e nevoie de configurare suplimentară în dashboard** — CF Pages detectează
+automat folderul `functions/` la deploy.
 
 ### Vercel — `vercel.json`
 
