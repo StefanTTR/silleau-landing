@@ -33,9 +33,14 @@ Pentru proxy silent (URL-ul din browser rămâne `www.silleau.com`) folosim
 Pages Functions — file-based Workers care rulează server-side pe CF edge:
 
 ```
-SILLEAU_Landing/functions/r/[action]/[token].js   → /r/c/*, /r/r/*, /r/x/*
-SILLEAU_Landing/functions/f/[token].js            → /f/*
+functions/r/[action]/[token].js   → /r/c/*, /r/r/*, /r/x/*
+functions/f/[token].js            → /f/*
 ```
+
+**Locația `functions/`**: la rădăcina repo-ului (în același folder cu `SILLEAU_Landing/`),
+NU în interiorul lui. CF Pages caută `functions/` relativ la „Root directory" din
+dashboard-ul proiectului. Dacă Root Directory e `/` (default) și Build Output e
+`SILLEAU_Landing`, atunci `functions/` trebuie la repo root.
 
 Fiecare fișier exportează `onRequestGet(context)` care fetch-uiește Supabase,
 curăță `content-security-policy` + `x-content-type-options` din răspuns și
