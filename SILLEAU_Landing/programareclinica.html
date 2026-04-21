@@ -1996,6 +1996,18 @@ document.addEventListener('DOMContentLoaded',function(){
         list.innerHTML='<div style="font-size:12px;color:var(--mut);padding:16px;text-align:center;">Nu s-au g\u0103sit medici activi.</div>';
         return;
       }
+      /* Defensive check: dacă niciun medic nu are orar configurat în program_personal,
+         calendarul va arăta toate zilele blocate. Notificăm explicit user-ul în loc să
+         pară bug. Pentru clinicile noi, admin-ul trebuie să popleze orarul înainte de
+         go-live. */
+      var anyHasSchedule = DOCS.some(function(d){ return d.sch && Object.keys(d.sch).length > 0; });
+      if (!anyHasSchedule) {
+        list.innerHTML = '<div style="font-size:12px;color:var(--mut);padding:16px;text-align:center;line-height:1.6;">'
+          + 'Clinica nu are \u00eenc\u0103 orarul configurat.<br>'
+          + 'V\u0103 rug\u0103m contacta\u021bi clinica direct pentru a v\u0103 programa.'
+          + '</div>';
+        return;
+      }
       DOCS.forEach(function(doc){
         var el=document.createElement('div');
         el.className='dcard';

@@ -300,6 +300,7 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
     const fromEmail        = (theme.clinicName || 'Clinica') + ' <' + (theme.emailContact || 'contact@silleau.com') + '>'
     const feedbackToken    = await signFeedbackToken(row.id, meta.clinic_id)
     const feedbackBaseUrl  = SITE_URL + '/f/' + feedbackToken
+    const subject          = (theme.clinicName || 'Clinica') + ' — reminder programare ' + fmtData(row.data_programare || '')
 
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -307,7 +308,7 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
       body: JSON.stringify({
         from: fromEmail,
         to: row.email,
-        subject: 'Reminder programare — ' + fmtData(row.data_programare || ''),
+        subject: subject,
         html: buildEmail({
           prenume:         row.prenume         || '',
           medic:           row.medic           || '',
