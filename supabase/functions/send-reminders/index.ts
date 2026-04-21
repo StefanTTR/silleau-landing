@@ -297,7 +297,11 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
     const anulareUrl      = SITE_URL + '/r/x/' + encodeURIComponent(cancelTok)
 
     const theme            = await fetchClinicTheme(meta.clinic_id)
-    const fromEmail        = (theme.clinicName || 'Clinica') + ' <' + (theme.emailContact || 'contact@silleau.com') + '>'
+    // From sender: display dinamic, domeniu fix pe verified Resend (silleau.com).
+    // Reply-To merge la adresa clinicii (theme.emailContact) ca pacienții să răspundă direct.
+    const senderEmail      = Deno.env.get('FROM_SENDER_EMAIL') ?? 'contact@silleau.com'
+    const fromEmail        = (theme.clinicName || 'Clinica') + ' <' + senderEmail + '>'
+    const replyTo          = theme.emailContact || senderEmail
     const feedbackToken    = await signFeedbackToken(row.id, meta.clinic_id)
     const feedbackBaseUrl  = SITE_URL + '/f/' + feedbackToken
     const subject          = (theme.clinicName || 'Clinica') + ' — reminder programare ' + fmtData(row.data_programare || '')
@@ -308,6 +312,7 @@ async function processReminder(row: ReminderRow, meta: ProgramareMeta | null): P
       body: JSON.stringify({
         from: fromEmail,
         to: row.email,
+        reply_to: replyTo,
         subject: subject,
         html: buildEmail({
           prenume:         row.prenume         || '',

@@ -1,11 +1,111 @@
-const RESEND_KEY       = Deno.env.get('RESEND_KEY')!
-const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
-const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const RESEND_KEY            = Deno.env.get('RESEND_KEY')!
+const SUPABASE_URL          = Deno.env.get('SUPABASE_URL')!
+const SERVICE_ROLE_KEY      = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const TOKEN_HASH_SALT       = Deno.env.get('TOKEN_HASH_SALT') ?? ''
+const FEEDBACK_TOKEN_SECRET = Deno.env.get('FEEDBACK_TOKEN_SECRET') ?? ''
 // From email e derivat per-clinică din theme — vezi calculul lui fromEmail de mai jos.
-const FEEDBACK_FN     = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/save-feedback'
-const SITE            = 'https://www.silleau.com'
+const SITE            = (Deno.env.get('SITE_URL') ?? 'https://www.silleau.com').replace(/\/$/, '')
 const META_WA_TOKEN   = Deno.env.get('META_WA_TOKEN')!
 const META_WA_PHONE_ID = Deno.env.get('META_WA_PHONE_ID')!
+
+/* Token helpers — aceeași semnătură ca în send-reminders, pentru a genera tokens
+   compatibile cu resolve-action. Folosite DOAR la email-urile sub-24h unde
+   reminder-ul nu mai apucă să fie trimis; în acest caz, butoanele din email-ul
+   inițial de confirmare trebuie să aibă tokens raw (stocăm hash-urile în DB). */
+function genRandomToken(): string {
+  const bytes = new Uint8Array(18)
+  crypto.getRandomValues(bytes)
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function hashToken(token: string): Promise<string> {
+  return sha256Hex(token + TOKEN_HASH_SALT)
+}
+
+async function signFeedbackToken(programareId: string, clinicId: string): Promise<string> {
+  const payload = programareId + ':' + clinicId + ':' + Date.now().toString()
+  const enc     = new TextEncoder()
+  const key     = await crypto.subtle.importKey(
+    'raw', enc.encode(FEEDBACK_TOKEN_SECRET),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  )
+  const sigBuf  = await crypto.subtle.sign('HMAC', key, enc.encode(payload))
+  const sigHex  = Array.from(new Uint8Array(sigBuf))
+    .map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 24)
+  const payloadB64 = btoa(payload)
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  return payloadB64 + '.' + sigHex
+}
+
+/** Calculează momentul slotului (UTC ms) din data RO + ora, DST-aware. */
+function slotUtcMs(dataIso: string, oraStart: string): number | null {
+  const data = String(dataIso || '').slice(0, 10)
+  const ora  = String(oraStart || '').slice(0, 5)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(ora)) return null
+  const [y, m, d] = data.split('-').map(Number)
+  const [hh, mm]  = ora.split(':').map(Number)
+  const noonUtc   = new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
+  const noonRoStr = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Bucharest', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(noonUtc)
+  const [noonH, noonM] = noonRoStr.split(':').map(Number)
+  const offsetMs = (noonH * 60 + noonM - 720) * 60_000
+  return Date.UTC(y, m - 1, d, hh, mm) - offsetMs
+}
+
+/** Generează + persistă tokens pe programare. Returnează URL-urile gata de folosire. */
+async function generateActionUrls(programareId: string, clinicId: string, dataIso: string, oraStart: string): Promise<{
+  confirmUrl: string; reprogramareUrl: string; anulareUrl: string; feedbackBaseUrl: string;
+} | null> {
+  const confirmTok    = genRandomToken()
+  const rescheduleTok = genRandomToken()
+  const cancelTok     = genRandomToken()
+  const [confirmH, rescheduleH, cancelH] = await Promise.all([
+    hashToken(confirmTok), hashToken(rescheduleTok), hashToken(cancelTok),
+  ])
+  const slotMs = slotUtcMs(dataIso, oraStart)
+  if (slotMs == null) return null
+  const tokensExpireIso = new Date(slotMs - 3 * 60 * 60 * 1000).toISOString()
+
+  const patchRes = await fetch(
+    SUPABASE_URL + '/rest/v1/programari?programare_id=eq.' + encodeURIComponent(programareId) + '&clinic_id=eq.' + encodeURIComponent(clinicId),
+    {
+      method:  'PATCH',
+      headers: {
+        'apikey': SERVICE_ROLE_KEY,
+        'Authorization': 'Bearer ' + SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({
+        confirm_token_hash:    confirmH,
+        reschedule_token_hash: rescheduleH,
+        cancel_token_hash:     cancelH,
+        tokens_expire_at:      tokensExpireIso,
+        confirm_token_used_at: null,
+        cancel_token_used_at:  null,
+      }),
+    }
+  )
+  if (!patchRes.ok) {
+    console.error('[confirmare-booking] token PATCH failed', patchRes.status)
+    return null
+  }
+
+  const feedbackToken = await signFeedbackToken(programareId, clinicId)
+  return {
+    confirmUrl:      SITE + '/r/c/' + encodeURIComponent(confirmTok),
+    reprogramareUrl: SITE + '/r/r/' + encodeURIComponent(rescheduleTok),
+    anulareUrl:      SITE + '/r/x/' + encodeURIComponent(cancelTok),
+    feedbackBaseUrl: SITE + '/f/'   + feedbackToken,
+  }
+}
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -75,16 +175,36 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'email lipsa sau invalid' }), { status: 400, headers: CORS })
       }
       const theme     = await fetchClinicTheme(clinic_id)
-      const fromEmail = (theme.clinicName || 'Clinica') + ' <' + (theme.emailContact || 'contact@silleau.com') + '>'
-      const subject   = (theme.clinicName || 'Clinica') + ' — ' + (isReprogramare ? 'confirmare reprogramare ' : 'confirmare programare ') + fmtData(data)
-      const emailRes  = await fetch('https://api.resend.com/emails', {
+      // From sender: display name dinamic per clinică, DAR adresa email e fixă pe
+      // domeniul verificat în Resend (silleau.com). Altfel Resend respinge 403
+      // pentru domenii neverificate (ex. clinici noi cu email @clinica-beta.ro).
+      // Reply-To e real clinic email — patient-ul răspunde direct clinicii.
+      const senderEmail = Deno.env.get('FROM_SENDER_EMAIL') ?? 'contact@silleau.com'
+      const fromEmail   = (theme.clinicName || 'Clinica') + ' <' + senderEmail + '>'
+      const replyTo     = theme.emailContact || senderEmail
+      const subject     = (theme.clinicName || 'Clinica') + ' — ' + (isReprogramare ? 'confirmare reprogramare ' : 'confirmare programare ') + fmtData(data)
+      const isSub24h    = isWithin24h(data_iso || data, ora)
+
+      // Pentru sub-24h: generăm tokens + URL-uri scurte (/r/c, /r/r, /r/x, /f).
+      // Reminder-ul nu va mai fi trimis (e deja în trecut față de fereastra 24h),
+      // deci butoanele din email-ul inițial devin singurul canal de interacțiune.
+      let actionUrls: { confirmUrl: string; reprogramareUrl: string; anulareUrl: string; feedbackBaseUrl: string } | null = null
+      if (isSub24h && programare_id && clinic_id) {
+        actionUrls = await generateActionUrls(programare_id, clinic_id, data_iso || data, ora)
+      }
+      // Feedback URL se trimite întotdeauna (chiar și pentru bookings peste 24h — rating widget).
+      const feedbackBaseUrl = actionUrls?.feedbackBaseUrl
+        || (programare_id && clinic_id ? (SITE + '/f/' + await signFeedbackToken(programare_id, clinic_id)) : '')
+
+      const emailRes    = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from: fromEmail,
           to: email,
+          reply_to: replyTo,
           subject: subject,
-          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), data_iso: data_iso || data, ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare, sub24h: isWithin24h(data_iso || data, ora), email: email || '', telefon: telefon || '', theme }),
+          html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), data_iso: data_iso || data, ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare, sub24h: isSub24h, email: email || '', telefon: telefon || '', theme, confirmUrl: actionUrls?.confirmUrl, reprogramareUrl: actionUrls?.reprogramareUrl, anulareUrl: actionUrls?.anulareUrl, feedbackBaseUrl }),
         }),
       })
       if (!emailRes.ok) {
@@ -292,32 +412,12 @@ function buildWhatsApp(d: {
   return lines.join('\n')
 }
 
+/** Butoanele de Confirm/Reprogramează/Anulează din email-ul sub-24h.
+ *  Primește URL-uri deja generate (cu tokens scurte /r/c/TOKEN etc.) — zero PII
+ *  și zero UUID-uri în link-uri. Stilizarea rămâne identică cu versiunea veche. */
 function buildActionButtons(
-  programareId: string, clinicId: string, dataIso: string, ora: string,
-  medic: string, specialitate: string, serviciu: string,
-  prenume: string, email: string, telefon: string
+  confirmUrl: string, reprogramareUrl: string, anulareUrl: string
 ): string {
-  const confirmUrl     = SUPABASE_URL + '/functions/v1/confirmare-reminder?id=' + encodeURIComponent(programareId) + '&clinic_id=' + encodeURIComponent(clinicId)
-  const reprogramareUrl = SITE + '/anulare?id=' + encodeURIComponent(programareId)
-    + '&clinic_id=' + encodeURIComponent(clinicId)
-    + '&action=reprogrameaza'
-    + '&medic=' + encodeURIComponent(medic)
-    + '&specialitate=' + encodeURIComponent(specialitate)
-    + '&serviciu=' + encodeURIComponent(serviciu)
-    + '&prenume=' + encodeURIComponent(prenume)
-    + '&email=' + encodeURIComponent(email)
-    + '&telefon=' + encodeURIComponent(telefon)
-  const anulareUrl     = SITE + '/anulare?id=' + encodeURIComponent(programareId)
-    + '&clinic_id=' + encodeURIComponent(clinicId)
-    + '&data=' + encodeURIComponent(dataIso)
-    + '&ora=' + encodeURIComponent(ora.slice(0, 5))
-    + '&medic=' + encodeURIComponent(medic)
-    + '&specialitate=' + encodeURIComponent(specialitate)
-    + '&serviciu=' + encodeURIComponent(serviciu)
-    + '&prenume=' + encodeURIComponent(prenume)
-    + '&email=' + encodeURIComponent(email)
-    + '&telefon=' + encodeURIComponent(telefon)
-
   return '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:8px;">'
     + '<tr><td bgcolor="#111111" style="background-color:#111111;border-radius:3px;">'
     + '<a href="' + confirmUrl + '" style="display:block;padding:16px 12px;font-size:11px;color:#ffffff;letter-spacing:2px;text-transform:uppercase;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:600;text-decoration:none;text-align:center;">'
@@ -336,10 +436,12 @@ function buildActionButtons(
 }
 
 function buildRatingHtml(baseUrl: string, question: string, legend: string): string {
+  // URL-ul poate conține deja `?` (legacy) sau nu (token scurt /f/TOKEN.SIG).
+  const sep = baseUrl.indexOf('?') >= 0 ? '&' : '?'
   let btns = ''
   for (let i = 1; i <= 5; i++) {
     btns += '<td style="padding:0 3px;">'
-      + '<a href="' + baseUrl + '&rating=' + i + '" style="display:inline-block;width:36px;height:36px;line-height:36px;text-align:center;background:#F5F4F2;color:#555555;font-size:13px;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;text-decoration:none;border-radius:50%;border:1px solid #E0DDD8;">' + i + '</a>'
+      + '<a href="' + baseUrl + sep + 'rating=' + i + '" style="display:inline-block;width:36px;height:36px;line-height:36px;text-align:center;background:#F5F4F2;color:#555555;font-size:13px;font-family:\'Helvetica Neue\',Arial,sans-serif;font-weight:500;text-decoration:none;border-radius:50%;border:1px solid #E0DDD8;">' + i + '</a>'
       + '</td>'
   }
   return '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:0;">'
@@ -363,6 +465,8 @@ function buildEmail(d: {
   serviciu: string, data: string, data_iso: string, ora: string, rechemare: string,
   email: string, telefon: string,
   programare_id?: string, clinic_id?: string, isReprogramare?: boolean, sub24h?: boolean,
+  confirmUrl?: string, reprogramareUrl?: string, anulareUrl?: string,
+  feedbackBaseUrl?: string,
   theme?: ClinicTheme
 }): string {
   const th = d.theme || THEME_DEFAULT
@@ -471,9 +575,11 @@ function buildEmail(d: {
     + (rechemareRow
       ? '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">' + rechemareRow + '</table>'
       : '')
-    + (d.sub24h && d.programare_id && d.clinic_id ? buildActionButtons(d.programare_id, d.clinic_id, d.data_iso, d.ora, d.medic, d.specialitate, d.serviciu, d.prenume, d.email, d.telefon) : '')
-    + (d.programare_id ? buildRatingHtml(
-        FEEDBACK_FN + '?id=' + encodeURIComponent(d.programare_id) + '&clinic_id=' + encodeURIComponent(d.clinic_id) + '&sursa=' + (d.isReprogramare ? 'reprogramare' : 'booking'),
+    + (d.sub24h && d.confirmUrl && d.reprogramareUrl && d.anulareUrl
+        ? buildActionButtons(d.confirmUrl, d.reprogramareUrl, d.anulareUrl)
+        : '')
+    + (d.feedbackBaseUrl ? buildRatingHtml(
+        d.feedbackBaseUrl,
         d.isReprogramare ? 'Cât de ușor ați făcut reprogramarea?' : 'Cât de ușor ați făcut programarea?',
         '1 = Foarte greu &nbsp;·&nbsp; 5 = Foarte ușor'
       ) : '')
