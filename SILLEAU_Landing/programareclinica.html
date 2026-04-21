@@ -1414,8 +1414,9 @@ function fetchDoctors(callback){
   .catch(function(e){ console.warn('[SILLEAU] fetchDoctors eroare:', e); done(); });
 
   /* 2. Orar din program_personal
-     ora_start/ora_sfarsit pot veni ca "HH:MM:SS" — slice(0,5) → "HH:MM" */
-  fetch(PUBLIC_DATA_FN + '?resource=program_personal')
+     ora_start/ora_sfarsit pot veni ca "HH:MM:SS" — slice(0,5) → "HH:MM"
+     clinic_id obligatoriu — backend filtrează via embedded join la personal.clinic_id */
+  fetch(PUBLIC_DATA_FN + '?resource=program_personal&clinic_id=' + encodeURIComponent(CLINIC_ID))
   .then(function(r){ return r.json(); })
   .then(function(list){
     (Array.isArray(list) ? list : []).forEach(function(row){
