@@ -4,14 +4,12 @@
  * POST /functions/v1/save-booking
  *
  * Programare nouă (body):
- *   { slug? | clinic_id?, email?, prenume, nume?, telefon?,
+ *   { slug, email?, prenume, nume?, telefon?,
  *     personal_id, serviciu_id?, data_programare, ora_start, ora_sfarsit,
  *     doreste_loc_mai_devreme? }
  *
- *   NOTĂ (backward compat Faza B): se acceptă fie `slug`, fie `clinic_id`.
- *   După ce frontend-ul migrează complet la slug (Faza E), branch-ul clinic_id
- *   se elimină (Faza F).
- *   `pret_ron` din body este IGNORAT — se derivă server-side din servicii.pret_ron.
+ *   `slug` e obligatoriu — clinic_id se derivă server-side din clinici.slug.
+ *   `pret_ron` din body este IGNORAT — se derivă din servicii.pret_ron.
  *
  * Reprogramare (body):
  *   { reprogramare_id, reprogramare_cid?, personal_id, serviciu_id?,
@@ -223,7 +221,6 @@ async function handleNewBooking(req: Request, body: Record<string, unknown>): Pr
     nume,
     telefon,
     slug,
-    clinic_id: clinicIdRaw,
     personal_id,
     serviciu_id,
     data_programare,
@@ -252,18 +249,11 @@ async function handleNewBooking(req: Request, body: Record<string, unknown>): Pr
     return json(req, 400, { error: 'invalid_serviciu' })
   }
 
-  // Fix 1: derivă clinic_id din slug (prioritar), fallback clinic_id pentru tranziție
-  let clinicId: string
-  if (slug !== undefined && slug !== null && slug !== '') {
-    if (!isSlug(slug)) return json(req, 400, { error: 'invalid_slug' })
-    const rows = await sbGet('clinici', `?slug=eq.${encodeURIComponent(slug as string)}&select=id`)
-    if (!rows[0]?.id) return json(req, 404, { error: 'clinic_not_found' })
-    clinicId = rows[0].id as string
-  } else if (isUUID(clinicIdRaw)) {
-    clinicId = clinicIdRaw as string
-  } else {
-    return json(req, 400, { error: 'invalid_clinic', message: 'slug sau clinic_id obligatoriu' })
-  }
+  // Derivă clinic_id din slug (obligatoriu). Branch-ul clinic_id a fost eliminat în Faza F.
+  if (!isSlug(slug)) return json(req, 400, { error: 'invalid_slug', message: 'slug obligatoriu' })
+  const clinicRows = await sbGet('clinici', `?slug=eq.${encodeURIComponent(slug as string)}&select=id`)
+  if (!clinicRows[0]?.id) return json(req, 404, { error: 'clinic_not_found' })
+  const clinicId = clinicRows[0].id as string
 
   // Fix 5: data_programare în viitor, minim 30 min
   const futureErr = validateFutureSlot(data_programare as string, ora_start as string)

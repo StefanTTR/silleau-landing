@@ -1791,6 +1791,12 @@ function doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload)
   }
 
   /* ── 1-3. save-booking: upsert pacienti + pacienti_clinici + insert programari ── */
+  if (!CLINIC_SLUG) {
+    btn.disabled = false;
+    btn.innerHTML = 'Confirm\u0103 programarea';
+    alert('URL invalid — lips\u0103 parametrul ?slug=. Contacta\u021bi clinica.');
+    return;
+  }
   fetch(SUPABASE_FUNCTIONS_URL + '/save-booking', {
     method:  'POST',
     headers: {'Content-Type': 'application/json'},
@@ -1799,8 +1805,7 @@ function doConfirmProceed(btn, ds, fn, ln, em, tel, ora_sfarsit, total, payload)
       prenume:                 fn,
       nume:                    ln,
       telefon:                 tel,
-      slug:                    CLINIC_SLUG || undefined,
-      clinic_id:               CLINIC_SLUG ? undefined : CLINIC_ID,
+      slug:                    CLINIC_SLUG,
       personal_id:             picDoc.id,
       serviciu_id:             picMotiv ? picMotiv.supabaseId : null,
       data_programare:         ds,
