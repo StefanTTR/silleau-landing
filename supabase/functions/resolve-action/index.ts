@@ -132,6 +132,10 @@ Deno.serve(async (req) => {
         return await handleUnifiedAction(token)
       }
 
+      // Context endpoints (JSON responses): token suficient, clinic_id derivat din DB
+      if (action === 'reschedule-context') return await handleRescheduleContext(req, token)
+      if (action === 'cancel-context')     return await handleCancelContext(req, token)
+
       // Ramuri vechi: action + clinic_id obligatorii pentru backward compat
       if (!UUID_RE.test(clinic)) {
         return redirect(cancelPageUrl({ status: 'invalid' }))
@@ -140,8 +144,6 @@ Deno.serve(async (req) => {
       if (action === 'confirm')            return await handleConfirm(token, clinic)
       if (action === 'reschedule')         return await handleReschedule(token, clinic)
       if (action === 'cancel')             return await handleCancelView(token, clinic)
-      if (action === 'reschedule-context') return await handleRescheduleContext(req, token, clinic)
-      if (action === 'cancel-context')     return await handleCancelContext(req, token, clinic)
 
       return redirect(cancelPageUrl({ status: 'invalid' }))
     }
@@ -249,10 +251,10 @@ async function handleReschedule(token: string, clinicId: string): Promise<Respon
     return redirect(cancelPageUrl({ status: 'expired' }))
   }
 
+  // URL curat — doar token-ul de reschedule. Frontend-ul derivă programare_id +
+  // clinic_id + detalii pacient din răspunsul reschedule-context (gated pe token).
   const target = new URL(SITE + '/programareclinica.html')
-  target.searchParams.set('reprogramare_id',        prog.programare_id)
-  target.searchParams.set('reprogramare_clinic_id', clinicId)
-  target.searchParams.set('rt',                     token)
+  target.searchParams.set('rt', token)
   return redirect(target.toString())
 }
 
@@ -262,7 +264,7 @@ async function handleCancelView(token: string, _clinicId: string): Promise<Respo
   return redirect(cancelPageUrl({ token, status: 'loading' }))
 }
 
-async function handleCancelContext(req: Request, token: string, _clinicId: string): Promise<Response> {
+async function handleCancelContext(req: Request, token: string): Promise<Response> {
   const hash = await hashToken(token)
   const rows = await fetchByTokenHash('cancel_token_hash', hash)
   const prog = rows[0]
@@ -295,7 +297,7 @@ async function handleCancelContext(req: Request, token: string, _clinicId: strin
   })
 }
 
-async function handleRescheduleContext(req: Request, token: string, _clinicId: string): Promise<Response> {
+async function handleRescheduleContext(req: Request, token: string): Promise<Response> {
   const hash = await hashToken(token)
   const rows = await fetchByTokenHash('reschedule_token_hash', hash)
   const prog = rows[0]
