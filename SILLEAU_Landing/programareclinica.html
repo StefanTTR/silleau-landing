@@ -1951,12 +1951,17 @@ function resolveClinicId(){
   });
 }
 
-function showBootError(msg){
+function showBootError(msg, title){
   document.body.style.visibility = 'visible';
+  /* Ascunde bara de pași (Date / Medic / Orar / Confirmare) + toate section-urile
+     (inclusiv butoanele Continuă) și afișează doar mesajul în cardul principal. */
+  var stepsBar = document.getElementById('stepsBar');
+  if (stepsBar) stepsBar.style.display = 'none';
   var card = document.querySelector('.card') || document.body;
+  /* Golim conținutul cardului (toate step-urile, butoanele etc.) și inserăm mesajul. */
   card.innerHTML = '<div style="padding:48px 36px;text-align:center;">'
-    + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:28px;font-weight:300;color:#111;margin-bottom:14px;">URL invalid</div>'
-    + '<p style="font-size:13px;color:#888;line-height:1.7;max-width:360px;margin:0 auto;">'
+    + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:28px;font-weight:300;color:var(--wh,#111);margin-bottom:14px;">' + (title || 'URL invalid') + '</div>'
+    + '<p style="font-size:13px;color:var(--mut,#888);line-height:1.7;max-width:380px;margin:0 auto;">'
     + msg
     + '</p></div>';
 }
@@ -1990,24 +1995,29 @@ document.addEventListener('DOMContentLoaded',function(){
 
     /* ── 2+3. Doctori → UI ── */
     function initUI(){
-      var list=document.getElementById('dlist');
-      list.innerHTML='';
-      if(!DOCS.length){
-        list.innerHTML='<div style="font-size:12px;color:var(--mut);padding:16px;text-align:center;">Nu s-au g\u0103sit medici activi.</div>';
+      /* Defensive checks: dacă datele clinicii sunt incomplete, înlocuim tot
+         formularul cu un mesaj clar (via showBootError, care ascunde și bara
+         de pași și toate butoanele Continuă). La următoarea încărcare de pagină,
+         după ce admin-ul adaugă datele în Supabase, check-ul trece și formularul
+         funcționează normal fără modificare de cod. */
+      if (!DOCS.length) {
+        showBootError(
+          'Clinica nu are \u00eenc\u0103 medici activi \u00een sistem. V\u0103 rug\u0103m contacta\u021bi clinica direct pentru o programare.',
+          'Programare indisponibil\u0103'
+        );
         return;
       }
-      /* Defensive check: dacă niciun medic nu are orar configurat în program_personal,
-         calendarul va arăta toate zilele blocate. Notificăm explicit user-ul în loc să
-         pară bug. Pentru clinicile noi, admin-ul trebuie să popleze orarul înainte de
-         go-live. */
       var anyHasSchedule = DOCS.some(function(d){ return d.sch && Object.keys(d.sch).length > 0; });
       if (!anyHasSchedule) {
-        list.innerHTML = '<div style="font-size:12px;color:var(--mut);padding:16px;text-align:center;line-height:1.6;">'
-          + 'Clinica nu are \u00eenc\u0103 orarul configurat.<br>'
-          + 'V\u0103 rug\u0103m contacta\u021bi clinica direct pentru a v\u0103 programa.'
-          + '</div>';
+        showBootError(
+          'Clinica nu are \u00eenc\u0103 orarul configurat. V\u0103 rug\u0103m contacta\u021bi clinica direct pentru a v\u0103 programa.',
+          'Programare indisponibil\u0103'
+        );
         return;
       }
+
+      var list=document.getElementById('dlist');
+      list.innerHTML='';
       DOCS.forEach(function(doc){
         var el=document.createElement('div');
         el.className='dcard';
