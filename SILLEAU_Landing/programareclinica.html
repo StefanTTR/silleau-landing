@@ -862,11 +862,17 @@ function showMotiv(){
     opts.forEach(function(s){
       var el=document.createElement('div');
       el.className='mopt';
+      /* Afișăm „Următoarea consultație" doar pentru servicii cu follow-up real
+         (s.days > 0). Pentru servicii unice (ex. extracție dentară, days=0),
+         afișăm doar durata. */
+      var fuFrag = (s.days && s.days > 0)
+        ? ' &nbsp;\u00b7&nbsp; Urm\u0103toarea consulta\u021Bie: ' + s.fu
+        : '';
       el.innerHTML=
         '<div class="mradio"></div>'+
         '<div class="mopt-text">'+
           '<div class="mopt-label">'+s.label+'</div>'+
-          '<div class="mopt-fu">Durat\u0103: '+s.dur+' min &nbsp;\u00b7&nbsp; Urm\u0103toarea consulta\u021Bie: '+s.fu+'</div>'+
+          '<div class="mopt-fu">Durat\u0103: '+s.dur+' min' + fuFrag + '</div>'+
         '</div>';
       el.addEventListener('click',function(){
         container.querySelectorAll('.mopt').forEach(function(o){o.classList.remove('picked');});
@@ -1869,14 +1875,19 @@ function showSucc(p){
   for(var i=1;i<=4;i++)document.getElementById('s'+i).classList.remove('on');
   document.getElementById('succSec').classList.add('on');
   var df=new Date(p.data_ora).toLocaleDateString('ro-RO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+', '+p.ora;
-  mkRows([
+  /* Construim rândurile dinamic — omitem „Următoarea consultație" dacă serviciul
+     nu are follow-up (zile_rechemare = 0). */
+  var succRows = [
     ['Medic',                        p.medic+' \u2014 '+p.specialitate],
     ['Serviciu',                     p.serviciu+' ('+p.durata+' min)'],
-    ['Urm\u0103toarea consulta\u021Bie', p.rechemare],
-    ['Data \u0219i ora',             df],
-    [p.canal==='whatsapp'?'WhatsApp':'E-mail', p.canal==='whatsapp'?p.telefon:p.email],
-    ['Telefon',                      p.telefon],
-  ],'succSum');
+  ];
+  if (p.rechemare && p.zile_rechemare && p.zile_rechemare > 0) {
+    succRows.push(['Urm\u0103toarea consulta\u021Bie', p.rechemare]);
+  }
+  succRows.push(['Data \u0219i ora',             df]);
+  succRows.push([p.canal==='whatsapp'?'WhatsApp':'E-mail', p.canal==='whatsapp'?p.telefon:p.email]);
+  succRows.push(['Telefon',                      p.telefon]);
+  mkRows(succRows, 'succSum');
   var _dt = p.data_ora ? p.data_ora.split('T') : [p.data||'', (p.ora||'').slice(0,5)];
   var succSub24h = (romaniaSlotToUtcMs(_dt[0], (_dt[1]||p.ora||'').slice(0,5)) - Date.now()) < 24 * 60 * 60 * 1000;
   document.getElementById('succSec').querySelector('.ssub').textContent=

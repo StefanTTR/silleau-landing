@@ -1,7 +1,7 @@
 const RESEND_KEY       = Deno.env.get('RESEND_KEY')!
 const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const FROM_EMAIL       = 'Clinica Alfa <contact@silleau.com>'
+// From email e derivat per-clinică din theme — vezi calculul lui fromEmail de mai jos.
 const FEEDBACK_FN     = 'https://wpxflbwohowigaulhxhk.supabase.co/functions/v1/save-feedback'
 const SITE            = 'https://www.silleau.com'
 const META_WA_TOKEN   = Deno.env.get('META_WA_TOKEN')!
@@ -74,14 +74,16 @@ Deno.serve(async (req) => {
       if (!isValidEmail(email)) {
         return new Response(JSON.stringify({ error: 'email lipsa sau invalid' }), { status: 400, headers: CORS })
       }
-      const theme = await fetchClinicTheme(clinic_id)
-      const emailRes = await fetch('https://api.resend.com/emails', {
+      const theme     = await fetchClinicTheme(clinic_id)
+      const fromEmail = (theme.clinicName || 'Clinica') + ' <' + (theme.emailContact || 'contact@silleau.com') + '>'
+      const subject   = (theme.clinicName || 'Clinica') + ' — ' + (isReprogramare ? 'confirmare reprogramare ' : 'confirmare programare ') + fmtData(data)
+      const emailRes  = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + RESEND_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: FROM_EMAIL,
+          from: fromEmail,
           to: email,
-          subject: (isReprogramare ? 'Confirmare reprogramare — ' : 'Confirmare programare — ') + fmtData(data),
+          subject: subject,
           html: buildEmail({ prenume, medic, specialitate: specialitate || '', serviciu: serviciu || '', data: fmtData(data), data_iso: data_iso || data, ora, rechemare: rechemare || '', programare_id, clinic_id, isReprogramare, sub24h: isWithin24h(data_iso || data, ora), email: email || '', telefon: telefon || '', theme }),
         }),
       })
