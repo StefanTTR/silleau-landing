@@ -1993,13 +1993,18 @@ document.addEventListener('DOMContentLoaded',function(){
 
   fetchConfig(function(configLoaded){
 
-    /* ── 2+3. Doctori → UI ── */
-    function initUI(){
-      /* Defensive checks: dacă datele clinicii sunt incomplete, înlocuim tot
-         formularul cu un mesaj clar (via showBootError, care ascunde și bara
-         de pași și toate butoanele Continuă). La următoarea încărcare de pagină,
-         după ce admin-ul adaugă datele în Supabase, check-ul trece și formularul
-         funcționează normal fără modificare de cod. */
+    /* ── 2+3. Doctori → UI ──
+       Semnatura: initUI(onReady). onReady() se cheamă DUPĂ ce cards-urile sunt
+       render-uite, astfel ca logica downstream (PREF_MEDIC, RESCHEDULE_CTX, etc.)
+       să vadă DOM-ul populat. Dacă check-urile strict de completitudine eșuează,
+       showBootError înlocuiește pagina și onReady NU se cheamă. */
+    function initUI(onReady){
+      /* Defensive checks stricte: formularul se încarcă DOAR dacă TOATE condițiile
+         sunt îndeplinite. Dacă lipsește orice dată (un medic fără orar, o specialitate
+         fără servicii), înlocuim tot formularul cu un mesaj clar via showBootError
+         (care ascunde bara de pași + toate butoanele Continuă).
+         La următoarea încărcare, după ce admin-ul populează Supabase, check-urile
+         trec automat și formularul funcționează normal — zero modificări de cod. */
       if (!DOCS.length) {
         showBootError(
           'Clinica nu are \u00eenc\u0103 medici activi \u00een sistem. V\u0103 rug\u0103m contacta\u021bi clinica direct pentru o programare.',
@@ -2007,15 +2012,64 @@ document.addEventListener('DOMContentLoaded',function(){
         );
         return;
       }
-      var anyHasSchedule = DOCS.some(function(d){ return d.sch && Object.keys(d.sch).length > 0; });
-      if (!anyHasSchedule) {
+      /* FIECARE medic trebuie să aibă cel puțin un rând în program_personal. */
+      var missingSchedule = DOCS.filter(function(d){ return !d.sch || Object.keys(d.sch).length === 0; });
+      if (missingSchedule.length > 0) {
         showBootError(
-          'Clinica nu are \u00eenc\u0103 orarul configurat. V\u0103 rug\u0103m contacta\u021bi clinica direct pentru a v\u0103 programa.',
+          'Programul unor medici nu este \u00eenc\u0103 configurat. Toate datele clinicii trebuie completate \u00eenainte de a putea face programare online. V\u0103 rug\u0103m contacta\u021bi clinica direct.',
           'Programare indisponibil\u0103'
         );
         return;
       }
+      /* FIECARE specialitate distinctă între medici trebuie să aibă cel puțin un
+         rând în servicii pentru această clinică. Fetch upfront și cache în
+         SERVICII_CACHE pe spec, astfel ca fetchServicii() să nu refacă request-uri. */
+      var distinctSpecs = {};
+      DOCS.forEach(function(d){ if (d.spec) distinctSpecs[d.spec] = true; });
+      fetch(PUBLIC_DATA_FN + '?resource=servicii&clinic_id=' + encodeURIComponent(CLINIC_ID))
+        .then(function(r){ return r.ok ? r.json() : []; })
+        .then(function(all){
+          /* Grupează serviciile per specialitate pentru cache. */
+          var bySpec = {};
+          (Array.isArray(all) ? all : []).forEach(function(s){
+            if (!s.specialitate) return;
+            if (!bySpec[s.specialitate]) bySpec[s.specialitate] = [];
+            bySpec[s.specialitate].push(s);
+          });
+          /* Verifică că fiecare specialitate are servicii. */
+          var missingSpecs = Object.keys(distinctSpecs).filter(function(sp){ return !bySpec[sp] || bySpec[sp].length === 0; });
+          if (missingSpecs.length > 0) {
+            showBootError(
+              'Serviciile clinicii nu sunt \u00eenc\u0103 configurate complet. V\u0103 rug\u0103m contacta\u021bi clinica direct pentru o programare.',
+              'Programare indisponibil\u0103'
+            );
+            return;
+          }
+          /* Pre-populează SERVICII_CACHE cu mapping-ul de la DB pentru a sări fetch-uri
+             repetate când user-ul selectează medic. */
+          Object.keys(bySpec).forEach(function(sp){
+            SERVICII_CACHE[sp] = bySpec[sp].map(function(s){
+              var dur = s.durata_min || 30;
+              var buf = s.pauza_dupa_min != null ? s.pauza_dupa_min : bufferFor(dur);
+              return { supabaseId: s.id, label: s.nume, price: s.pret_ron || 0, dur: dur, buf: buf,
+                       fu: fuLabel(s.zile_rechemare || 0), days: s.zile_rechemare || 0 };
+            });
+          });
+          /* Toate check-urile au trecut — construim UI normal și notificăm caller-ul. */
+          renderDoctorsUI();
+          if (onReady) onReady();
+        })
+        .catch(function(){
+          showBootError(
+            'Nu am putut verifica configura\u021bia clinicii. V\u0103 rug\u0103m re\u00eencerca\u021bi.',
+            'Eroare'
+          );
+        });
+      return;  /* renderDoctorsUI + onReady se apelează din promise-ul de mai sus */
+    }
 
+    /* Render-ul efectiv al listei de medici + calendar (fostul corp din initUI). */
+    function renderDoctorsUI(){
       var list=document.getElementById('dlist');
       list.innerHTML='';
       DOCS.forEach(function(doc){
@@ -2042,7 +2096,7 @@ document.addEventListener('DOMContentLoaded',function(){
     }
 
     fetchDoctors(function(){
-      initUI();
+      initUI(function(){
 
       /* ── Pre-select medic din URL param ── */
       if (PREF_MEDIC) {
@@ -2123,6 +2177,8 @@ document.addEventListener('DOMContentLoaded',function(){
       }
       fetchBlockedDays(onLoadDone);
       fetchBookings(onLoadDone);
+
+      });  /* end initUI(onReady) callback */
     });
 
   }); /* end fetchConfig callback */

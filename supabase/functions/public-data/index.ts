@@ -101,17 +101,19 @@ Deno.serve(async (req) => {
         break
 
       case 'servicii':
-        if (!clinicId || !specialitate) {
-          return new Response(JSON.stringify({ error: 'clinic_id si specialitate sunt obligatorii' }), {
+        if (!clinicId) {
+          return new Response(JSON.stringify({ error: 'clinic_id lipsa' }), {
             status: 400,
             headers: { ...CORS, 'Content-Type': 'application/json' },
           })
         }
+        // specialitate e opțional: dacă lipsește, întoarce toate serviciile clinicii
+        // (frontend-ul îl folosește la init pentru a verifica completitudinea config-ului).
         restUrl = SUPABASE_URL
           + '/rest/v1/servicii'
           + '?clinic_id=eq.' + encodeURIComponent(clinicId)
-          + '&specialitate=eq.' + encodeURIComponent(specialitate)
-          + '&select=id,nume,durata_min,pauza_dupa_min,pret_ron,zile_rechemare'
+          + (specialitate ? '&specialitate=eq.' + encodeURIComponent(specialitate) : '')
+          + '&select=id,nume,specialitate,durata_min,pauza_dupa_min,pret_ron,zile_rechemare'
           + '&order=pret_ron.desc'
         break
 
