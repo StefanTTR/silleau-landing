@@ -415,14 +415,14 @@ var CONFIRMARE_BOOKING_FN = SUPABASE_FUNCTIONS_URL + '/confirmare-booking';
    Dacă nu există parametrul, se folosește valoarea default de mai jos.
    Setează DEFAULT_CLINIC_ID la ID-ul primei tale clinici pilot.
 ──────────────────────────────────────────────────────────────*/
-var DEFAULT_CLINIC_ID = '00000000-0000-0000-0000-000000000001';
 var _urlp       = new URLSearchParams(window.location.search);
-/* Acceptăm fie ?slug=<slug>, fie ?clinic=<UUID>. Dacă ?clinic= conține valoare
-   non-UUID, o tratăm tot ca slug (migrare gentilă). */
 var _uuidRe     = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/* Input: ?slug=<slug>. Pentru compatibilitate, ?clinic=<non-UUID> e tratat tot ca slug.
+   ?clinic=<UUID> direct NU mai e acceptat — trebuie rezolvat via slug.
+   CLINIC_ID e populat la runtime din public-data?resource=clinic_by_slug. */
 var _clinicRaw  = _urlp.get('clinic') || '';
 var CLINIC_SLUG = _urlp.get('slug') || (_clinicRaw && !_uuidRe.test(_clinicRaw) ? _clinicRaw : '');
-var CLINIC_ID   = (_clinicRaw && _uuidRe.test(_clinicRaw)) ? _clinicRaw : DEFAULT_CLINIC_ID;
+var CLINIC_ID   = '';  /* rezolvat asincron la boot — vezi resolveClinicId() */
 var PREF_MEDIC       = _urlp.get('medic_pref') || '';
 var PREF_SPEC        = _urlp.get('specialitate_pref') || '';
 var PREF_PRENUME     = _urlp.get('prenume_pref') || '';
@@ -1901,19 +1901,71 @@ function doReset(){
 }
 
 /* ─── BOOT ─────────────────────────────────────── */
+
+/* Rezolvă CLINIC_ID din slug (nou) sau reprogramare_clinic_id (reprogramare flow).
+   Returnează Promise ce se rezolvă când CLINIC_ID e setat, sau respinge dacă nu
+   putem determina clinica — în acest caz afișăm eroare și nu continuăm init-ul. */
+function resolveClinicId(){
+  return new Promise(function(resolve, reject){
+    /* Path reprogramare: URL-ul conține reprogramare_clinic_id (UUID direct).
+       Rămâne pentru backward compat cu linkurile de reschedule generate
+       de resolve-action care încă trimit UUID-ul. */
+    if (REPROGRAMARE_CID && _uuidRe.test(REPROGRAMARE_CID)) {
+      CLINIC_ID = REPROGRAMARE_CID;
+      resolve(); return;
+    }
+    /* Path normal: derivăm clinic_id din slug via public-data. */
+    if (!CLINIC_SLUG) {
+      reject(new Error('no_slug'));
+      return;
+    }
+    fetch(PUBLIC_DATA_FN + '?resource=clinic_by_slug&slug=' + encodeURIComponent(CLINIC_SLUG))
+      .then(function(r){ return r.ok ? r.json() : []; })
+      .then(function(list){
+        var row = Array.isArray(list) ? list[0] : null;
+        if (!row || !row.id) { reject(new Error('clinic_not_found')); return; }
+        CLINIC_ID = row.id;
+        if (row.nume) CLINIC_NAME = row.nume;
+        resolve();
+      })
+      .catch(function(){ reject(new Error('network')); });
+  });
+}
+
+function showBootError(msg){
+  document.body.style.visibility = 'visible';
+  var card = document.querySelector('.card') || document.body;
+  card.innerHTML = '<div style="padding:48px 36px;text-align:center;">'
+    + '<div style="font-family:\'Cormorant Garamond\',serif;font-size:28px;font-weight:300;color:#111;margin-bottom:14px;">URL invalid</div>'
+    + '<p style="font-size:13px;color:#888;line-height:1.7;max-width:360px;margin:0 auto;">'
+    + msg
+    + '</p></div>';
+}
+
 document.addEventListener('DOMContentLoaded',function(){
 
   /* ═══════════════════════════════════════════════════════════════
      SECVENȚA DE BOOT — ordinea este deliberată:
 
-     1. fetchConfig   → setează titlul paginii (imediat, hardcodat).
-     2. fetchDoctors  → încarcă medicii din Supabase `personal` → DOCS[].
-     3. initUI        → construiește lista de doctori din DOCS (populat),
-                        inițializează calendarul.
+     0. resolveClinicId → setează CLINIC_ID din slug (nou) sau reprogramare_cid.
+     1. fetchConfig     → aplică tema clinicii (localStorage cache + public-data).
+     2. fetchDoctors    → încarcă medicii clinicii din `personal` → DOCS[].
+     3. initUI          → construiește lista de doctori din DOCS (populat),
+                          inițializează calendarul.
      4. fetchBlockedDays + fetchBookings → paralel, re-render calendar.
 
-     Această secvență garantează că UI-ul nu se construiește cu DOCS gol.
+     Această secvență garantează tenant scoping corect pe toate fetch-urile.
   ═══════════════════════════════════════════════════════════════ */
+
+  resolveClinicId().catch(function(err){
+    var msg = err && err.message === 'clinic_not_found'
+      ? 'Clinica solicitată nu a fost găsită. Verificați link-ul sau contactați clinica.'
+      : err && err.message === 'no_slug'
+        ? 'Link-ul nu conține identificatorul clinicii (?slug=). Contactați clinica pentru link-ul corect.'
+        : 'Nu am putut încărca datele clinicii. Vă rugăm reîncercați.';
+    showBootError(msg);
+    throw err;  /* opreste lanțul .then de jos */
+  }).then(function(){
 
   fetchConfig(function(configLoaded){
 
@@ -2106,6 +2158,7 @@ function goBack(){
   document.getElementById('b4p').addEventListener('click',function(){ goBack(); });
   document.getElementById('b4n').addEventListener('click',doConfirm);
 
+  });  /* end resolveClinicId().then callback */
 });
 })();
 </script>

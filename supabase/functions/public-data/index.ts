@@ -6,12 +6,15 @@
  *
  * GET /functions/v1/public-data?resource=<resource>[&<filtre>]
  *
- * Resources suportate:
- *   personal          → /rest/v1/personal?clinic_id=eq.X&activ=eq.true&select=id,prenume,nume,specialitate,titlu&order=specialitate.asc
- *   program_personal  → /rest/v1/program_personal?select=personal_id,zi_saptamana,ora_start,ora_sfarsit
- *   servicii          → /rest/v1/servicii?clinic_id=eq.X&specialitate=eq.Y&select=id,nume,durata_min,pauza_dupa_min,pret_ron,zile_rechemare&order=pret_ron.desc
- *   programari        → /rest/v1/programari?clinic_id=eq.X&status=in.(neconfirmat,confirmat)&select=personal_id,data_programare,ora_start,ora_sfarsit
- *   zile_blocate      → /rest/v1/zile_blocate?clinic_id=eq.X&select=personal_id,data
+ * Resources suportate (toate tenant-scoped pe clinic_id, exceptând lookup-ul by slug):
+ *   clinic_by_slug    → /rest/v1/clinici?slug=eq.X&select=id,nume (folosit la init pe frontend pentru a rezolva slug → clinic_id)
+ *   personal          → /rest/v1/personal?clinic_id=eq.X&activ=eq.true&select=id,prenume,nume,specialitate,titlu
+ *   program_personal  → /rest/v1/program_personal?personal.clinic_id=eq.X (embedded inner join)
+ *   servicii          → /rest/v1/servicii?clinic_id=eq.X&specialitate=eq.Y
+ *   programari        → /rest/v1/programari?clinic_id=eq.X&status=in.(neconfirmat,confirmat)
+ *   zile_blocate      → /rest/v1/zile_blocate?clinic_id=eq.X
+ *   clinic_theme      → /rest/v1/clinic_branding?clinic_id=eq.X&status=eq.approved + /rest/v1/clinici
+ *   programare_info   → /rest/v1/programari?programare_id=eq.X[&clinic_id=eq.Y]
  */
 
 const SUPABASE_URL      = Deno.env.get('APP_DB_URL') || Deno.env.get('SUPABASE_URL')!
@@ -33,6 +36,7 @@ const ALLOWED_RESOURCES = new Set([
   'slot_oferta',         // GET slot_oferte by id
   'programare_cur',      // GET data_programare, ora_start by id
   'clinic_theme',        // GET tema + nume_afisat + logo_url + favicon_url din clinic_branding (status=approved) by clinic_id
+  'clinic_by_slug',      // GET id + nume dupa slug (folosit la init în programareclinica.html pentru a rezolva slug → clinic_id)
 ])
 
 Deno.serve(async (req) => {
@@ -61,6 +65,7 @@ Deno.serve(async (req) => {
     const clinicId     = url.searchParams.get('clinic_id') || ''
     const specialitate = url.searchParams.get('specialitate') || ''
     const id           = url.searchParams.get('id') || ''
+    const slug         = url.searchParams.get('slug') || ''
 
     let restUrl: string
 
@@ -81,9 +86,18 @@ Deno.serve(async (req) => {
         break
 
       case 'program_personal':
+        if (!clinicId) {
+          return new Response(JSON.stringify({ error: 'clinic_id lipsa' }), {
+            status: 400,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          })
+        }
+        // Filtru tenant-scoped via embedded join la personal.clinic_id.
+        // PostgREST: personal!inner(clinic_id) face INNER JOIN; filter `personal.clinic_id=eq.X` îl aplică pe rezultatul join-ului.
         restUrl = SUPABASE_URL
           + '/rest/v1/program_personal'
-          + '?select=personal_id,zi_saptamana,ora_start,ora_sfarsit'
+          + '?select=personal_id,zi_saptamana,ora_start,ora_sfarsit,personal!inner(clinic_id)'
+          + '&personal.clinic_id=eq.' + encodeURIComponent(clinicId)
         break
 
       case 'servicii':
@@ -229,6 +243,20 @@ Deno.serve(async (req) => {
           headers: { ...CORS, 'Content-Type': 'application/json' },
         })
       }
+
+      case 'clinic_by_slug':
+        if (!slug || !/^[a-z0-9-]{1,100}$/.test(slug)) {
+          return new Response(JSON.stringify({ error: 'slug invalid sau lipsa' }), {
+            status: 400,
+            headers: { ...CORS, 'Content-Type': 'application/json' },
+          })
+        }
+        restUrl = SUPABASE_URL
+          + '/rest/v1/clinici'
+          + '?slug=eq.' + encodeURIComponent(slug)
+          + '&select=id,nume'
+          + '&limit=1'
+        break
 
       default:
         return new Response(JSON.stringify({ error: 'resource necunoscut' }), {
