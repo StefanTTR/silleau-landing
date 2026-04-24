@@ -23,6 +23,15 @@ export default {
   async fetch(request, env) {
     const url  = new URL(request.url);
     const path = url.pathname;
+    const host = url.hostname;
+
+    // silleau.app este exclusiv pentru dashboard-ul de recepție.
+    // Orice cerere la root (ex. silleau.app/) redirectează la /dashboard/.
+    // Toate celelalte path-uri (inclusiv /dashboard/*) cad la ASSETS.fetch
+    // normal (same SILLEAU_Landing/ directory, dar user-ul rămâne pe silleau.app).
+    if ((host === 'silleau.app' || host === 'www.silleau.app') && (path === '/' || path === '')) {
+      return Response.redirect('https://silleau.app/dashboard/', 302);
+    }
 
     // /r/c/TOKEN, /r/r/TOKEN, /r/x/TOKEN → resolve-action?t=TOKEN
     const rMatch = path.match(/^\/r\/[crx]\/([A-Za-z0-9_-]+)\/?$/);
