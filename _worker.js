@@ -25,12 +25,11 @@ export default {
     const path = url.pathname;
     const host = url.hostname;
 
-    // silleau.app este exclusiv pentru dashboard-ul de recepție.
-    // Orice cerere la root (ex. silleau.app/) redirectează la /dashboard/.
-    // Toate celelalte path-uri (inclusiv /dashboard/*) cad la ASSETS.fetch
-    // normal (same SILLEAU_Landing/ directory, dar user-ul rămâne pe silleau.app).
+    // silleau.app/ → CFO Virtual (Cloudflare Access gate).
+    // /dashboard/* rămâne pentru recepția clinică (auth Supabase propriu).
+    // Restul rutelor (programareclinica, /r/, /c/, /f/) rămân publice.
     if ((host === 'silleau.app' || host === 'www.silleau.app') && (path === '/' || path === '')) {
-      return Response.redirect('https://silleau.app/dashboard/', 302);
+      return Response.redirect('https://silleau.app/cfo/', 302);
     }
 
     // /r/c/TOKEN, /r/r/TOKEN, /r/x/TOKEN → resolve-action?t=TOKEN
@@ -39,6 +38,14 @@ export default {
       const target = SUPABASE_FN + '/resolve-action?t=' + encodeURIComponent(rMatch[1]);
       const origin = await fetch(target, { redirect: 'manual' });
       return cloneWithoutRestrictiveHeaders(origin);
+    }
+
+    // /c/SLUG → redirect la programareclinica.html?slug=SLUG.
+    // URL scurt ușor de tastat pe mobil. Slug permis: a-z, 0-9, -, _.
+    const cMatch = path.match(/^\/c\/([a-zA-Z0-9_-]+)\/?$/);
+    if (cMatch) {
+      const target = '/programareclinica.html?slug=' + encodeURIComponent(cMatch[1]);
+      return Response.redirect(new URL(target, url).toString(), 302);
     }
 
     // /f/TOKEN?rating=N → save-feedback?t=TOKEN&rating=N
