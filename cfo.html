@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CFO Virtual — SILLEAU</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a08;
+    --bg2: #111110;
+    --bg3: #1a1a17;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0ede6;
+    --text2: #8a8880;
+    --text3: #5a5856;
+    --accent: #c8b87a;
+    --accent2: #e8d49a;
+    --green: #4a9e6a;
+    --red: #c45a4a;
+    --amber: #c8843a;
+    --font-display: 'DM Serif Display', serif;
+    --font-body: 'Instrument Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* LAYOUT */
+  .shell {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: 56px 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-size: 18px;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
+  .logo span { color: var(--text2); font-size: 13px; font-family: var(--font-body); margin-left: 10px; letter-spacing: 0; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .status-label { font-size: 12px; color: var(--text2); font-family: var(--font-mono); }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-section { padding: 20px 20px 12px; }
+  .sidebar-title {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* UPLOAD AREA */
+  .upload-zone {
+    border: 1px dashed var(--border2);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(200,184,122,0.04); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .upload-icon { font-size: 20px; margin-bottom: 6px; color: var(--text3); }
+  .upload-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
+  .upload-text strong { color: var(--accent); font-weight: 500; }
+  .upload-formats { font-size: 10px; color: var(--text3); margin-top: 4px; font-family: var(--font-mono); }
+
+  .upload-status {
+    display: none;
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: rgba(74,158,106,0.12);
+    border: 1px solid rgba(74,158,106,0.3);
+    font-size: 12px;
+    color: var(--green);
+    font-family: var(--font-mono);
+  }
+
+  /* METRICS PANEL */
+  .metrics-grid { display: flex; flex-direction: column; gap: 6px; }
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+  }
+  .metric-name { font-size: 11px; color: var(--text2); }
+  .metric-val { font-size: 12px; font-family: var(--font-mono); font-weight: 500; }
+  .metric-val.pos { color: var(--green); }
+  .metric-val.neg { color: var(--red); }
+  .metric-val.warn { color: var(--amber); }
+  .metric-val.neutral { color: var(--text); }
+
+  /* QUICK QUESTIONS */
+  .quick-list { display: flex; flex-direction: column; gap: 6px; }
+  .quick-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    text-align: left;
+    font-size: 12px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-body);
+    line-height: 1.4;
+  }
+  .quick-btn:hover { border-color: var(--accent); color: var(--text); background: rgba(200,184,122,0.06); }
+
+  .sidebar-divider { height: 1px; background: var(--border); margin: 0 20px; }
+
+  /* CHAT AREA */
+  .chat-area {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .chat-header {
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+  .cfo-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2a2618, #4a3e1a);
+    border: 1px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .cfo-info h3 { font-size: 14px; font-weight: 500; color: var(--text); }
+  .cfo-info p { font-size: 11px; color: var(--text2); font-family: var(--font-mono); }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    text-align: center;
+    opacity: 0.6;
+  }
+  .empty-glyph {
+    font-family: var(--font-display);
+    font-size: 48px;
+    color: var(--accent);
+    opacity: 0.4;
+    font-style: italic;
+  }
+  .empty-state h3 { font-size: 16px; font-family: var(--font-display); color: var(--text); }
+  .empty-state p { font-size: 13px; color: var(--text2); max-width: 320px; line-height: 1.6; }
+
+  /* MESSAGES */
+  .msg { display: flex; flex-direction: column; gap: 6px; animation: fadeUp 0.25s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .msg-meta { display: flex; align-items: center; gap: 8px; }
+  .msg-author { font-size: 11px; font-family: var(--font-mono); font-weight: 500; }
+  .msg-author.cfo { color: var(--accent); }
+  .msg-author.user { color: var(--text2); }
+  .msg-time { font-size: 10px; color: var(--text3); font-family: var(--font-mono); }
+
+  .msg-body {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text);
+    max-width: 720px;
+    white-space: pre-wrap;
+  }
+  .msg.user .msg-body {
+    color: var(--text2);
+    font-style: italic;
+  }
+
+  /* CFO message special styling */
+  .msg.cfo .msg-body {
+    border-left: 2px solid var(--accent);
+    padding-left: 16px;
+  }
+
+  /* TYPING */
+  .typing-indicator { display: flex; gap: 5px; align-items: center; padding-left: 18px; }
+  .typing-indicator span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent);
+    animation: blink 1.2s infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,60%,100%{opacity:0.2} 30%{opacity:1} }
+
+  /* INPUT ROW */
+  .input-area {
+    border-top: 1px solid var(--border);
+    padding: 16px 28px;
+    flex-shrink: 0;
+    background: var(--bg);
+  }
+  .input-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .input-wrap {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    transition: border-color 0.2s;
+  }
+  .input-wrap:focus-within { border-color: var(--accent); }
+  .input-wrap textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    resize: none;
+    min-height: 22px;
+    max-height: 120px;
+  }
+  .input-wrap textarea::placeholder { color: var(--text3); }
+
+  .send-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+    color: #1a1508;
+  }
+  .send-btn:hover { background: var(--accent2); }
+  .send-btn:active { transform: scale(0.95); }
+  .send-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+  .send-btn svg { width: 16px; height: 16px; }
+
+  .input-hint { font-size: 11px; color: var(--text3); margin-top: 8px; font-family: var(--font-mono); }
+
+  /* SCROLLBAR */
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* DEMO DATA NOTICE */
+  .demo-notice {
+    background: rgba(200,132,58,0.1);
+    border: 1px solid rgba(200,132,58,0.25);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--amber);
+    font-family: var(--font-mono);
+    margin: 0 20px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="logo">SILLEAU <span>/ CFO Virtual</span></div>
+    <div class="topbar-right">
+      <div class="status-dot"></div>
+      <span class="status-label">claude-sonnet-4 · activ</span>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Date financiare</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".xlsx,.csv,.txt" onchange="handleFile(event)" />
+        <div class="upload-icon">⬆</div>
+        <div class="upload-text"><strong>Încarcă balanța</strong><br>sau fișa de conturi</div>
+        <div class="upload-formats">xlsx · csv · txt</div>
+      </div>
+      <div class="upload-status" id="uploadStatus"></div>
+    </div>
+
+    <div class="demo-notice">
+      ⚡ Date demo active
+    </div>
+
+    <div class="sidebar-section" style="padding-top:0">
+      <div class="sidebar-title">Indicatori cheie · mart. 2025</div>
+      <div class="metrics-grid">
+        <div class="metric-row"><span class="metric-name">Cifră afaceri</span><span class="metric-val neutral">87.400 RON</span></div>
+        <div class="metric-row"><span class="metric-name">Profit net</span><span class="metric-val pos">16.200 RON</span></div>
+        <div class="metric-row"><span class="metric-name">Sold bancă</span><span class="metric-val warn">9.800 RON</span></div>
+        <div class="metric-row"><span class="metric-name">Creanțe (411)</span><span class="metric-val warn">34.500 RON</span></div>
+        <div class="metric-row"><span class="metric-name">Datorii (401)</span><span class="metric-val neg">18.200 RON</span></div>
+        <div class="metric-row"><span class="metric-name">DSO</span><span class="metric-val neg">144 zile</span></div>
+        <div class="metric-row"><span class="metric-name">Marjă netă</span><span class="metric-val pos">18.5%</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Întrebări rapide</div>
+      <div class="quick-list">
+        <button class="quick-btn" onclick="sendQuick('Analizează riscul de lichiditate. Ce fac concret săptămâna asta?')">🔴 Risc lichiditate urgent</button>
+        <button class="quick-btn" onclick="sendQuick('DSO de 144 zile — ce înseamnă și cum îl reduc?')">📊 DSO 144 zile — ce fac?</button>
+        <button class="quick-btn" onclick="sendQuick('Pot să angajez un al 5-lea om luna viitoare? Calculează impactul.')">👤 Pot angaja acum?</button>
+        <button class="quick-btn" onclick="sendQuick('Dacă pierd cel mai mare client, cât timp rezist? Calculează runway.')">⚠ Scenariul cel mai rău</button>
+        <button class="quick-btn" onclick="sendQuick('Care sunt primii 3 KPI pe care trebuie să îi urmăresc săptămânal?')">📈 KPI prioritari</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- CHAT -->
+  <main class="chat-area">
+    <div class="chat-header">
+      <div class="cfo-avatar">C</div>
+      <div class="cfo-info">
+        <h3>CFO Virtual</h3>
+        <p>Analiză financiară · Revenue Optimisation Systems</p>
+      </div>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-glyph">∑</div>
+        <h3>Bun venit la SILLEAU CFO</h3>
+        <p>Încarcă balanța sau folosește datele demo. Pune prima întrebare și primești analiză la nivel de CFO senior.</p>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <div class="input-wrap">
+          <textarea
+            id="userInput"
+            placeholder="Întreabă CFO-ul virtual... (Enter pentru trimite)"
+            rows="1"
+            onkeydown="handleKey(event)"
+            oninput="autoResize(this)"
+          ></textarea>
+        </div>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+      <div class="input-hint">Enter · trimite &nbsp;·&nbsp; Shift+Enter · linie nouă</div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+const WORKER_URL = 'https://cfo-worker.tataru-stefan11.workers.dev';
+
+const DEMO_DATA = `BALANȚĂ SINTETICĂ — SRL IT SERVICES — MARTIE 2025
+
+VENITURI:
+704 Venituri din servicii: 87.400 RON
+
+CHELTUIELI:
+621 Colaboratori: 8.200 RON
+641 Salarii brute: 24.000 RON
+645 Contribuții angajator: 5.400 RON
+628 Servicii terți: 4.800 RON
+612 Chirii: 3.200 RON
+635 Impozite și taxe: 1.200 RON
+626 Telecomunicații: 800 RON
+681 Amortizări: 600 RON
+691 Impozit profit: 2.400 RON
+Total cheltuieli: 71.200 RON
+PROFIT NET: 16.200 RON
+
+BILANȚ:
+411 Creanțe clienți: 34.500 RON
+  - Client A: 18.000 RON (restant 90 zile)
+  - Client B: 12.000 RON (restant 45 zile)
+  - Client C: 4.500 RON (scadent 10 zile)
+401 Datorii furnizori: 18.200 RON (scadente 30 zile)
+4423 TVA de plată: 3.800 RON (scadentă 25 aprilie)
+5121 Bancă: 9.800 RON
+5311 Casă: 400 RON
+
+ISTORIC:
+Ianuarie: CA 71.200 | Cheltuieli 68.400 | Profit 2.800 | Bancă 14.200
+Februarie: CA 79.800 | Cheltuieli 69.100 | Profit 10.700 | Bancă 12.600
+Martie: CA 87.400 | Cheltuieli 71.200 | Profit 16.200 | Bancă 9.800
+
+NOTĂ CRITICĂ: CA crește lunar dar soldul bancar SCADE — banii sunt blocați în creanțe.
+Angajați: 4 | Domeniu: Servicii IT | Clienți activi: 3`;
+
+let conversationHistory = [];
+let financialData = DEMO_DATA;
+let isLoading = false;
+
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    financialData = `FIȘIER ÎNCĂRCAT: ${file.name}\n\n${e.target.result}`;
+    const status = document.getElementById('uploadStatus');
+    status.style.display = 'block';
+    status.textContent = `✓ ${file.name} încărcat`;
+    document.querySelector('.demo-notice').style.display = 'none';
+  };
+  reader.readAsText(file);
+}
+
+function sendQuick(text) {
+  document.getElementById('userInput').value = text;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function getTime() {
+  return new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+}
+
+function appendMessage(role, text) {
+  const container = document.getElementById('chatMessages');
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  const author = role === 'cfo' ? 'CFO Virtual' : 'Tu';
+  const authorClass = role === 'cfo' ? 'cfo' : 'user';
+
+  div.innerHTML = `
+    <div class="msg-meta">
+      <span class="msg-author ${authorClass}">${author}</span>
+      <span class="msg-time">${getTime()}</span>
+    </div>
+    <div class="msg-body">${escapeHtml(text)}</div>
+  `;
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const container = document.getElementById('chatMessages');
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'msg cfo';
+  div.id = 'typingMsg';
+  div.innerHTML = `
+    <div class="msg-meta">
+      <span class="msg-author cfo">CFO Virtual</span>
+      <span class="msg-time">${getTime()}</span>
+    </div>
+    <div class="msg-body" style="border-left: 2px solid var(--accent); padding-left: 16px;">
+      <div class="typing-indicator"><span></span><span></span><span></span></div>
+    </div>
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+async function sendMessage() {
+  if (isLoading) return;
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  isLoading = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  appendMessage('user', text);
+  conversationHistory.push({ role: 'user', content: text });
+
+  const typingEl = appendTyping();
+
+  try {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: conversationHistory,
+        financialData: financialData
+      })
+    });
+
+    const data = await res.json();
+    typingEl.remove();
+
+    if (data.error) {
+      appendMessage('cfo', '⚠ Eroare: ' + (data.error.message || JSON.stringify(data.error)));
+      conversationHistory.pop();
+    } else {
+      const reply = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      appendMessage('cfo', reply);
+      conversationHistory.push({ role: 'assistant', content: reply });
+    }
+  } catch (err) {
+    typingEl.remove();
+    appendMessage('cfo', '⚠ Eroare conexiune: ' + err.message);
+    conversationHistory.pop();
+  }
+
+  isLoading = false;
+  document.getElementById('sendBtn').disabled = false;
+  input.focus();
+}
+
+function escapeHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+</script>
+</body>
+</html>
