@@ -241,6 +241,148 @@
     text-transform: uppercase;
   }
 
+  .install-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 18px;
+    padding: 4px 0;
+    font-size: 11px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--line3);
+    cursor: pointer;
+    font-family: var(--sans);
+    text-transform: uppercase;
+    letter-spacing: 2.4px;
+    transition: all 0.25s;
+  }
+  .install-link:hover { color: var(--fg); border-bottom-color: var(--fg); }
+  .install-link svg { width: 11px; height: 11px; }
+  .install-link.hidden { display: none; }
+
+  /* INSTALL MODAL */
+  .install-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(12, 17, 24, 0.86);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: fadeIn 0.25s ease;
+  }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .install-modal.show { display: flex; }
+  .install-modal-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--bg);
+    border: 1px solid var(--line3);
+    padding: 44px 40px;
+    position: relative;
+    animation: fadeUp 0.35s ease;
+  }
+  .install-modal-close {
+    position: absolute;
+    top: 18px; right: 20px;
+    background: transparent;
+    border: none;
+    color: var(--muted2);
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+    font-family: var(--serif);
+    transition: color 0.2s;
+  }
+  .install-modal-close:hover { color: var(--fg); }
+  .install-modal-kicker {
+    font-size: 10px;
+    color: var(--muted2);
+    text-transform: uppercase;
+    letter-spacing: 3.2px;
+    margin-bottom: 14px;
+    font-weight: 400;
+  }
+  .install-modal-title {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--fg);
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .install-modal-title em { font-style: italic; }
+  .install-modal-divider {
+    width: 60px; height: 1px;
+    background: var(--line3);
+    margin: 22px 0 24px;
+  }
+  .install-modal-instructions {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--muted);
+    font-weight: 300;
+  }
+  .install-modal-instructions strong { color: var(--fg); font-weight: 500; }
+  .install-modal-instructions em { font-style: italic; color: var(--fg); font-family: var(--serif); }
+  .install-modal-steps {
+    list-style: none;
+    counter-reset: step;
+    margin: 14px 0 0;
+    padding: 0;
+  }
+  .install-modal-steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 12px 0 12px 36px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  .install-modal-steps li:last-child { border-bottom: none; }
+  .install-modal-steps li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute;
+    left: 0; top: 12px;
+    font-family: var(--serif);
+    font-size: 13px;
+    color: var(--muted2);
+    font-style: italic;
+  }
+  .install-modal-steps li strong { color: var(--fg); font-weight: 500; }
+  .install-modal-cta {
+    margin-top: 26px;
+    width: 100%;
+    padding: 14px 24px;
+    background: var(--btn);
+    color: var(--btnText);
+    border: 1px solid var(--btn);
+    cursor: pointer;
+    font-family: var(--sans);
+    text-transform: uppercase;
+    letter-spacing: 2.6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .install-modal-cta:hover { background: transparent; color: var(--fg); }
+  .install-modal-cta.hidden { display: none; }
+  .install-modal-note {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted3);
+    text-transform: uppercase;
+    letter-spacing: 2.4px;
+  }
+
   /* APP SHELL */
   .app-shell { display: none; }
   .app-shell.visible {
@@ -808,6 +950,32 @@
     </div>
 
     <div class="auth-footer">CFO Virtual · acces dedicat</div>
+
+    <div style="text-align:center">
+      <button type="button" class="install-link" id="openInstallModal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"/>
+          <path d="M7 10l5 5 5-5"/>
+          <path d="M5 21h14"/>
+        </svg>
+        <span>Descarcă aplicația</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- INSTALL MODAL -->
+<div class="install-modal" id="installModal" role="dialog" aria-modal="true" aria-labelledby="installModalTitle">
+  <div class="install-modal-card">
+    <button class="install-modal-close" id="installModalClose" aria-label="Închide">×</button>
+    <div class="install-modal-kicker">Instalare</div>
+    <div class="install-modal-title" id="installModalTitle">SILLEAU pe <em>dispozitivul tău</em></div>
+    <div class="install-modal-divider"></div>
+    <div class="install-modal-instructions" id="installModalContent">
+      <!-- populated by JS based on platform -->
+    </div>
+    <button class="install-modal-cta hidden" id="installModalCta">Instalează acum</button>
+    <div class="install-modal-note">funcționează offline · iconiță proprie · fereastră dedicată</div>
   </div>
 </div>
 
@@ -1242,7 +1410,122 @@ dismissBtn.addEventListener('click', () => {
 window.addEventListener('appinstalled', () => {
   installBanner.classList.remove('show');
   localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+  document.getElementById('openInstallModal')?.classList.add('hidden');
 });
+
+// CROSS-DEVICE INSTALL MODAL
+const installModal = document.getElementById('installModal');
+const installModalClose = document.getElementById('installModalClose');
+const installModalContent = document.getElementById('installModalContent');
+const installModalCta = document.getElementById('installModalCta');
+const openInstallBtn = document.getElementById('openInstallModal');
+
+function detectPlatform() {
+  const ua = navigator.userAgent;
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (standalone) return 'installed';
+  if (/iPhone|iPad|iPod/.test(ua)) return 'ios';
+  if (/Android/.test(ua)) {
+    if (/Chrome/.test(ua) || /Edg/.test(ua)) return 'android-chromium';
+    return 'android-other';
+  }
+  const isMac = /Mac/.test(navigator.platform || navigator.userAgent);
+  const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/Edg/.test(ua);
+  if (isMac && isSafari) return 'macos-safari';
+  if (/Chrome/.test(ua) || /Edg/.test(ua)) return 'desktop-chromium';
+  if (/Firefox/.test(ua)) return 'firefox';
+  return 'other';
+}
+
+const PLATFORM_INSTRUCTIONS = {
+  installed: {
+    body: '<p>Aplicația e <strong>deja instalată</strong> pe acest dispozitiv. Lansează-o din Dock, Launchpad sau ecranul de start.</p>',
+    showCta: false,
+    ctaLabel: ''
+  },
+  ios: {
+    body: '<p>În <em>Safari</em> pe iPhone sau iPad:</p><ol class="install-modal-steps"><li>Apasă butonul <strong>Share</strong> (pătrat cu săgeată în sus, în bara de jos)</li><li>Derulează lista și alege <strong>Add to Home Screen</strong></li><li>Confirmă numele <strong>SILLEAU</strong> → <strong>Add</strong></li></ol>',
+    showCta: false,
+    ctaLabel: ''
+  },
+  'macos-safari': {
+    body: '<p>În <em>Safari</em> pe Mac (macOS Sonoma 14 sau mai nou):</p><ol class="install-modal-steps"><li>Meniu <strong>File</strong> → <strong>Add to Dock…</strong></li><li>Confirmă numele <strong>SILLEAU</strong> și iconița</li><li>Apasă <strong>Add</strong> — apare în Dock și Launchpad</li></ol>',
+    showCta: false,
+    ctaLabel: ''
+  },
+  'desktop-chromium': {
+    body: '<p>Apasă butonul de mai jos sau iconița <strong>⊕ Install</strong> din bara de adresă.</p><p style="margin-top:10px;font-size:12.5px">Dacă nu apare, deschide meniul (<strong>⋮</strong>) → <strong>Install SILLEAU…</strong></p>',
+    showCta: true,
+    ctaLabel: 'Instalează acum'
+  },
+  'android-chromium': {
+    body: '<p>Apasă butonul de mai jos pentru a instala direct.</p><p style="margin-top:10px;font-size:12.5px">Sau: meniu (<strong>⋮</strong>) → <strong>Install app</strong> / <strong>Add to Home Screen</strong>.</p>',
+    showCta: true,
+    ctaLabel: 'Instalează acum'
+  },
+  'android-other': {
+    body: '<p>Pentru cea mai bună experiență, deschide <strong>silleau.app</strong> în <em>Chrome</em>:</p><ol class="install-modal-steps"><li>Apasă meniul <strong>⋮</strong></li><li>Alege <strong>Install app</strong> sau <strong>Add to Home Screen</strong></li></ol>',
+    showCta: false,
+    ctaLabel: ''
+  },
+  firefox: {
+    body: '<p>Firefox <strong>nu suportă instalare</strong> de PWA-uri pe desktop. Deschide silleau.app în <em>Chrome</em>, <em>Edge</em> sau <em>Brave</em>, apoi reîncearcă.</p>',
+    showCta: false,
+    ctaLabel: ''
+  },
+  other: {
+    body: '<p>Browserul tău nu permite instalare automată. Pentru cea mai bună experiență, deschide silleau.app în <em>Chrome</em>, <em>Edge</em> sau <em>Safari</em>.</p>',
+    showCta: false,
+    ctaLabel: ''
+  }
+};
+
+function renderInstallModal() {
+  const platform = detectPlatform();
+  const instr = PLATFORM_INSTRUCTIONS[platform] || PLATFORM_INSTRUCTIONS.other;
+  installModalContent.innerHTML = instr.body;
+  if (instr.showCta && deferredInstallPrompt) {
+    installModalCta.classList.remove('hidden');
+    installModalCta.textContent = instr.ctaLabel;
+  } else if (instr.showCta && !deferredInstallPrompt) {
+    installModalCta.classList.add('hidden');
+  } else {
+    installModalCta.classList.add('hidden');
+  }
+}
+
+function openInstallModal() {
+  renderInstallModal();
+  installModal.classList.add('show');
+}
+function closeInstallModal() {
+  installModal.classList.remove('show');
+}
+
+openInstallBtn?.addEventListener('click', openInstallModal);
+installModalClose.addEventListener('click', closeInstallModal);
+installModal.addEventListener('click', (e) => {
+  if (e.target === installModal) closeInstallModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && installModal.classList.contains('show')) closeInstallModal();
+});
+
+installModalCta.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  closeInstallModal();
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if (outcome === 'dismissed') {
+    localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+  }
+  deferredInstallPrompt = null;
+});
+
+// Hide download link if already installed
+if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
+  openInstallBtn?.classList.add('hidden');
+}
 </script>
 </body>
 </html>
