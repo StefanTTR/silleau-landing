@@ -219,7 +219,7 @@ async function verifyConfirmToken(token, secret) {
 }
 
 function buildConfirmEmailHtml(link) {
-  const FONT = "'Playfair Display', Georgia, 'Times New Roman', serif";
+  const FONT = "'Times New Roman', Times, serif";
   return `<!DOCTYPE html>
 <html lang="ro" xmlns:v="urn:schemas-microsoft-com:vml">
 <head>
@@ -229,7 +229,6 @@ function buildConfirmEmailHtml(link) {
 <meta name="supported-color-schemes" content="light dark">
 <title>SILLEAU — Confirmare cont</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap');
 :root { color-scheme: light dark; }
 body, table, td, p, span, div { margin:0; padding:0; }
 body { font-family:${FONT}; -webkit-text-size-adjust:100%; }
