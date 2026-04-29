@@ -22,6 +22,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
   :root {
     --bg: #0c1118;
@@ -52,12 +54,196 @@
     font-weight: 300;
     line-height: 1.6;
     font-size: 15px;
-    height: 100%;
-    overflow: hidden;
+    min-height: 100vh;
+  }
+  body.app-mode { height: 100%; overflow: hidden; }
+
+  /* SPLASH (initial loading state, hides flash) */
+  .splash {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+  }
+  .splash.hidden { opacity: 0; pointer-events: none; }
+  .splash-logo {
+    font-family: var(--serif);
+    font-size: 28px;
+    letter-spacing: 4px;
+    font-weight: 500;
+    color: var(--fg);
+    opacity: 0.85;
   }
 
-  /* SHELL */
-  .shell {
+  /* AUTH SCREEN */
+  .auth-screen {
+    display: none;
+    min-height: 100vh;
+    min-height: 100dvh;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+  }
+  .auth-screen.visible { display: flex; }
+
+  .auth-card {
+    width: 100%;
+    max-width: 460px;
+    border: 1px solid var(--line3);
+    padding: 56px 48px;
+    background: var(--bg);
+  }
+  .auth-logo {
+    font-family: var(--serif);
+    font-size: 28px;
+    letter-spacing: 4px;
+    font-weight: 500;
+    color: var(--fg);
+    text-align: center;
+  }
+  .auth-sub {
+    font-size: 10.5px;
+    color: var(--muted2);
+    text-align: center;
+    margin-top: 14px;
+    text-transform: uppercase;
+    letter-spacing: 3.2px;
+    font-weight: 400;
+  }
+  .auth-divider {
+    width: 60px; height: 1px;
+    background: var(--line3);
+    margin: 26px auto 36px;
+  }
+  .auth-tabs {
+    display: flex;
+    border: 1px solid var(--line3);
+    margin-bottom: 36px;
+  }
+  .auth-tab {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 400;
+    cursor: pointer;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    transition: all 0.2s;
+    font-family: var(--sans);
+    text-transform: uppercase;
+    letter-spacing: 2.4px;
+  }
+  .auth-tab:hover { color: var(--fg); background: rgba(232,230,227,0.04); }
+  .auth-tab.active { background: var(--btn); color: var(--btnText); }
+
+  .auth-form { display: flex; flex-direction: column; gap: 20px; }
+  .field { display: flex; flex-direction: column; gap: 8px; }
+  .field label {
+    font-size: 10px;
+    color: var(--muted2);
+    text-transform: uppercase;
+    letter-spacing: 2.6px;
+    font-weight: 400;
+  }
+  .field input,
+  .field select {
+    padding: 12px 0;
+    border: none;
+    border-bottom: 1px solid var(--line3);
+    background: transparent;
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 300;
+    outline: none;
+    transition: border-color 0.25s;
+  }
+  .field input:focus,
+  .field select:focus { border-bottom-color: var(--fg); }
+  .field input::placeholder { color: var(--muted3); font-style: italic; font-weight: 300; }
+  .field select { cursor: pointer; }
+  .field select option { background: var(--bg2); color: var(--fg); }
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .section-divider {
+    font-size: 10px;
+    color: var(--muted2);
+    text-align: center;
+    margin: 18px 0 6px;
+    letter-spacing: 3.2px;
+    text-transform: uppercase;
+    font-weight: 400;
+    position: relative;
+  }
+  .section-divider::before,
+  .section-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 22%;
+    height: 1px;
+    background: var(--line3);
+  }
+  .section-divider::before { left: 8%; }
+  .section-divider::after { right: 8%; }
+
+  .btn-primary {
+    padding: 16px 28px;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--line3);
+    cursor: pointer;
+    font-family: var(--sans);
+    text-transform: uppercase;
+    letter-spacing: 2.6px;
+    font-size: 11.5px;
+    font-weight: 400;
+    transition: all 0.25s;
+    margin-top: 14px;
+  }
+  .btn-primary:hover {
+    background: var(--btn);
+    color: var(--btnText);
+    border-color: var(--btn);
+  }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; background: transparent; color: var(--fg); }
+
+  .auth-error,
+  .auth-success {
+    padding: 12px 14px;
+    border-left: 1px solid;
+    font-size: 12.5px;
+    font-weight: 300;
+    line-height: 1.5;
+    display: none;
+  }
+  .auth-error { color: var(--neg); border-left-color: var(--neg); }
+  .auth-success { color: var(--pos); border-left-color: var(--pos); }
+
+  .auth-footer {
+    margin-top: 44px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted3);
+    letter-spacing: 2.6px;
+    text-transform: uppercase;
+  }
+
+  /* APP SHELL */
+  .app-shell { display: none; }
+  .app-shell.visible {
     display: grid;
     grid-template-columns: 320px 1fr;
     grid-template-rows: 72px 1fr;
@@ -65,7 +251,6 @@
     height: 100dvh;
   }
 
-  /* TOPBAR */
   .topbar {
     grid-column: 1 / -1;
     display: flex;
@@ -82,7 +267,7 @@
     font-weight: 500;
     color: var(--fg);
   }
-  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .topbar-right { display: flex; align-items: center; gap: 18px; }
   .status-dot {
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--fg);
@@ -96,6 +281,24 @@
     text-transform: uppercase;
     letter-spacing: 2.4px;
   }
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border: 1px solid var(--line3);
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--muted);
+    background: transparent;
+    font-family: var(--sans);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+  }
+  .user-chip:hover { color: var(--fg); border-color: var(--fg); }
+  .user-chip-email { font-weight: 400; text-transform: lowercase; letter-spacing: 0.5px; font-size: 12px; }
+  .user-chip-sep { color: var(--muted3); }
 
   /* SIDEBAR */
   .sidebar {
@@ -108,7 +311,7 @@
     scrollbar-color: var(--line3) transparent;
   }
   .sidebar::-webkit-scrollbar { width: 4px; }
-  .sidebar::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 2px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--line2); }
 
   .sidebar-section { padding: 28px 28px 16px; }
   .kicker {
@@ -121,77 +324,6 @@
   }
   .sidebar-divider { height: 1px; background: var(--line); margin: 0 28px; }
 
-  /* CONVERSATIONS */
-  .conv-header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 16px;
-  }
-  .conv-header .kicker { margin-bottom: 0; }
-  .conv-new-btn {
-    background: transparent;
-    border: 1px solid var(--line3);
-    color: var(--fg);
-    width: 24px; height: 24px;
-    cursor: pointer;
-    font-size: 14px; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
-    padding: 0;
-    font-family: var(--serif);
-  }
-  .conv-new-btn:hover { background: var(--btn); color: var(--btnText); }
-  .conv-list { display: flex; flex-direction: column; gap: 1px; max-height: 180px; overflow-y: auto; }
-  .conv-list::-webkit-scrollbar { width: 3px; }
-  .conv-list::-webkit-scrollbar-thumb { background: var(--line2); }
-  .conv-item {
-    display: flex; align-items: center; gap: 6px;
-    padding: 9px 12px;
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--muted);
-    background: transparent;
-    border-left: 1px solid transparent;
-    transition: all 0.18s;
-  }
-  .conv-item:hover { color: var(--fg); border-left-color: var(--line3); padding-left: 14px; }
-  .conv-item.active { color: var(--fg); border-left-color: var(--fg); padding-left: 14px; }
-  .conv-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 300; }
-  .conv-del {
-    display: none;
-    width: 18px; height: 18px;
-    border: none;
-    background: transparent;
-    color: var(--muted3);
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
-    padding: 0;
-  }
-  .conv-item:hover .conv-del { display: flex; align-items: center; justify-content: center; }
-  .conv-del:hover { color: var(--neg); }
-
-  /* TONE PILLS */
-  .tone-pills { display: flex; gap: 0; border: 1px solid var(--line3); }
-  .tone-pill {
-    flex: 1;
-    background: transparent;
-    border: none;
-    border-right: 1px solid var(--line3);
-    padding: 10px 6px;
-    font-size: 11px;
-    color: var(--muted);
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: var(--sans);
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    font-weight: 400;
-  }
-  .tone-pill:last-child { border-right: none; }
-  .tone-pill:hover { color: var(--fg); background: rgba(232,230,227,0.04); }
-  .tone-pill.active { background: var(--btn); color: var(--btnText); }
-
-  /* UPLOAD ZONE */
   .upload-zone {
     border: 1px dashed var(--line3);
     padding: 22px 16px;
@@ -202,13 +334,7 @@
   }
   .upload-zone:hover { border-color: var(--fg); background: rgba(232,230,227,0.03); }
   .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
-  .upload-icon {
-    font-family: var(--serif);
-    font-size: 22px;
-    margin-bottom: 8px;
-    color: var(--muted);
-    font-style: italic;
-  }
+  .upload-icon { font-family: var(--serif); font-size: 22px; margin-bottom: 8px; color: var(--muted); font-style: italic; }
   .upload-text { font-size: 12.5px; color: var(--muted); line-height: 1.6; font-weight: 300; }
   .upload-text strong { color: var(--fg); font-weight: 500; }
   .upload-text em { font-style: italic; }
@@ -229,8 +355,6 @@
     text-transform: uppercase;
     letter-spacing: 1.8px;
   }
-
-  /* DEMO NOTICE */
   .demo-notice {
     margin: 0 28px 8px;
     padding: 9px 12px;
@@ -240,11 +364,9 @@
     text-transform: uppercase;
     letter-spacing: 2.6px;
     text-align: center;
-    font-weight: 400;
   }
 
-  /* METRICS */
-  .metrics-grid { display: flex; flex-direction: column; gap: 0; }
+  .metrics-grid { display: flex; flex-direction: column; }
   .metric-row {
     display: flex;
     justify-content: space-between;
@@ -270,8 +392,36 @@
   .metric-val.neg { color: var(--neg); }
   .metric-val.warn { color: var(--warn); }
 
-  /* QUICK QUESTIONS */
-  .quick-list { display: flex; flex-direction: column; gap: 0; }
+  .memory-tags { display: flex; flex-direction: column; gap: 0; }
+  .memory-tag {
+    font-size: 12px;
+    padding: 9px 0;
+    color: var(--fg);
+    font-weight: 300;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  .memory-tag:last-child { border-bottom: none; }
+  .memory-tag-key {
+    font-size: 9.5px;
+    color: var(--muted2);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 400;
+    flex-shrink: 0;
+    min-width: 90px;
+  }
+  .memory-tag-val { color: var(--fg); }
+  .memory-empty {
+    font-size: 12px;
+    color: var(--muted3);
+    font-style: italic;
+    font-weight: 300;
+  }
+
+  .quick-list { display: flex; flex-direction: column; }
   .quick-btn {
     background: transparent;
     border: none;
@@ -289,14 +439,8 @@
   .quick-btn:last-child { border-bottom: none; }
   .quick-btn:hover { color: var(--fg); padding-left: 8px; }
 
-  /* CHAT AREA */
-  .chat-area {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: var(--bg);
-  }
-
+  /* CHAT */
+  .chat-area { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
   .chat-header {
     padding: 26px 56px;
     border-bottom: 1px solid var(--line);
@@ -306,12 +450,9 @@
     flex-shrink: 0;
   }
   .cfo-avatar {
-    width: 44px;
-    height: 44px;
+    width: 44px; height: 44px;
     border: 1px solid var(--line3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     font-family: var(--serif);
     font-size: 18px;
     color: var(--fg);
@@ -348,7 +489,6 @@
   .chat-messages::-webkit-scrollbar { width: 4px; }
   .chat-messages::-webkit-scrollbar-thumb { background: var(--line2); }
 
-  /* EMPTY STATE */
   .empty-state {
     display: flex;
     flex-direction: column;
@@ -366,7 +506,6 @@
     color: var(--fg);
     opacity: 0.3;
     font-style: italic;
-    font-weight: 400;
   }
   .empty-state .kicker { margin-bottom: 4px; }
   .empty-state h3 {
@@ -390,7 +529,6 @@
     font-weight: 300;
   }
 
-  /* MESSAGES */
   .msg {
     display: flex;
     flex-direction: column;
@@ -399,7 +537,6 @@
     animation: fadeUp 0.35s ease;
   }
   @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-
   .msg-meta { display: flex; align-items: center; gap: 12px; }
   .msg-author {
     font-size: 10px;
@@ -415,7 +552,6 @@
     text-transform: uppercase;
     letter-spacing: 2px;
   }
-
   .msg-body {
     font-size: 15px;
     line-height: 1.85;
@@ -434,46 +570,6 @@
     padding-left: 22px;
   }
 
-  /* CFO message styling */
-  .msg.cfo .msg-body strong { color: var(--fg); font-weight: 600; }
-  .msg.cfo .msg-body em { color: var(--fg); font-style: italic; font-family: var(--serif); }
-  .msg.cfo .msg-body .md-p { margin: 0 0 16px; }
-  .msg.cfo .msg-body .md-p:last-child { margin-bottom: 0; }
-  .msg.cfo .msg-body .md-h {
-    font-family: var(--serif);
-    font-size: 22px;
-    font-weight: 500;
-    color: var(--fg);
-    margin: 28px 0 14px;
-    line-height: 1.2;
-  }
-  .msg.cfo .msg-body .md-h:first-child { margin-top: 0; }
-  .msg.cfo .msg-body .md-h em { font-style: italic; }
-  .msg.cfo .msg-body .md-ul {
-    list-style: none;
-    margin: 8px 0 18px;
-    padding: 0;
-  }
-  .msg.cfo .msg-body .md-ul li {
-    position: relative;
-    padding-left: 22px;
-    margin: 8px 0;
-  }
-  .msg.cfo .msg-body .md-ul li::before {
-    content: "—";
-    position: absolute;
-    left: 0;
-    color: var(--muted2);
-  }
-  .msg.cfo .msg-body .md-code {
-    font-family: 'SF Mono', Menlo, Consolas, monospace;
-    font-size: 13px;
-    background: var(--bg3);
-    padding: 2px 7px;
-    color: var(--fg);
-  }
-
-  /* TYPING */
   .typing-indicator { display: flex; gap: 6px; align-items: center; padding: 4px 0; }
   .typing-indicator span {
     width: 5px; height: 5px; border-radius: 50%;
@@ -485,18 +581,13 @@
   .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
   @keyframes blink { 0%,60%,100%{opacity:0.2} 30%{opacity:0.85} }
 
-  /* INPUT AREA */
   .input-area {
     border-top: 1px solid var(--line);
     padding: 22px 56px 26px;
     flex-shrink: 0;
     background: var(--bg);
   }
-  .input-row {
-    display: flex;
-    gap: 16px;
-    align-items: flex-end;
-  }
+  .input-row { display: flex; gap: 16px; align-items: flex-end; }
   .input-wrap {
     flex: 1;
     background: transparent;
@@ -519,11 +610,7 @@
     max-height: 140px;
     font-weight: 300;
   }
-  .input-wrap textarea::placeholder {
-    color: var(--muted3);
-    font-style: italic;
-  }
-
+  .input-wrap textarea::placeholder { color: var(--muted3); font-style: italic; }
   .send-btn {
     padding: 14px 28px;
     background: transparent;
@@ -546,7 +633,6 @@
   .send-btn:active { transform: translateY(1px); }
   .send-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
   .send-btn svg { width: 13px; height: 13px; }
-
   .input-hint {
     font-size: 10px;
     color: var(--muted3);
@@ -555,7 +641,7 @@
     letter-spacing: 2.4px;
   }
 
-  /* INSTALL PROMPT */
+  /* INSTALL BANNER */
   .install-banner {
     display: none;
     position: fixed;
@@ -602,7 +688,8 @@
 
   /* RESPONSIVE */
   @media (max-width: 980px) {
-    .shell {
+    .auth-card { padding: 44px 32px; }
+    .app-shell.visible {
       grid-template-columns: 1fr;
       grid-template-rows: 64px auto 1fr;
     }
@@ -617,9 +704,12 @@
     .input-area { padding: 18px 28px 22px; }
     .empty-state h3 { font-size: 26px; }
     .empty-glyph { font-size: 52px; }
-    .msg.cfo .msg-body .md-h { font-size: 19px; }
+    .user-chip-email { display: none; }
   }
   @media (max-width: 560px) {
+    .auth-card { padding: 36px 24px; }
+    .auth-logo { font-size: 24px; letter-spacing: 3px; }
+    .field-row { grid-template-columns: 1fr; }
     .topbar { padding: 0 20px; }
     .logo { font-size: 18px; letter-spacing: 2.4px; }
     .status-label { display: none; }
@@ -631,54 +721,115 @@
     .cfo-info h3 { font-size: 17px; }
     .chat-messages { padding: 24px 22px; gap: 24px; }
     .input-area { padding: 16px 22px 22px; }
-    .input-row { gap: 10px; }
     .send-btn { padding: 14px 16px; }
     .send-btn span { display: none; }
     .empty-state h3 { font-size: 22px; }
     .msg.user .msg-body { font-size: 15px; padding-left: 16px; }
+    .user-chip { padding: 8px 10px; }
+    .user-chip-email { display: none; }
   }
 </style>
 </head>
 <body>
 
-<div class="shell">
+<!-- SPLASH -->
+<div class="splash" id="splash">
+  <div class="splash-logo">SILLEAU</div>
+</div>
 
-  <!-- TOPBAR -->
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">SILLEAU</div>
+    <div class="auth-sub">Revenue Optimization Systems</div>
+    <div class="auth-divider"></div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Autentificare</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Cont nou</button>
+    </div>
+
+    <div id="formLogin" class="auth-form">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="email@firma.ro" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Parolă</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+      </div>
+      <div class="auth-error" id="loginError"></div>
+      <button class="btn-primary" id="loginBtn" onclick="doLogin()">Intră în cont</button>
+    </div>
+
+    <div id="formRegister" class="auth-form" style="display:none">
+      <div class="section-divider">Cont</div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="email@firma.ro" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Parolă</label>
+        <input type="password" id="regPassword" placeholder="Minim 8 caractere" autocomplete="new-password" />
+      </div>
+
+      <div class="section-divider">Firmă</div>
+      <div class="field-row">
+        <div class="field">
+          <label>CUI</label>
+          <input type="text" id="regCui" placeholder="RO12345678" />
+        </div>
+        <div class="field">
+          <label>Nr. angajați</label>
+          <input type="number" id="regAngajati" placeholder="4" min="1" max="10" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Denumire</label>
+        <input type="text" id="regNume" placeholder="SC Firma Mea SRL" />
+      </div>
+      <div class="field">
+        <label>Domeniu</label>
+        <select id="regDomeniu">
+          <option value="">Selectează…</option>
+          <option value="IT">IT &amp; Software</option>
+          <option value="Consultanță">Consultanță</option>
+          <option value="Comerț">Comerț</option>
+          <option value="Producție">Producție</option>
+          <option value="Servicii">Servicii</option>
+          <option value="Construcții">Construcții</option>
+          <option value="HoReCa">HoReCa</option>
+          <option value="Altele">Altele</option>
+        </select>
+      </div>
+      <div class="auth-error" id="registerError"></div>
+      <div class="auth-success" id="registerSuccess"></div>
+      <button class="btn-primary" id="registerBtn" onclick="doRegister()">Creează cont</button>
+    </div>
+
+    <div class="auth-footer">CFO Virtual · acces dedicat</div>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div class="app-shell" id="appShell">
   <header class="topbar">
     <div class="logo">SILLEAU</div>
     <div class="topbar-right">
       <div class="status-dot"></div>
       <span class="status-label">activ</span>
+      <button class="user-chip" onclick="doLogout()">
+        <span class="user-chip-email" id="userEmail">—</span>
+        <span class="user-chip-sep">·</span>
+        <span>ieșire</span>
+      </button>
     </div>
   </header>
 
-  <!-- SIDEBAR -->
   <aside class="sidebar">
-
-    <div class="sidebar-section">
-      <div class="conv-header">
-        <div class="kicker">Conversații</div>
-        <button class="conv-new-btn" onclick="newConversation()" title="Conversație nouă">+</button>
-      </div>
-      <div class="conv-list" id="convList"></div>
-    </div>
-
-    <div class="sidebar-divider"></div>
-
-    <div class="sidebar-section">
-      <div class="kicker">Ton CFO</div>
-      <div class="tone-pills">
-        <button class="tone-pill" data-tone="direct" onclick="setTone('direct')">Direct</button>
-        <button class="tone-pill" data-tone="echilibrat" onclick="setTone('echilibrat')">Echilibrat</button>
-        <button class="tone-pill" data-tone="coaching" onclick="setTone('coaching')">Coaching</button>
-      </div>
-    </div>
-
-    <div class="sidebar-divider"></div>
-
     <div class="sidebar-section">
       <div class="kicker">Date financiare</div>
-      <div class="upload-zone" id="uploadZone">
+      <div class="upload-zone">
         <input type="file" id="fileInput" accept=".xlsx,.csv,.txt" onchange="handleFile(event)" />
         <div class="upload-icon">↑</div>
         <div class="upload-text"><strong>Încarcă balanța</strong><br>sau <em>fișa de conturi</em></div>
@@ -687,7 +838,7 @@
       <div class="upload-status" id="uploadStatus"></div>
     </div>
 
-    <div class="demo-notice">Date demo active</div>
+    <div class="demo-notice" id="demoNotice">Date demo active</div>
 
     <div class="sidebar-section" style="padding-top: 8px;">
       <div class="kicker">Indicatori · mart. 2025</div>
@@ -705,28 +856,34 @@
     <div class="sidebar-divider"></div>
 
     <div class="sidebar-section">
+      <div class="kicker">Memorie activă</div>
+      <div class="memory-tags" id="memoryTags">
+        <span class="memory-empty">Nicio informație salvată încă</span>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section">
       <div class="kicker">Întrebări rapide</div>
       <div class="quick-list">
         <button class="quick-btn" onclick="sendQuick('Analizează riscul de lichiditate. Ce fac concret săptămâna asta?')">Risc lichiditate urgent</button>
         <button class="quick-btn" onclick="sendQuick('DSO de 144 zile — ce înseamnă și cum îl reduc?')">DSO 144 zile — ce fac?</button>
-        <button class="quick-btn" onclick="sendQuick('Pot să angajez un al 5-lea om luna viitoare? Calculează impactul.')">Pot angaja acum?</button>
+        <button class="quick-btn" onclick="sendQuick('Pot să angajez un om nou luna viitoare? Calculează impactul.')">Pot angaja acum?</button>
         <button class="quick-btn" onclick="sendQuick('Dacă pierd cel mai mare client, cât timp rezist? Calculează runway.')">Scenariul cel mai rău</button>
         <button class="quick-btn" onclick="sendQuick('Care sunt primii 3 KPI pe care trebuie să îi urmăresc săptămânal?')">KPI prioritari</button>
       </div>
     </div>
-
   </aside>
 
-  <!-- CHAT -->
   <main class="chat-area">
     <div class="chat-header">
       <div class="cfo-avatar">C</div>
       <div class="cfo-info">
         <h3>CFO <em>Virtual</em></h3>
-        <p>Revenue Optimization Systems</p>
+        <p id="companyLabel">Revenue Optimization Systems</p>
       </div>
     </div>
-
     <div class="chat-messages" id="chatMessages">
       <div class="empty-state" id="emptyState">
         <div class="empty-glyph">∑</div>
@@ -736,17 +893,10 @@
         <p>Încarcă balanța sau folosește datele demo. Pune prima întrebare și primești răspuns clar, cu cifre, acțiuni și riscuri.</p>
       </div>
     </div>
-
     <div class="input-area">
       <div class="input-row">
         <div class="input-wrap">
-          <textarea
-            id="userInput"
-            placeholder="Întreabă CFO-ul orice despre situația financiară a firmei tale…"
-            rows="1"
-            onkeydown="handleKey(event)"
-            oninput="autoResize(this)"
-          ></textarea>
+          <textarea id="userInput" placeholder="Întreabă CFO-ul orice despre situația financiară a firmei tale…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         </div>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">
           <span>Trimite</span>
@@ -759,7 +909,6 @@
       <div class="input-hint">Enter — trimite &nbsp;·&nbsp; Shift + Enter — linie nouă</div>
     </div>
   </main>
-
 </div>
 
 <!-- INSTALL BANNER -->
@@ -772,251 +921,202 @@
 </div>
 
 <script>
+const SUPABASE_URL = 'https://dsuokzronteofxqooaxd.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzdW9renJvbnRlb2Z4cW9vYXhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NjU0NTAsImV4cCI6MjA5MzA0MTQ1MH0.eytz_g8YU7cDKyW2rwLLdz5siW5D0rKa4mY6wl2cD6g';
 const API_URL = '/api/chat';
 
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
 const DEMO_DATA = `BALANȚĂ SINTETICĂ — SRL IT SERVICES — MARTIE 2025
-
-VENITURI:
-704 Venituri din servicii: 87.400 RON
-
-CHELTUIELI:
-621 Colaboratori: 8.200 RON
-641 Salarii brute: 24.000 RON
-645 Contribuții angajator: 5.400 RON
-628 Servicii terți: 4.800 RON
-612 Chirii: 3.200 RON
-635 Impozite și taxe: 1.200 RON
-626 Telecomunicații: 800 RON
-681 Amortizări: 600 RON
-691 Impozit profit: 2.400 RON
-Total cheltuieli: 71.200 RON
+VENITURI: 704 Servicii: 87.400 RON
+CHELTUIELI: 641 Salarii: 24.000 | 645 Contribuții: 5.400 | 621 Colaboratori: 8.200 | 628 Servicii terți: 4.800 | 612 Chirie: 3.200 | Total: 71.200 RON
 PROFIT NET: 16.200 RON
+BILANȚ: 411 Creanțe: 34.500 RON (Client A 18k/90zile, Client B 12k/45zile, Client C 4.5k/10zile) | 401 Datorii: 18.200 RON | 5121 Bancă: 9.800 RON
+ISTORIC: Ian CA 71.200/Profit 2.800/Bancă 14.200 | Feb CA 79.800/Profit 10.700/Bancă 12.600 | Mar CA 87.400/Profit 16.200/Bancă 9.800
+ATENȚIE: CA crește dar banca scade — banii blocați în creanțe.`;
 
-BILANȚ:
-411 Creanțe clienți: 34.500 RON
-  - Client A: 18.000 RON (restant 90 zile)
-  - Client B: 12.000 RON (restant 45 zile)
-  - Client C: 4.500 RON (scadent 10 zile)
-401 Datorii furnizori: 18.200 RON (scadente 30 zile)
-4423 TVA de plată: 3.800 RON (scadentă 25 aprilie)
-5121 Bancă: 9.800 RON
-5311 Casă: 400 RON
-
-ISTORIC:
-Ianuarie: CA 71.200 | Cheltuieli 68.400 | Profit 2.800 | Bancă 14.200
-Februarie: CA 79.800 | Cheltuieli 69.100 | Profit 10.700 | Bancă 12.600
-Martie: CA 87.400 | Cheltuieli 71.200 | Profit 16.200 | Bancă 9.800
-
-NOTĂ CRITICĂ: CA crește lunar dar soldul bancar SCADE — banii sunt blocați în creanțe.
-Angajați: 4 | Domeniu: Servicii IT | Clienți activi: 3`;
-
-const STORAGE_KEY = 'silleau_cfo_state';
+let currentUser = null;
+let memoryData = {};
+let conversationHistory = [];
+let financialData = DEMO_DATA;
 let isLoading = false;
-let state = loadState();
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const s = JSON.parse(raw);
-      if (s && Array.isArray(s.conversations) && s.conversations.length && s.currentId) {
-        if (!s.tone) s.tone = 'echilibrat';
-        return s;
-      }
-    }
-  } catch (e) {}
-  return defaultState();
+function showAuthScreen() {
+  document.getElementById('appShell').classList.remove('visible');
+  document.body.classList.remove('app-mode');
+  document.getElementById('authScreen').classList.add('visible');
 }
 
-function defaultState() {
-  const conv = newConv();
-  return {
-    conversations: [conv],
-    currentId: conv.id,
-    tone: 'echilibrat'
-  };
+function showAppShell() {
+  document.getElementById('authScreen').classList.remove('visible');
+  document.getElementById('appShell').classList.add('visible');
+  document.body.classList.add('app-mode');
 }
 
-function newConv() {
-  return {
-    id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())),
-    title: 'Conversație nouă',
-    createdAt: Date.now(),
-    messages: [],
-    financialData: DEMO_DATA,
-    isDemo: true,
-    fileName: null
-  };
+function hideSplash() {
+  const splash = document.getElementById('splash');
+  splash.classList.add('hidden');
+  setTimeout(() => splash.remove(), 350);
 }
 
-function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+function switchTab(tab) {
+  document.getElementById('tabLogin').classList.toggle('active', tab==='login');
+  document.getElementById('tabRegister').classList.toggle('active', tab==='register');
+  document.getElementById('formLogin').style.display = tab==='login' ? 'flex' : 'none';
+  document.getElementById('formRegister').style.display = tab==='register' ? 'flex' : 'none';
 }
 
-function currentConv() {
-  return state.conversations.find(c => c.id === state.currentId) || state.conversations[0];
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errEl.style.display = 'none';
+  if (!email || !password) { showErr(errEl, 'Completează email și parolă.'); return; }
+  btn.disabled = true; btn.textContent = 'Se conectează…';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  btn.disabled = false; btn.textContent = 'Intră în cont';
+  if (error) { showErr(errEl, error.message); return; }
+  await onLogin(data.user);
 }
 
-function newConversation() {
-  const c = newConv();
-  state.conversations.unshift(c);
-  state.currentId = c.id;
-  saveState();
-  renderConversationList();
-  renderMessages();
-  updateUploadStatus();
-  document.getElementById('userInput').focus();
-}
-
-function loadConversation(id) {
-  if (state.currentId === id) return;
-  state.currentId = id;
-  saveState();
-  renderConversationList();
-  renderMessages();
-  updateUploadStatus();
-}
-
-function deleteConversation(id, e) {
-  if (e) e.stopPropagation();
-  state.conversations = state.conversations.filter(c => c.id !== id);
-  if (state.conversations.length === 0) {
-    const c = newConv();
-    state.conversations = [c];
-    state.currentId = c.id;
-  } else if (state.currentId === id) {
-    state.currentId = state.conversations[0].id;
+async function doRegister() {
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const cui = document.getElementById('regCui').value.trim();
+  const nume = document.getElementById('regNume').value.trim();
+  const domeniu = document.getElementById('regDomeniu').value;
+  const angajati = parseInt(document.getElementById('regAngajati').value) || null;
+  const errEl = document.getElementById('registerError');
+  const sucEl = document.getElementById('registerSuccess');
+  const btn = document.getElementById('registerBtn');
+  errEl.style.display = 'none'; sucEl.style.display = 'none';
+  if (!email || !password || !cui || !nume) { showErr(errEl, 'Completează toate câmpurile obligatorii.'); return; }
+  if (password.length < 8) { showErr(errEl, 'Parola trebuie să aibă minim 8 caractere.'); return; }
+  btn.disabled = true; btn.textContent = 'Se creează contul…';
+  const { data, error } = await sb.auth.signUp({ email, password });
+  btn.disabled = false; btn.textContent = 'Creează cont';
+  if (error) { showErr(errEl, error.message); return; }
+  if (data.user) {
+    await sb.from('firme').insert({ user_id: data.user.id, cui, nume_firma: nume, domeniu, nr_angajati: angajati });
+    if (domeniu) await sb.from('memorie').upsert({ user_id: data.user.id, cheie: 'domeniu', valoare: domeniu });
+    if (angajati) await sb.from('memorie').upsert({ user_id: data.user.id, cheie: 'nr_angajati', valoare: String(angajati) });
   }
-  saveState();
-  renderConversationList();
-  renderMessages();
-  updateUploadStatus();
+  sucEl.style.display = 'block';
+  sucEl.textContent = 'Cont creat. Verifică emailul pentru confirmare, apoi autentifică-te.';
 }
 
-function setTone(tone) {
-  state.tone = tone;
-  saveState();
-  renderTone();
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null; memoryData = {}; conversationHistory = [];
+  document.getElementById('chatMessages').innerHTML = `
+    <div class="empty-state" id="emptyState">
+      <div class="empty-glyph">∑</div>
+      <div class="kicker">Bun venit</div>
+      <h3>Analiză <em>la nivel</em><br>de CFO senior.</h3>
+      <div class="divider"></div>
+      <p>Încarcă balanța sau folosește datele demo. Pune prima întrebare și primești răspuns clar, cu cifre, acțiuni și riscuri.</p>
+    </div>`;
+  showAuthScreen();
 }
 
-function renderTone() {
-  document.querySelectorAll('.tone-pill').forEach(b => {
-    b.classList.toggle('active', b.dataset.tone === state.tone);
-  });
+function showErr(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+async function onLogin(user) {
+  currentUser = user;
+  document.getElementById('userEmail').textContent = user.email;
+  showAppShell();
+  const { data: firma } = await sb.from('firme').select('*').eq('user_id', user.id).single();
+  if (firma) document.getElementById('companyLabel').textContent = `${firma.nume_firma} · ${firma.domeniu || 'SRL'}`;
+  await loadMemory();
 }
 
-function renderConversationList() {
-  const list = document.getElementById('convList');
-  list.innerHTML = '';
-  state.conversations.forEach(c => {
-    const item = document.createElement('div');
-    item.className = 'conv-item' + (c.id === state.currentId ? ' active' : '');
-    item.onclick = () => loadConversation(c.id);
-    const titleSpan = document.createElement('span');
-    titleSpan.className = 'conv-title';
-    titleSpan.textContent = c.title;
-    const delBtn = document.createElement('button');
-    delBtn.className = 'conv-del';
-    delBtn.title = 'Șterge';
-    delBtn.textContent = '×';
-    delBtn.onclick = (e) => deleteConversation(c.id, e);
-    item.appendChild(titleSpan);
-    item.appendChild(delBtn);
-    list.appendChild(item);
-  });
+async function loadMemory() {
+  if (!currentUser) return;
+  const { data } = await sb.from('memorie').select('cheie, valoare').eq('user_id', currentUser.id);
+  if (!data) return;
+  memoryData = {};
+  data.forEach(r => memoryData[r.cheie] = r.valoare);
+  renderMemoryTags();
 }
 
-function renderMessages() {
-  const container = document.getElementById('chatMessages');
-  container.innerHTML = '';
-  const conv = currentConv();
-  if (conv.messages.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state" id="emptyState">
-        <div class="empty-glyph">∑</div>
-        <div class="kicker">Bun venit</div>
-        <h3>Analiză <em>la nivel</em><br>de CFO senior.</h3>
-        <div class="divider"></div>
-        <p>Încarcă balanța sau folosește datele demo. Pune prima întrebare și primești răspuns clar, cu cifre, acțiuni și riscuri.</p>
-      </div>
-    `;
+function renderMemoryTags() {
+  const container = document.getElementById('memoryTags');
+  const keys = Object.keys(memoryData);
+  if (keys.length === 0) {
+    container.innerHTML = '<span class="memory-empty">Nicio informație salvată încă</span>';
     return;
   }
-  conv.messages.forEach(m => {
-    const role = m.role === 'assistant' ? 'cfo' : 'user';
-    appendMessageElement(role, m.content);
-  });
-  container.scrollTop = container.scrollHeight;
+  container.innerHTML = keys.map(k => `
+    <div class="memory-tag">
+      <span class="memory-tag-key">${k.replace(/_/g,' ')}</span>
+      <span class="memory-tag-val">${escHtml(memoryData[k])}</span>
+    </div>
+  `).join('');
 }
 
-function updateUploadStatus() {
-  const conv = currentConv();
-  const status = document.getElementById('uploadStatus');
-  const notice = document.querySelector('.demo-notice');
-  if (conv.isDemo) {
-    status.style.display = 'none';
-    if (notice) notice.style.display = '';
-  } else {
-    status.style.display = 'block';
-    status.textContent = conv.fileName || 'Fișier încărcat';
-    if (notice) notice.style.display = 'none';
-  }
+async function extractAndSaveMemory(userMsg, assistantMsg) {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: `Din această conversație extrage fapte concrete despre firma utilizatorului. Returnează DOAR JSON valid cu max 3 perechi. Chei permise: nr_angajati, domeniu, problema_principala, obiectiv, client_principal, cashflow_risc. Dacă nu există fapte noi returnează {}. NU include informații din datele demo.\n\nUser: ${userMsg}\nAssistant: ${assistantMsg}\n\nJSON:` }],
+        financialData: null
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'{}';
+    const extracted = JSON.parse(text.replace(/```json|```/g,'').trim());
+    for (const [cheie, valoare] of Object.entries(extracted)) {
+      await sb.from('memorie').upsert({ user_id: currentUser.id, cheie, valoare: String(valoare), actualizat_la: new Date().toISOString() }, { onConflict: 'user_id,cheie' });
+      memoryData[cheie] = String(valoare);
+    }
+    if (Object.keys(extracted).length > 0) renderMemoryTags();
+  } catch(e) {}
+}
+
+function buildMemoryContext() {
+  const keys = Object.keys(memoryData);
+  if (keys.length === 0) return '';
+  return '\nCONTEXT DIN CONVERSAȚII ANTERIOARE:\n' + keys.map(k=>`- ${k.replace(/_/g,' ')}: ${memoryData[k]}`).join('\n');
 }
 
 function handleFile(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
-    const conv = currentConv();
-    conv.financialData = `FIȘIER ÎNCĂRCAT: ${file.name}\n\n${e.target.result}`;
-    conv.isDemo = false;
-    conv.fileName = file.name;
-    saveState();
-    updateUploadStatus();
+  reader.onload = async (e) => {
+    financialData = `FIȘIER: ${file.name}\n\n${e.target.result}`;
+    document.getElementById('uploadStatus').style.display = 'block';
+    document.getElementById('uploadStatus').textContent = file.name;
+    document.getElementById('demoNotice').style.display = 'none';
+    if (currentUser) {
+      await sb.from('situatii_financiare').insert({ user_id: currentUser.id, perioada: new Date().toLocaleDateString('ro-RO',{month:'long',year:'numeric'}), date_brute: financialData, indicatori: {} });
+    }
   };
   reader.readAsText(file);
 }
 
-function sendQuick(text) {
-  document.getElementById('userInput').value = text;
-  sendMessage();
-}
+function sendQuick(text) { document.getElementById('userInput').value = text; sendMessage(); }
+function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,140)+'px'; }
+function getTime() { return new Date().toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'}); }
 
-function handleKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-}
-
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
-}
-
-function getTime() {
-  return new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
-}
-
-function appendMessageElement(role, text) {
+function appendMessage(role, text) {
   const container = document.getElementById('chatMessages');
   const empty = document.getElementById('emptyState');
   if (empty) empty.remove();
-
   const div = document.createElement('div');
   div.className = `msg ${role}`;
-  const author = role === 'cfo' ? 'CFO Virtual' : 'Tu';
-  const authorClass = role === 'cfo' ? 'cfo' : 'user';
-  const body = role === 'cfo' ? renderMarkdown(text) : escapeHtml(text);
-
+  const author = role==='cfo'?'CFO Virtual':'Tu';
   div.innerHTML = `
     <div class="msg-meta">
-      <span class="msg-author ${authorClass}">${author}</span>
+      <span class="msg-author ${role}">${author}</span>
       <span class="msg-time">${getTime()}</span>
     </div>
-    <div class="msg-body">${body}</div>
-  `;
+    <div class="msg-body">${escHtml(text)}</div>`;
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
   return div;
@@ -1026,10 +1126,8 @@ function appendTyping() {
   const container = document.getElementById('chatMessages');
   const empty = document.getElementById('emptyState');
   if (empty) empty.remove();
-
   const div = document.createElement('div');
-  div.className = 'msg cfo';
-  div.id = 'typingMsg';
+  div.className = 'msg cfo'; div.id = 'typingMsg';
   div.innerHTML = `
     <div class="msg-meta">
       <span class="msg-author cfo">CFO Virtual</span>
@@ -1037,8 +1135,7 @@ function appendTyping() {
     </div>
     <div class="msg-body">
       <div class="typing-indicator"><span></span><span></span><span></span></div>
-    </div>
-  `;
+    </div>`;
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
   return div;
@@ -1049,96 +1146,69 @@ async function sendMessage() {
   const input = document.getElementById('userInput');
   const text = input.value.trim();
   if (!text) return;
-
-  input.value = '';
-  input.style.height = 'auto';
+  input.value = ''; input.style.height = 'auto';
   isLoading = true;
   document.getElementById('sendBtn').disabled = true;
-
-  const conv = currentConv();
-  conv.messages.push({ role: 'user', content: text });
-  if (conv.messages.length === 1) {
-    conv.title = text.slice(0, 38) + (text.length > 38 ? '…' : '');
-    renderConversationList();
-  }
-  saveState();
-  appendMessageElement('user', text);
-
+  appendMessage('user', text);
+  conversationHistory.push({ role: 'user', content: text });
   const typingEl = appendTyping();
-
+  const dataToSend = financialData + buildMemoryContext();
   try {
     const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: conv.messages.map(m => ({ role: m.role, content: m.content })),
-        financialData: conv.financialData,
-        tone: state.tone
-      })
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ messages: conversationHistory, financialData: dataToSend })
     });
-
     const data = await res.json();
     typingEl.remove();
-
     if (data.error) {
-      const errMsg = 'Eroare: ' + (data.error.message || JSON.stringify(data.error));
-      appendMessageElement('cfo', errMsg);
-      conv.messages.pop();
-      saveState();
+      appendMessage('cfo', 'Eroare: ' + (data.error.message || JSON.stringify(data.error)));
+      conversationHistory.pop();
     } else {
-      const reply = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
-      conv.messages.push({ role: 'assistant', content: reply });
-      saveState();
-      appendMessageElement('cfo', reply);
+      const reply = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+      appendMessage('cfo', reply);
+      conversationHistory.push({ role: 'assistant', content: reply });
+      extractAndSaveMemory(text, reply);
     }
-  } catch (err) {
+  } catch(err) {
     typingEl.remove();
-    appendMessageElement('cfo', 'Eroare conexiune: ' + err.message);
-    conv.messages.pop();
-    saveState();
+    appendMessage('cfo', 'Eroare conexiune: ' + err.message);
+    conversationHistory.pop();
   }
-
   isLoading = false;
   document.getElementById('sendBtn').disabled = false;
   input.focus();
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  renderConversationList();
-  renderMessages();
-  renderTone();
-  updateUploadStatus();
-});
+function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
 
-function escapeHtml(t) {
-  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-}
+// INIT — checks session, routes to auth or app shell, then hides splash
+(async () => {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
+      await onLogin(session.user);
+    } else {
+      showAuthScreen();
+    }
+  } catch (e) {
+    showAuthScreen();
+  } finally {
+    hideSplash();
+  }
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session?.user) await onLogin(session.user);
+    if (event === 'SIGNED_OUT') showAuthScreen();
+  });
+})();
 
-function renderMarkdown(t) {
-  let s = t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  s = s.replace(/^### (.+)$/gm, '<h4 class="md-h">$1</h4>');
-  s = s.replace(/^## (.+)$/gm, '<h3 class="md-h">$1</h3>');
-  s = s.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
-  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/(^|[^*\w])\*([^*\n]+)\*(?=[^*\w]|$)/g, '$1<em>$2</em>');
-  s = s.replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>');
-  s = s.replace(/(<li>[\s\S]+?<\/li>)(?=\n{2,}|$)/g, '<ul class="md-ul">$1</ul>');
-  s = s.replace(/\n{2,}/g, '</p><p class="md-p">');
-  s = '<p class="md-p">' + s + '</p>';
-  s = s.replace(/<p class="md-p">(\s*<(?:ul|h3|h4)[^>]*>)/g, '$1');
-  s = s.replace(/(<\/(?:ul|h3|h4)>)\s*<\/p>/g, '$1');
-  s = s.replace(/\n/g, '<br>');
-  return s;
-}
-
-/* PWA: register service worker */
+// PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 }
 
-/* PWA: install prompt */
 let deferredInstallPrompt = null;
 const installBanner = document.getElementById('installBanner');
 const installBtn = document.getElementById('installBtn');
