@@ -1162,16 +1162,23 @@ async function doRegister() {
   if (!email || !password || !cui || !nume) { showErr(errEl, 'Completează toate câmpurile obligatorii.'); return; }
   if (password.length < 8) { showErr(errEl, 'Parola trebuie să aibă minim 8 caractere.'); return; }
   btn.disabled = true; btn.textContent = 'Se creează contul…';
-  const { data, error } = await sb.auth.signUp({ email, password });
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: window.location.origin,
+      data: {
+        cui,
+        nume_firma: nume,
+        domeniu: domeniu || null,
+        nr_angajati: angajati
+      }
+    }
+  });
   btn.disabled = false; btn.textContent = 'Creează cont';
   if (error) { showErr(errEl, error.message); return; }
-  if (data.user) {
-    await sb.from('firme').insert({ user_id: data.user.id, cui, nume_firma: nume, domeniu, nr_angajati: angajati });
-    if (domeniu) await sb.from('memorie').upsert({ user_id: data.user.id, cheie: 'domeniu', valoare: domeniu });
-    if (angajati) await sb.from('memorie').upsert({ user_id: data.user.id, cheie: 'nr_angajati', valoare: String(angajati) });
-  }
   sucEl.style.display = 'block';
-  sucEl.textContent = 'Cont creat. Verifică emailul pentru confirmare, apoi autentifică-te.';
+  sucEl.textContent = 'Cont creat. Verifică emailul — link-ul de confirmare te aduce direct în aplicație.';
 }
 
 async function doLogout() {
@@ -1194,7 +1201,35 @@ async function onLogin(user) {
   currentUser = user;
   document.getElementById('userEmail').textContent = user.email;
   showAppShell();
-  const { data: firma } = await sb.from('firme').select('*').eq('user_id', user.id).single();
+
+  let { data: firma } = await sb.from('firme').select('*').eq('user_id', user.id).maybeSingle();
+
+  // Bootstrap firma + memorie la primul login după confirmare email
+  // (la signup nu putem inserta cu rol anon dacă RLS cere auth.uid() = user_id)
+  if (!firma && user.user_metadata && user.user_metadata.cui) {
+    const meta = user.user_metadata;
+    const { data: created, error: createErr } = await sb.from('firme').insert({
+      user_id: user.id,
+      cui: meta.cui,
+      nume_firma: meta.nume_firma,
+      domeniu: meta.domeniu,
+      nr_angajati: meta.nr_angajati
+    }).select().single();
+    if (!createErr) firma = created;
+    if (meta.domeniu) {
+      await sb.from('memorie').upsert(
+        { user_id: user.id, cheie: 'domeniu', valoare: meta.domeniu },
+        { onConflict: 'user_id,cheie' }
+      );
+    }
+    if (meta.nr_angajati) {
+      await sb.from('memorie').upsert(
+        { user_id: user.id, cheie: 'nr_angajati', valoare: String(meta.nr_angajati) },
+        { onConflict: 'user_id,cheie' }
+      );
+    }
+  }
+
   if (firma) document.getElementById('companyLabel').textContent = `${firma.nume_firma} · ${firma.domeniu || 'SRL'}`;
   await loadMemory();
 }
@@ -1351,23 +1386,45 @@ async function sendMessage() {
 function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
 
 // INIT — checks session, routes to auth or app shell, then hides splash
+const incomingAuthHash = /[#&](access_token|error|type=recovery|type=signup)/.test(window.location.hash);
+
 (async () => {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (session?.user) {
       await onLogin(session.user);
-    } else {
+      hideSplash();
+    } else if (!incomingAuthHash) {
       showAuthScreen();
+      hideSplash();
     }
+    // dacă există hash de auth, lăsăm splash-ul vizibil — SIGNED_IN va prelua
   } catch (e) {
     showAuthScreen();
-  } finally {
     hideSplash();
   }
+
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session?.user) await onLogin(session.user);
+    if (event === 'SIGNED_IN' && session?.user) {
+      await onLogin(session.user);
+      // curăță hash-ul de tokeni din bara de adresă (pentru estetică + securitate)
+      if (window.location.hash) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      hideSplash();
+    }
     if (event === 'SIGNED_OUT') showAuthScreen();
   });
+
+  // Failsafe: dacă hash-ul e prezent dar nu se rezolvă în 4s, deschide auth screen
+  if (incomingAuthHash) {
+    setTimeout(() => {
+      if (document.getElementById('splash')) {
+        showAuthScreen();
+        hideSplash();
+      }
+    }, 4000);
+  }
 })();
 
 // PWA
