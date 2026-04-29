@@ -241,6 +241,80 @@
     text-transform: uppercase;
   }
 
+  /* WAITING CONFIRMATION */
+  .waiting-pane {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .waiting-pane.active { display: flex; }
+  .waiting-glyph {
+    font-family: var(--serif);
+    font-size: 56px;
+    color: var(--fg);
+    opacity: 0.4;
+    font-style: italic;
+    line-height: 1;
+    margin-bottom: 18px;
+  }
+  .waiting-title {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--fg);
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .waiting-title em { font-style: italic; }
+  .waiting-divider {
+    width: 60px; height: 1px;
+    background: var(--line3);
+    margin: 22px auto;
+  }
+  .waiting-text {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 12px;
+    font-weight: 300;
+  }
+  .waiting-text strong { color: var(--fg); font-weight: 500; }
+  .waiting-pulse {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 28px 0 22px;
+  }
+  .waiting-pulse span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--fg);
+    opacity: 0.4;
+    animation: wpulse 1.6s infinite;
+  }
+  .waiting-pulse span:nth-child(2) { animation-delay: 0.25s; }
+  .waiting-pulse span:nth-child(3) { animation-delay: 0.5s; }
+  @keyframes wpulse {
+    0%, 100% { opacity: 0.2; transform: scale(0.85); }
+    50% { opacity: 0.85; transform: scale(1); }
+  }
+  .waiting-cancel {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: var(--sans);
+    text-transform: uppercase;
+    letter-spacing: 2.4px;
+    font-size: 10.5px;
+    font-weight: 400;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line3);
+    align-self: center;
+    transition: all 0.25s;
+  }
+  .waiting-cancel:hover { color: var(--fg); border-bottom-color: var(--fg); }
+
   .install-link {
     display: inline-flex;
     align-items: center;
@@ -886,9 +960,20 @@
     <div class="auth-sub">Revenue Optimization Systems</div>
     <div class="auth-divider"></div>
 
-    <div class="auth-tabs">
+    <div class="auth-tabs" id="authTabs">
       <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Autentificare</button>
       <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Cont nou</button>
+    </div>
+
+    <!-- WAITING FOR EMAIL CONFIRMATION -->
+    <div id="waitingPane" class="waiting-pane">
+      <div class="waiting-glyph">∞</div>
+      <div class="waiting-title">Verifică <em>emailul</em></div>
+      <div class="waiting-divider"></div>
+      <p class="waiting-text">Am trimis link-ul de confirmare la <strong id="waitingEmail">—</strong>.</p>
+      <p class="waiting-text">Te conectăm <em>automat aici</em> imediat ce apeși link-ul, indiferent de pe ce dispozitiv.</p>
+      <div class="waiting-pulse"><span></span><span></span><span></span></div>
+      <button type="button" class="waiting-cancel" onclick="cancelWaitingConfirmation()">Anulează</button>
     </div>
 
     <div id="formLogin" class="auth-form">
@@ -1177,8 +1262,62 @@ async function doRegister() {
   });
   btn.disabled = false; btn.textContent = 'Creează cont';
   if (error) { showErr(errEl, error.message); return; }
-  sucEl.style.display = 'block';
-  sucEl.textContent = 'Cont creat. Verifică emailul — link-ul de confirmare te aduce direct în aplicație.';
+
+  // Caz 1: email confirmation OFF în Supabase → sesiunea e creată direct
+  if (data.session && data.user) {
+    return; // onAuthStateChange (SIGNED_IN) preia restul
+  }
+
+  // Caz 2: email confirmation ON → așteptăm confirmarea și ne logăm automat
+  showWaitingConfirmation(email);
+  startConfirmationPolling(email, password);
+}
+
+// CONFIRMATION POLLING
+let confirmationPoll = null;
+let confirmationTimeout = null;
+
+function showWaitingConfirmation(email) {
+  document.getElementById('formLogin').style.display = 'none';
+  document.getElementById('formRegister').style.display = 'none';
+  document.getElementById('authTabs').style.display = 'none';
+  document.getElementById('waitingEmail').textContent = email;
+  document.getElementById('waitingPane').classList.add('active');
+}
+
+function cancelWaitingConfirmation() {
+  stopConfirmationPolling();
+  document.getElementById('waitingPane').classList.remove('active');
+  document.getElementById('authTabs').style.display = 'flex';
+  switchTab('login');
+}
+
+function stopConfirmationPolling() {
+  if (confirmationPoll) { clearInterval(confirmationPoll); confirmationPoll = null; }
+  if (confirmationTimeout) { clearTimeout(confirmationTimeout); confirmationTimeout = null; }
+}
+
+function startConfirmationPolling(email, password) {
+  stopConfirmationPolling();
+  const tick = async () => {
+    try {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (data?.session) {
+        stopConfirmationPolling();
+        // onAuthStateChange (SIGNED_IN) declanșează tranziția la dashboard
+      }
+    } catch (e) { /* network/rate limit — încercăm din nou */ }
+  };
+  // Primul tick imediat (în caz că userul confirmă rapid), apoi la 3s
+  setTimeout(tick, 800);
+  confirmationPoll = setInterval(tick, 3000);
+  // Failsafe: după 10 minute oprim polling-ul ca să nu rulăm la nesfârșit
+  confirmationTimeout = setTimeout(() => {
+    stopConfirmationPolling();
+    cancelWaitingConfirmation();
+    const errEl = document.getElementById('loginError');
+    showErr(errEl, 'Timpul de așteptare a expirat. Confirmă emailul și autentifică-te manual.');
+  }, 10 * 60 * 1000);
 }
 
 async function doLogout() {
