@@ -219,26 +219,175 @@ async function verifyConfirmToken(token, secret) {
 }
 
 function buildConfirmEmailHtml(link) {
+  const FONT = "'Playfair Display', Georgia, 'Times New Roman', serif";
   return `<!DOCTYPE html>
-<html lang="ro">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SILLEAU</title></head>
-<body style="margin:0;padding:0;background:#0c1118;font-family:'Helvetica Neue',Arial,sans-serif;color:#e8e6e3">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0c1118">
-    <tr><td align="center" style="padding:48px 24px">
-      <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;border:1px solid rgba(232,230,227,.18);background:#0c1118">
-        <tr><td style="padding:48px 40px 36px">
-          <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;letter-spacing:4px;font-weight:500;color:#e8e6e3;text-align:center;margin-bottom:36px">SILLEAU</div>
-          <div style="font-size:11px;color:#7f8a96;text-align:center;letter-spacing:3.2px;text-transform:uppercase;margin-bottom:16px">CONFIRMARE CONT</div>
-          <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:500;color:#e8e6e3;line-height:1.2;text-align:center;margin:0 0 24px">Bun venit în <em>SILLEAU</em>.</h1>
-          <div style="width:60px;height:1px;background:rgba(232,230,227,.2);margin:0 auto 24px;line-height:1">&nbsp;</div>
-          <p style="font-size:15px;color:#9aa4af;line-height:1.7;margin:0 0 36px;text-align:center">Apăsați butonul de mai jos pentru a confirma crearea contului. După confirmare, vă conectăm automat în aplicația deschisă pe celălalt dispozitiv.</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr><td style="background:#e8e6e3"><a href="${link}" style="display:inline-block;padding:16px 36px;color:#0c1118;text-decoration:none;font-size:11.5px;letter-spacing:2.6px;text-transform:uppercase;font-weight:600">Confirmă contul</a></td></tr></table>
-          <p style="font-size:12px;color:#5b6470;line-height:1.6;margin:36px 0 0;text-align:center">Sau copiați link-ul:<br><a href="${link}" style="color:#9aa4af;word-break:break-all">${link}</a></p>
+<html lang="ro" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>SILLEAU — Confirmare cont</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+:root { color-scheme: light dark; }
+body, table, td, p, span, div { margin:0; padding:0; }
+body { font-family:${FONT}; -webkit-text-size-adjust:100%; }
+table { border-collapse:collapse; mso-table-lspace:0; mso-table-rspace:0; }
+
+/* LIGHT */
+.bg-outer    { background-color:#ffffff; }
+.bg-card     { background-color:#ffffff; border:1px solid #E8E4DC; }
+.text-tag    { color:#BBBBBB; }
+.text-title  { color:#111111; }
+.text-greet  { color:#111111; }
+.text-body   { color:#888888; }
+.text-em     { color:#111111; }
+.text-note   { color:#BBBBBB; }
+.text-note-em{ color:#888888; }
+.text-foot-n { color:#BBBBBB; }
+.text-foot-s { color:#CCCCCC; }
+.text-brand  { color:#DDDDDD; }
+.btn-bg      { background-color:#111111; }
+.btn-link    { color:#FFFFFF !important; }
+.text-link   { color:#999999; }
+.sep         { background-color:#F0EDE8; }
+.border-sec  { border-top:1px solid #F0EDE8; }
+.border-bot  { border-bottom:1px solid #F0EDE8; }
+a.link-soft  { color:#999999 !important; text-decoration:underline; text-decoration-style:dotted; }
+
+/* DARK */
+@media (prefers-color-scheme: dark) {
+  .bg-outer    { background-color:#0c1118 !important; }
+  .bg-card     { background-color:#0c1118 !important; border:1px solid #1a1f27 !important; }
+  .text-tag    { color:#5b6470 !important; }
+  .text-title  { color:#e8e6e3 !important; }
+  .text-greet  { color:#e8e6e3 !important; }
+  .text-body   { color:#9aa4af !important; }
+  .text-em     { color:#e8e6e3 !important; }
+  .text-note   { color:#5b6470 !important; }
+  .text-note-em{ color:#9aa4af !important; }
+  .text-foot-n { color:#7f8a96 !important; }
+  .text-foot-s { color:#5b6470 !important; }
+  .text-brand  { color:#5b6470 !important; }
+  .btn-bg      { background-color:#e8e6e3 !important; }
+  .btn-link    { color:#0c1118 !important; }
+  .text-link   { color:#9aa4af !important; }
+  .sep         { background-color:#1a1f27 !important; }
+  .border-sec  { border-top:1px solid #1a1f27 !important; }
+  .border-bot  { border-bottom:1px solid #1a1f27 !important; }
+  a.link-soft  { color:#9aa4af !important; }
+}
+
+/* Gmail iOS dark hack */
+[data-ogsc] .bg-outer    { background-color:#0c1118 !important; }
+[data-ogsc] .bg-card     { background-color:#0c1118 !important; border:1px solid #1a1f27 !important; }
+[data-ogsc] .text-tag    { color:#5b6470 !important; }
+[data-ogsc] .text-title  { color:#e8e6e3 !important; }
+[data-ogsc] .text-greet  { color:#e8e6e3 !important; }
+[data-ogsc] .text-body   { color:#9aa4af !important; }
+[data-ogsc] .text-em     { color:#e8e6e3 !important; }
+[data-ogsc] .text-note   { color:#5b6470 !important; }
+[data-ogsc] .text-note-em{ color:#9aa4af !important; }
+[data-ogsc] .text-foot-n { color:#7f8a96 !important; }
+[data-ogsc] .text-foot-s { color:#5b6470 !important; }
+[data-ogsc] .btn-bg      { background-color:#e8e6e3 !important; }
+[data-ogsc] .btn-link    { color:#0c1118 !important; }
+[data-ogsc] .text-link   { color:#9aa4af !important; }
+[data-ogsc] .sep         { background-color:#1a1f27 !important; }
+[data-ogsc] .border-sec  { border-top:1px solid #1a1f27 !important; }
+
+@media only screen and (max-width:600px) {
+  .wrapper { width:100% !important; }
+  .inner   { padding:28px 22px 0 !important; }
+  .footer-td { padding:18px 22px !important; }
+}
+</style>
+</head>
+<body class="bg-outer" style="margin:0;padding:0;background-color:#ffffff;font-family:${FONT};">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" class="bg-outer" style="background-color:#ffffff;">
+<tr><td align="center" style="padding:32px 12px;">
+
+<table class="wrapper bg-card" width="560" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border:1px solid #E8E4DC;">
+
+  <!-- HEADER -->
+  <tr>
+    <td align="center" class="border-sec" style="padding:40px 44px 28px;border-bottom:1px solid #F0EDE8;">
+      <div class="text-tag" style="font-size:9px;color:#BBBBBB;letter-spacing:3.2px;text-transform:uppercase;font-family:${FONT};margin-bottom:16px;">Confirmare cont</div>
+      <div class="text-title" style="font-size:30px;color:#111111;font-weight:500;font-family:${FONT};letter-spacing:3px;">SILLEAU</div>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td class="inner" style="padding:36px 44px 0;">
+      <p style="font-size:15px;margin:0 0 4px;font-family:${FONT};">
+        <span class="text-greet" style="color:#111111;">Bună,</span>
+      </p>
+      <p class="text-body" style="font-size:14px;color:#888888;line-height:1.85;margin:0 0 32px;font-family:${FONT};">Apăsați butonul de mai jos pentru a confirma crearea contului. După confirmare, vă conectăm <span class="text-em" style="color:#111111;font-style:italic;">automat</span> în aplicația deschisă pe celălalt dispozitiv.</p>
+
+      <!-- CTA -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 32px;">
+        <tr><td align="center">
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td class="btn-bg" style="background-color:#111111;">
+                <a href="${link}" class="btn-link" style="display:inline-block;padding:15px 38px;color:#FFFFFF;text-decoration:none;font-size:11px;letter-spacing:3px;text-transform:uppercase;font-family:${FONT};font-weight:500;">Confirmă contul</a>
+              </td>
+            </tr>
+          </table>
         </td></tr>
-        <tr><td style="padding:22px 40px;border-top:1px solid #1a1f27;text-align:center;font-size:10px;color:#5b6470;letter-spacing:2.6px;text-transform:uppercase">Revenue Optimization Systems</td></tr>
       </table>
-    </td></tr>
-  </table>
+
+      <!-- FALLBACK LINK -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+        <tr>
+          <td style="padding:14px 0;font-size:11px;color:#BBBBBB;text-align:center;text-transform:uppercase;letter-spacing:2.4px;font-family:${FONT};border-top:1px solid #F0EDE8;border-bottom:1px solid #F0EDE8;" class="border-sec border-bot text-tag">
+            Sau copiați link-ul
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:14px 0 0;text-align:center;font-family:${FONT};">
+            <a href="${link}" class="link-soft" style="color:#999999;font-size:11px;word-break:break-all;text-decoration:underline;text-decoration-style:dotted;font-family:${FONT};">${link}</a>
+          </td>
+        </tr>
+      </table>
+
+      <!-- SEPARATOR -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+        <tr><td class="sep" style="height:1px;background-color:#F0EDE8;font-size:0;line-height:0;">&nbsp;</td></tr>
+      </table>
+
+      <p class="text-note" style="font-size:12px;color:#CCCCCC;line-height:1.9;margin:0 0 32px;font-family:${FONT};">
+        Link-ul expiră în <span class="text-note-em" style="color:#888888;font-style:italic;">24 de ore</span>. Dacă nu ați solicitat această acțiune, ignorați acest email — niciun cont nu va fi activat.
+      </p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td class="footer-td border-sec" style="padding:22px 44px;border-top:1px solid #F0EDE8;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="vertical-align:middle;">
+            <div class="text-foot-n" style="font-size:11px;color:#BBBBBB;font-family:${FONT};letter-spacing:0.5px;">SILLEAU</div>
+            <div class="text-foot-s" style="font-size:10.5px;color:#CCCCCC;font-family:${FONT};">
+              <a href="mailto:contact@silleau.com" class="link-soft" style="color:#CCCCCC;text-decoration:underline;text-decoration-style:dotted;font-family:${FONT};">contact@silleau.com</a>
+            </div>
+          </td>
+          <td style="text-align:right;vertical-align:middle;">
+            <div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:2.4px;text-transform:uppercase;font-family:${FONT};">Revenue Optimization</div>
+            <div class="text-brand" style="font-size:8px;color:#DDDDDD;letter-spacing:2.4px;text-transform:uppercase;font-family:${FONT};margin-top:2px;">Systems</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+
+</td></tr>
+</table>
 </body>
 </html>`;
 }
