@@ -1,4 +1,4 @@
-const VERSION = 'silleau-v1';
+const VERSION = 'silleau-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -6,7 +6,9 @@ const APP_SHELL = [
   '/icons/favicon.ico',
   '/icons/favicon-16x16.png',
   '/icons/favicon-32x32.png',
-  '/icons/apple-touch-icon.png'
+  '/icons/apple-touch-icon.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
