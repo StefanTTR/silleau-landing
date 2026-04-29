@@ -1,4 +1,4 @@
-const VERSION = 'silleau-v7';
+const VERSION = 'silleau-v8';
 const APP_SHELL = [
   '/',
   '/index.html',

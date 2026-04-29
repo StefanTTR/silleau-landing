@@ -158,12 +158,216 @@ async function handleChat(request, env) {
   }
 }
 
+// ---------- AUTH: signup + confirm via Supabase Admin API + Resend ----------
+
+const SUPABASE_URL = 'https://dsuokzronteofxqooaxd.supabase.co';
+const FROM_EMAIL = 'SILLEAU <contact@silleau.com>';
+
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function base64urlEncode(buf) {
+  const bytes = buf instanceof Uint8Array ? buf : new TextEncoder().encode(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64urlDecodeToString(str) {
+  let s = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return atob(s);
+}
+
+async function hmacSign(message, secret) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+  return base64urlEncode(new Uint8Array(sig));
+}
+
+async function makeConfirmToken(userId, secret) {
+  const exp = Math.floor(Date.now() / 1000) + 24 * 3600;
+  const payload = `${userId}.${exp}`;
+  const encodedPayload = base64urlEncode(payload);
+  const sig = await hmacSign(encodedPayload, secret);
+  return `${encodedPayload}.${sig}`;
+}
+
+async function verifyConfirmToken(token, secret) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [encodedPayload, sig] = parts;
+  const expectedSig = await hmacSign(encodedPayload, secret);
+  if (sig !== expectedSig) return null;
+  const payload = base64urlDecodeToString(encodedPayload);
+  const [userId, expStr] = payload.split('.');
+  const exp = parseInt(expStr, 10);
+  if (!userId || !exp) return null;
+  if (Math.floor(Date.now() / 1000) > exp) return null;
+  return userId;
+}
+
+function buildConfirmEmailHtml(link) {
+  return `<!DOCTYPE html>
+<html lang="ro">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SILLEAU</title></head>
+<body style="margin:0;padding:0;background:#0c1118;font-family:'Helvetica Neue',Arial,sans-serif;color:#e8e6e3">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0c1118">
+    <tr><td align="center" style="padding:48px 24px">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;border:1px solid rgba(232,230,227,.18);background:#0c1118">
+        <tr><td style="padding:48px 40px 36px">
+          <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;letter-spacing:4px;font-weight:500;color:#e8e6e3;text-align:center;margin-bottom:36px">SILLEAU</div>
+          <div style="font-size:11px;color:#7f8a96;text-align:center;letter-spacing:3.2px;text-transform:uppercase;margin-bottom:16px">CONFIRMARE CONT</div>
+          <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:500;color:#e8e6e3;line-height:1.2;text-align:center;margin:0 0 24px">Bun venit în <em>SILLEAU</em>.</h1>
+          <div style="width:60px;height:1px;background:rgba(232,230,227,.2);margin:0 auto 24px;line-height:1">&nbsp;</div>
+          <p style="font-size:15px;color:#9aa4af;line-height:1.7;margin:0 0 36px;text-align:center">Apăsați butonul de mai jos pentru a confirma crearea contului. După confirmare, vă conectăm automat în aplicația deschisă pe celălalt dispozitiv.</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto"><tr><td style="background:#e8e6e3"><a href="${link}" style="display:inline-block;padding:16px 36px;color:#0c1118;text-decoration:none;font-size:11.5px;letter-spacing:2.6px;text-transform:uppercase;font-weight:600">Confirmă contul</a></td></tr></table>
+          <p style="font-size:12px;color:#5b6470;line-height:1.6;margin:36px 0 0;text-align:center">Sau copiați link-ul:<br><a href="${link}" style="color:#9aa4af;word-break:break-all">${link}</a></p>
+        </td></tr>
+        <tr><td style="padding:22px 40px;border-top:1px solid #1a1f27;text-align:center;font-size:10px;color:#5b6470;letter-spacing:2.6px;text-transform:uppercase">Revenue Optimization Systems</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+async function handleSignup(request, env) {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: { message: 'JSON invalid' } }, 400);
+  }
+
+  const { email, password, cui, nume_firma, domeniu, nr_angajati } = body;
+
+  if (!email || !password || !cui || !nume_firma) {
+    return jsonResponse({ error: { message: 'Câmpuri obligatorii lipsă' } }, 400);
+  }
+  if (typeof password !== 'string' || password.length < 8) {
+    return jsonResponse({ error: { message: 'Parola trebuie să aibă minim 8 caractere' } }, 400);
+  }
+
+  // 1) Creează userul în Supabase (neconfirmat) via Admin API
+  const adminResp = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: false,
+      user_metadata: { cui, nume_firma, domeniu: domeniu || null, nr_angajati: nr_angajati || null },
+    }),
+  });
+
+  if (!adminResp.ok) {
+    const errText = await adminResp.text();
+    let msg = 'Cont neacceptat';
+    try {
+      const errJson = JSON.parse(errText);
+      msg = errJson.msg || errJson.message || errJson.error_description || msg;
+    } catch {}
+    return jsonResponse({ error: { message: msg } }, adminResp.status);
+  }
+
+  const user = await adminResp.json();
+
+  // 2) Generează token de confirmare (HMAC, 24h)
+  const token = await makeConfirmToken(user.id, env.CONFIRM_TOKEN_SECRET);
+  const origin = new URL(request.url).origin;
+  const confirmUrl = `${origin}/api/confirm?token=${encodeURIComponent(token)}`;
+
+  // 3) Trimite email prin Resend
+  const resendResp = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to: [email],
+      subject: 'Confirmă crearea contului SILLEAU',
+      html: buildConfirmEmailHtml(confirmUrl),
+    }),
+  });
+
+  if (!resendResp.ok) {
+    const errText = await resendResp.text();
+    return jsonResponse({ error: { message: `Trimiterea emailului a eșuat: ${errText.slice(0, 200)}` } }, 500);
+  }
+
+  return jsonResponse({ ok: true });
+}
+
+async function handleConfirm(request, env) {
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token');
+  if (!token) {
+    return new Response('Token lipsă', { status: 400 });
+  }
+
+  const userId = await verifyConfirmToken(token, env.CONFIRM_TOKEN_SECRET);
+  if (!userId) {
+    return new Response('Token invalid sau expirat', { status: 401 });
+  }
+
+  // Marchează userul ca având email confirmat
+  const updateResp = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email_confirm: true }),
+  });
+
+  if (!updateResp.ok) {
+    const errText = await updateResp.text();
+    return new Response(`Confirmare eșuată: ${errText.slice(0, 200)}`, { status: 500 });
+  }
+
+  // Redirect la pagina statică de confirmare
+  return Response.redirect(`${url.origin}/confirmat`, 302);
+}
+
+// ---------- ROUTER ----------
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
     if (url.pathname === '/api/chat') {
       return handleChat(request, env);
+    }
+
+    if (url.pathname === '/api/signup') {
+      return handleSignup(request, env);
+    }
+
+    if (url.pathname === '/api/confirm') {
+      return handleConfirm(request, env);
     }
 
     if (url.pathname === '/api/health') {

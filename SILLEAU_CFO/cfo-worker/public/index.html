@@ -1247,28 +1247,35 @@ async function doRegister() {
   if (!email || !password || !cui || !nume) { showErr(errEl, 'Completează toate câmpurile obligatorii.'); return; }
   if (password.length < 8) { showErr(errEl, 'Parola trebuie să aibă minim 8 caractere.'); return; }
   btn.disabled = true; btn.textContent = 'Se creează contul…';
-  const { data, error } = await sb.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${window.location.origin}/confirmat`,
-      data: {
+
+  let resp, data;
+  try {
+    resp = await fetch('/api/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password,
         cui,
         nume_firma: nume,
         domeniu: domeniu || null,
         nr_angajati: angajati
-      }
-    }
-  });
+      })
+    });
+    data = await resp.json();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Creează cont';
+    showErr(errEl, 'Eroare conexiune: ' + e.message);
+    return;
+  }
   btn.disabled = false; btn.textContent = 'Creează cont';
-  if (error) { showErr(errEl, error.message); return; }
 
-  // Caz 1: email confirmation OFF în Supabase → sesiunea e creată direct
-  if (data.session && data.user) {
-    return; // onAuthStateChange (SIGNED_IN) preia restul
+  if (!resp.ok || data.error) {
+    showErr(errEl, data.error?.message || 'Eroare necunoscută');
+    return;
   }
 
-  // Caz 2: email confirmation ON → așteptăm confirmarea și ne logăm automat
+  // Cont creat, email trimis prin Resend. Așteptăm confirmarea + auto-login.
   showWaitingConfirmation(email);
   startConfirmationPolling(email, password);
 }
