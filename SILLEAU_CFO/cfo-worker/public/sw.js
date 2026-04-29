@@ -1,7 +1,8 @@
-const VERSION = 'silleau-v6';
+const VERSION = 'silleau-v7';
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/confirmat.html',
   '/manifest.webmanifest',
   '/icons/favicon.ico',
   '/icons/favicon-16x16.png',
