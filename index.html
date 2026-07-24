@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SILLEAU | Documente contabile transformate în consultanță premium. Automat</title>
+  <meta name="description" content="Documente contabile transformate în consultanță premium, automat. SILLEAU extrage indicatorii cheie și livrează analize în stilul unui CFO, fără muncă manuală din partea contabilului." />
+
+  <!-- Open Graph / share preview -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://silleau.com" />
+  <meta property="og:title" content="SILLEAU | Documente contabile transformate în consultanță premium. Automat" />
+  <meta property="og:description" content="SILLEAU extrage indicatorii cheie din documentele contabile și declarațiile ANAF și livrează analize în stilul unui CFO, automat — fără muncă manuală din partea contabilului." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="SILLEAU | Consultanță premium, automat" />
+  <meta name="twitter:description" content="Documente contabile transformate în consultanță premium, automat — analize în stilul unui CFO, fără muncă manuală." />
+
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <style>
+    :root{
+      --bg:#0a0a0a;
+      --fg:#e8e6e3;
+      --muted:#9aa4af;
+      --muted2:#7f8a96;
+      --line:#1a1f27;
+      --line2:rgba(232,230,227,.10);
+      --btn:#e8e6e3;
+      --btnText:#0a0a0a;
+      --font:'Times New Roman', Times, serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;font-family:var(--font)}
+    html{scroll-behavior:smooth}
+    body{
+      background:var(--bg);
+      color:var(--fg);
+      font-family:var(--font);
+      font-weight:400;
+      line-height:1.6;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    .container{width:90%;max-width:1100px;margin:0 auto}
+    header{padding:44px 0;display:flex;justify-content:space-between;align-items:center}
+    .logo{font-size:20px;font-weight:600;letter-spacing:3px}
+    .contact-link{color:var(--muted2);text-decoration:none;font-size:13px;letter-spacing:2px;font-weight:400}
+    .contact-link:hover{color:var(--fg)}
+    .section{padding:150px 0}
+    .kicker{
+      letter-spacing:4px;
+      font-size:11px;
+      color:var(--muted2);
+      text-transform:uppercase;
+      display:block;
+      margin-bottom:18px;
+      font-weight:500;
+    }
+
+    /* HERO */
+    .hero{padding:170px 0 170px;text-align:center}
+    .hero small{
+      letter-spacing:4px;
+      font-size:11px;
+      color:var(--muted2);
+      text-transform:uppercase;
+      font-weight:500;
+    }
+    .hero h1{
+      font-size:54px;
+      font-weight:500;
+      margin:28px 0 18px;
+      line-height:1.1;
+      letter-spacing:-0.5px;
+    }
+    .hero h1 .line{display:block}
+    .hero h1 .accent{color:var(--muted)}
+    em{font-style:normal;font-weight:inherit}
+    .divider{width:520px;max-width:80%;height:1px;background:var(--line2);margin:24px auto}
+    .hero p{
+      color:var(--muted);
+      max-width:680px;
+      margin:0 auto 40px;
+      font-size:16px;
+      font-weight:400;
+    }
+    .btn{
+      display:inline-block;
+      padding:14px 34px;
+      border:1px solid rgba(232,230,227,.35);
+      text-decoration:none;
+      color:var(--fg);
+      letter-spacing:2px;
+      font-size:12px;
+      font-weight:500;
+      transition:all .25s ease;
+      text-transform:uppercase;
+    }
+    .btn:hover{background:var(--btn);color:var(--btnText)}
+    .btn:active{transform:translateY(1px)}
+
+    /* FRAMEWORK title block */
+    .title-block{max-width:980px;margin:0 auto}
+    .title-block h2{
+      font-size:42px;
+      line-height:1.1;
+      font-weight:500;
+      margin-top:10px;
+      letter-spacing:-0.4px;
+    }
+    .title-block h2 .line{display:block}
+    .title-underline{
+      width:70px;height:1px;background:rgba(232,230,227,.18);
+      margin-top:18px;
+    }
+
+    /* 4 pillars grid with cross axis */
+    .pillars-wrap{margin-top:80px;position:relative}
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:0;
+      position:relative;
+      border-top:1px solid transparent;
+    }
+    .grid:before{
+      content:"";
+      position:absolute;
+      left:50%;
+      top:0;
+      bottom:0;
+      width:1px;
+      background:rgba(232,230,227,.10);
+      transform:translateX(-.5px);
+    }
+    .grid:after{
+      content:"";
+      position:absolute;
+      top:50%;
+      left:0;
+      right:0;
+      height:1px;
+      background:rgba(232,230,227,.10);
+      transform:translateY(-.5px);
+    }
+
+    .cell{
+      padding:62px 60px;
+      min-height:220px;
+    }
+    .num{
+      font-size:42px;
+      font-weight:300;
+      color:rgba(232,230,227,.14);
+      letter-spacing:1px;
+      margin-bottom:18px;
+    }
+    .cell h3{
+      font-size:20px;
+      font-weight:500;
+      margin-bottom:12px;
+      letter-spacing:-0.2px;
+    }
+    .cell p{
+      color:var(--muted);
+      font-size:14px;
+      max-width:420px;
+      font-weight:400;
+    }
+
+    /* STORY */
+    .story{padding-top:170px;padding-bottom:170px}
+    .story .story-inner{max-width:860px;margin:0 auto}
+    .story h2{
+      font-size:42px;
+      font-weight:500;
+      margin-top:10px;
+      margin-bottom:26px;
+      letter-spacing:-0.4px;
+    }
+    .story p{
+      color:var(--muted);
+      margin-bottom:18px;
+      font-size:15.5px;
+      line-height:1.75;
+      font-weight:400;
+    }
+    .story p strong{color:var(--fg);font-weight:600}
+
+    .metrics{
+      display:flex;
+      justify-content:center;
+      gap:90px;
+      margin-top:70px;
+      padding-top:48px;
+      border-top:1px solid rgba(232,230,227,.10);
+    }
+    .metric{text-align:center;min-width:160px}
+    .metric h3{
+      font-size:30px;
+      font-weight:500;
+      margin-bottom:8px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      letter-spacing:-0.5px;
+    }
+    .metric h3 svg{
+      transform:translateY(1px);
+      opacity:.85;
+    }
+    .metric p{
+      margin:0;
+      color:rgba(154,164,175,.75);
+      text-transform:uppercase;
+      letter-spacing:2.6px;
+      font-size:10.5px;
+      font-weight:500;
+    }
+
+    /* EXAMPLE REPORT */
+    .example .title-block{text-align:left}
+    .example-lead{
+      color:var(--muted);
+      max-width:680px;
+      margin:26px 0 40px;
+      font-size:15.5px;
+      font-weight:400;
+    }
+    details.report{max-width:840px;margin:0 auto}
+    details.report summary{
+      list-style:none;
+      cursor:pointer;
+      display:inline-block;
+      -webkit-user-select:none;
+      user-select:none;
+    }
+    details.report summary::-webkit-details-marker{display:none}
+    .report-btn .plus{
+      display:inline-block;
+      margin-left:12px;
+      transition:transform .25s ease;
+    }
+    details.report[open] .report-btn .plus{transform:rotate(45deg)}
+    .report-body{
+      margin-top:44px;
+      border:1px solid var(--line2);
+      padding:48px 50px;
+      background:rgba(232,230,227,.015);
+      animation:reportfade .45s ease;
+    }
+    @keyframes reportfade{
+      from{opacity:0;transform:translateY(10px)}
+      to{opacity:1;transform:none}
+    }
+    .report-meta{
+      font-size:11px;
+      letter-spacing:2.5px;
+      text-transform:uppercase;
+      color:var(--muted2);
+      margin-bottom:26px;
+      font-weight:500;
+    }
+    .report-body p{
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.75;
+      margin-bottom:16px;
+      font-weight:400;
+    }
+    .report-body h4{
+      font-size:12px;
+      letter-spacing:2.5px;
+      text-transform:uppercase;
+      color:var(--fg);
+      margin:34px 0 14px;
+      font-weight:600;
+    }
+    .fin-rows{margin:4px 0 8px;border-top:1px solid var(--line2)}
+    .fin-row{
+      display:flex;
+      justify-content:space-between;
+      gap:24px;
+      padding:11px 0;
+      border-bottom:1px solid var(--line2);
+      font-size:14.5px;
+    }
+    .fin-row span:first-child{color:var(--muted)}
+    .fin-row span:last-child{
+      color:var(--fg);
+      font-variant-numeric:tabular-nums;
+      white-space:nowrap;
+    }
+    .report-body ol{margin:6px 0 0 18px;color:var(--muted);font-size:15px;line-height:1.75}
+    .report-body ol li{margin-bottom:16px;padding-left:6px}
+    .report-body ul{list-style:none;margin:6px 0}
+    .report-body ul li{
+      padding:13px 0 13px 20px;
+      border-bottom:1px solid var(--line2);
+      position:relative;
+      font-size:14.5px;
+      color:var(--muted);
+      line-height:1.7;
+    }
+    .report-body ul li:before{
+      content:"";
+      position:absolute;
+      left:0;
+      top:22px;
+      width:8px;
+      height:1px;
+      background:var(--muted2);
+    }
+    .report-body strong{color:var(--fg);font-weight:600}
+    .report-note{
+      font-size:12px;
+      color:var(--muted2);
+      margin-top:28px;
+    }
+
+    /* CTA */
+    .cta{
+      text-align:center;
+      padding:170px 0 160px;
+      border-top:1px solid var(--line);
+    }
+    .cta small{
+      letter-spacing:4px;
+      font-size:11px;
+      color:var(--muted2);
+      text-transform:uppercase;
+      display:block;
+      margin-bottom:18px;
+      font-weight:500;
+    }
+    .cta h2{
+      font-size:50px;
+      font-weight:500;
+      line-height:1.1;
+      margin-bottom:18px;
+      letter-spacing:-0.5px;
+    }
+    .cta h2 .line{display:block}
+    .cta p{color:var(--muted);margin-bottom:34px;font-weight:400}
+
+    footer{
+      padding:44px 0;
+      text-align:center;
+      font-size:13px;
+      color:#666;
+      border-top:1px solid var(--line);
+      font-weight:400;
+    }
+
+    /* Responsive */
+    #framework-anchor{
+      position: relative;
+      top: -60px;
+    }
+
+    @media (max-width: 980px){
+      .hero{padding:140px 0 140px}
+      .hero h1{font-size:44px}
+      .title-block h2{font-size:36px}
+      .story h2{font-size:36px}
+      .cta h2{font-size:42px}
+      .cell{padding:52px 36px}
+      .metrics{gap:50px}
+    }
+    @media (max-width: 740px){
+      .grid{grid-template-columns:1fr}
+      .grid:before,.grid:after{display:none}
+      .cell{padding:34px 10px}
+      .num{font-size:36px}
+      .hero h1{font-size:36px}
+      .title-block h2{font-size:32px}
+      .story h2{font-size:32px}
+      .cta h2{font-size:36px}
+      .metrics{flex-direction:column;gap:34px}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">SILLEAU</div>
+      <a href="#contact" class="contact-link">CONTACT</a>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero" id="top">
+      <small>CONSULTANȚĂ PREMIUM AUTOMATĂ</small>
+
+      <h1>
+        <span class="line">Documente contabile transformate</span>
+        <span class="line">în consultanță premium.</span>
+        <span class="line accent">Automat.</span>
+      </h1>
+
+      <div class="divider"></div>
+
+      <p>
+        SILLEAU preia fișiere exportate (balanțe și jurnale) din softul tău de
+        contabilitate, dar și declarații PDF pentru ANAF. Extrage indicatorii
+        cheie și livrează analize în stilul unui CFO, fără muncă manuală din
+        partea contabilului.
+      </p>
+
+      <a class="btn" href="#framework-anchor">DESCOPERĂ CUM FUNCȚIONEAZĂ</a>
+    </section>
+
+    <!-- FRAMEWORK -->
+    <section class="section">
+      <div id="framework-anchor"></div>
+      <div class="title-block">
+        <span class="kicker">FRAMEWORK</span>
+        <h2>
+          <span class="line">De la document contabil</span>
+          <span class="line">la consultanță premium</span>
+        </h2>
+        <div class="title-underline"></div>
+      </div>
+
+      <div class="pillars-wrap">
+        <div class="grid" aria-label="Cei patru pași">
+          <div class="cell">
+            <div class="num">01</div>
+            <h3>Preluare directă a documentelor</h3>
+            <p>
+              Încarci fișierele Excel exportate din softul de contabilitate
+              (balanțe și jurnale), dar și declarațiile PDF pentru ANAF. Agentul
+              citește instant conturile, soldurile și mișcările — fără ca cineva
+              să retasteze sau să copieze nimic.
+            </p>
+          </div>
+
+          <div class="cell">
+            <div class="num">02</div>
+            <h3>Extragerea indicatorilor cheie</h3>
+            <p>
+              SILLEAU identifică automat marjele, lichiditatea, evoluțiile
+              lunare și semnalele de risc din fiecare set de date — indicatorii
+              pe care un CFO i-ar căuta primii.
+            </p>
+          </div>
+
+          <div class="cell">
+            <div class="num">03</div>
+            <h3>Analiză în stilul unui CFO</h3>
+            <p>
+              Pe baza indicatorilor, agentul formulează interpretări și
+              recomandări inteligente, în limbaj clar de business — nu doar
+              cifre, ci ce înseamnă ele pentru firma clientului.
+            </p>
+          </div>
+
+          <div class="cell">
+            <div class="num">04</div>
+            <h3>Consultanță livrată automat</h3>
+            <p>
+              Fiecare client primește un raport cu valoare reală de consultanță.
+              Ce ar fi cerut ore întregi unui expert, se livrează acum automat.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STORY -->
+    <section class="section story" id="poveste">
+      <div class="story-inner">
+        <span class="kicker">POVESTEA</span>
+        <h2>De ce SILLEAU</h2>
+
+        <p>
+          O firmă de contabilitate care prestează pentru 30+ clienți stă pe un
+          munte de date valoroase. Dar clientul nu primește decât cifre seci pe
+          mail. Valoarea reală — interpretarea, semnalele de risc, sfatul de
+          business — rămâne blocată, pentru că nimeni nu are timp să o scrie
+          pentru zeci de clienți în fiecare lună.
+        </p>
+
+        <p>
+          <strong>SILLEAU</strong> s-a născut din convingerea că fiecare
+          balanță și fiecare jurnal poate deveni consultanță premium — o analiză
+          în stilul unui director financiar, produsă automat, fără ca expertul
+          contabil să miște un deget în plus.
+        </p>
+
+        <p>
+          Rezultatul? Clientul primește nu doar rapoarte, ci consultanță reală.
+          Firma își crește valoarea percepută și poate servi mai mulți clienți
+          cu aceeași echipă — fără să angajeze un CFO pentru fiecare dintre ei.
+        </p>
+
+        <div class="metrics">
+
+          <div class="metric">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v12" stroke="rgba(232,230,227,.7)" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M8 14l4 4 4-4" stroke="rgba(232,230,227,.7)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              80%
+            </h3>
+            <p>Timp petrecut pentru „cum stă firma ta”</p>
+          </div>
+
+          <div class="metric">
+            <h3>30+</h3>
+            <p>CLIENȚI, ACEEAȘI ECHIPĂ</p>
+          </div>
+
+          <div class="metric">
+            <h3>0</h3>
+            <p>EFORT MANUAL</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- EXAMPLE REPORT -->
+    <section class="section example" id="exemplu">
+      <div class="title-block">
+        <span class="kicker">EXEMPLU REAL</span>
+        <h2>
+          <span class="line">Cum arată consultanța</span>
+          <span class="line">livrată de SILLEAU</span>
+        </h2>
+        <div class="title-underline"></div>
+      </div>
+
+      <p class="example-lead">
+        Nu un rezumat de cifre, ci o analiză completă: risc, prioritizare și
+        acțiuni concrete — exact ce ar scrie un director financiar. Mai jos,
+        un raport real generat automat de SILLEAU.
+      </p>
+
+      <details class="report">
+        <summary class="btn report-btn">
+          VEZI UN RAPORT COMPLET <span class="plus">+</span>
+        </summary>
+
+        <div class="report-body">
+          <div class="report-meta">Raport financiar — generat automat de SILLEAU</div>
+
+          <p>
+            Bună ziua, către asociat,<br/>
+            Vă transmit situația financiară a firmei <strong>Alpha Soft SRL</strong>.
+          </p>
+
+          <h4>Situația financiară</h4>
+          <div class="fin-rows">
+            <div class="fin-row"><span>Disponibil în bancă</span><span>107.642,19 lei</span></div>
+            <div class="fin-row"><span>Disponibil în casă</span><span>414,38 lei</span></div>
+            <div class="fin-row"><span>Clienți de încasat</span><span>84.231,59 lei</span></div>
+            <div class="fin-row"><span>Dividende brute</span><span>124.793,14 lei</span></div>
+            <div class="fin-row"><span>Dividende nete</span><span>104.826,24 lei</span></div>
+            <div class="fin-row"><span>Sponsorizări</span><span>nu e cazul</span></div>
+          </div>
+
+          <h4>Diagnostic</h4>
+          <p>
+            Ai <strong>84.231,59 lei</strong> la clienți care nu au intrat în cont,
+            iar câțiva dintre ei întârzie de luni bune fără să fi plătit niciun leu
+            — e cel mai mare risc al lunii. Banii din cont (107.642,19 lei în bancă
+            + 414,38 lei în casă = <strong>108.056,57 lei</strong>) nu acoperă în
+            totalitate dividendele deja repartizate de 124.793,14 lei brut: lipsesc
+            <strong>16.736,57 lei</strong> față de ce ai de plătit efectiv (și netul,
+            și impozitul aferent).
+          </p>
+
+          <h4>Cifrele cheie</h4>
+          <ul>
+            <li>
+              <strong>Regia de apă-canal — Localitatea A</strong>: 6.880,00 lei
+              restanți de 106 zile, fără niciun leu încasat din factură; cel mai
+              vechi debitor al tău și cu zero mișcare de la ei.
+            </li>
+            <li>
+              <strong>Operator apă — Localitatea B</strong>: 12.810,00 lei restanți
+              de 78 zile (au plătit 4.270,00 lei din 17.080,00 lei facturat, dar
+              s-au oprit); e cel mai mare sold restant individual.
+            </li>
+            <li>
+              Dividendele de 124.793,14 lei brut sunt deja înregistrate ca datorie
+              față de tine (ca asociat) — nu sunt o intenție, sunt o obligație fermă.
+              Cum banii disponibili (108.056,57 lei) nu ajung să le acopere integral,
+              nu poți plăti totul dintr-o dată fără să lași firma cu contul gol.
+              Capitalurile proprii (423.140,40 lei) acoperă cu mult capitalul social
+              subscris (200,00 lei), deci distribuirea e perfect legală — problema e
+              strict de bani disponibili în cont acum, nu de legalitate.
+            </li>
+          </ul>
+
+          <h4>Acțiuni</h4>
+          <ol>
+            <li>
+              Trimite azi sau mâine un avertisment ferm de plată către
+              <strong>Regia de apă-canal — Localitatea A</strong> (6.880,00 lei,
+              106 zile, zero încasări) și cere răspuns în maximum 2 zile. Dacă nu
+              reacționează, aplică penalități de întârziere și oprește orice
+              prestație viitoare până la regularizare.
+            </li>
+            <li>
+              Trimite un avertisment similar către <strong>Operator apă —
+              Localitatea B</strong> (12.810,00 lei, 78 zile) și către
+              <strong>Serviciul apă-canal — Localitatea C</strong> (6.040,00 lei,
+              78 zile, zero încasări) — termen de răspuns 2 zile; dacă nu vin cu un
+              plan de plată, aplică penalități. Recuperarea acestor sume e cea mai
+              directă cale să acoperi decalajul la dividende.
+            </li>
+            <li>
+              Pentru dividende, nu vira suma integral acum — corelează plata cu
+              încasările: virează prima tranșă după ce intră bani de la debitorii de
+              mai sus și lasă o parte ca dividende de plată (datorie față de tine, în
+              contul 457) până când disponibilul se reface. Altfel riști să lași
+              firma fără bani în cont pentru cheltuielile curente.
+            </li>
+          </ol>
+
+          <p class="report-note">
+            Date anonimizate dintr-o implementare reală SILLEAU. Cifrele sunt
+            reale; denumirile firmei și ale debitorilor au fost schimbate.
+          </p>
+        </div>
+      </details>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta" id="contact">
+      <small>URMĂTORUL PAS</small>
+      <h2>
+        <span class="line">Hai să vorbim despre</span>
+        <span class="line">firma ta de contabilitate</span>
+      </h2>
+
+      <p>
+        Fiecare implementare SILLEAU este construită pe șabloanele și fluxul
+        firmei tale.<br/>
+        Programează o discuție de analiză, fără obligații.
+      </p>
+
+      <a class="btn" href="mailto:contact@silleau.com">PROGRAMEAZĂ O DISCUȚIE</a>
+    </section>
+
+    <footer>
+      © 2026 SILLEAU — Documente contabile transformate în consultanță premium. Automat.
+    </footer>
+  </div>
+</body>
+</html>
